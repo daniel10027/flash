@@ -117,17 +117,20 @@ Le crédit va sur `MERCHANT_PAYABLE` (dette Flash → marchand), soldé par
 
 ### CashOrder  *(dépôt ou retrait)*
 `id`, `type` (`DEPOSIT | WITHDRAWAL`), `client_id`, `agent_id?`, `amount`, `fee`
-(retrait uniquement), `agent_commission`, `status`, `withdrawal_code?`, `expires_at?`,
-`ledger_transaction_id?`.
+(retrait uniquement), `currency_code`, `status`, `code_hash?` (SHA-256 poivré du code de
+retrait — jamais le code en clair), `expires_at?`, `ledger_transaction_id?`.
 
-Retrait — machine à états : `INITIATED` (réserve `amount+fee` sur le wallet, code émis)
-→ `CONFIRMED` (agent saisit le code : débit client, crédit `AGENT_FLOAT`, frais →
-`FLASH_FEE_INCOME`, commission → `AGENT_COMMISSION_EXPENSE`) ou `EXPIRED`/`CANCELLED`
-(réserve libérée). Le code est à **usage unique**, essais de saisie limités.
+Retrait — machine à états : `INITIATED` (réserve `amount+fee` sur le wallet, code émis
+et affiché **une seule fois** au client, TTL 15 min) → `CONFIRMED` (l'agent saisit le
+code : `settle_reservation`, crédit `AGENT_FLOAT`, frais → `FLASH_FEE_INCOME`, commission
+agent → `AGENT_COMMISSION_EXPENSE` payée par Flash) ou `EXPIRED` / `CANCELLED` (réserve
+libérée). Code à **usage unique** (index unique partiel sur `code_hash` où
+`status = INITIATED`), comparaison en temps constant, `WithdrawalCodeInvalid` /
+`WithdrawalCodeExpired`.
 
-Dépôt : `INITIATED` (agent identifie le client) → `CONFIRMED` (débit `AGENT_FLOAT`,
-crédit wallet client, commission agent). Vérifie `agent.float.available >= amount` →
-`AgentFloatTooLow`. Vérifie `client_wallet.balance + amount <= balance_max(tier,pays)`.
+Dépôt : créé directement `CONFIRMED` en une opération agent (débit `AGENT_FLOAT`, crédit
+wallet client, commission agent). Vérifie `agent.float_available >= amount` →
+`AgentFloatTooLow`, KYC + limites + `client_wallet.balance + amount <= balance_max`.
 
 Événements : `CashDepositCompleted`, `CashWithdrawalInitiated`, `CashWithdrawalConfirmed`,
 `CashWithdrawalExpired`, `CashWithdrawalCancelled`.
@@ -164,9 +167,14 @@ Invariants : opérations refusées si `status != ACTIVE`, hors plafonds, ou cana
 `CardAuthorized`, `CardCaptured`, `CardRefunded`, `CardLimitReached`.
 
 ### Agent
-`id`, `user_id`, `float: Wallet‑like` (compte `AGENT_FLOAT`), `commission_schedule`,
-`caps` (par opération / jour), `parent_agent_id?`, `status`.
-Événements : `AgentFloatToppedUp`, `AgentCommissionAccrued`, `AgentCommissionPaidOut`.
+`id`, `user_id`, `currency`, `float_available` (projection du compte `AGENT_FLOAT`),
+`float_cap`, `commission_bps` (≤ 2000), `status` (`ACTIVE | SUSPENDED`), `created_at`.
+`disburse_float` (dépôt : float ↓, `AgentFloatTooLow` si insuffisant),
+`collect_float` (retrait : float ↑, `AgentFloatTooLow` si > `float_cap`),
+`commission_for` (arrondi plancher). Approvisionnement initial via
+`LedgerTransaction.agent_float_topup` (débit `BANK_SETTLEMENT`, crédit `AGENT_FLOAT`).
+Événements : `AgentEnrolled`, `AgentFloatDisbursed`, `AgentFloatCollected`,
+`AgentCommissionAccrued`, `AgentSuspended`.
 
 ### Merchant
 `id`, `user_id`, `category`, `pricing` (grille propre), `settlement_account`,

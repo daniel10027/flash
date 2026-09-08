@@ -21,6 +21,8 @@ from flash.domain.shared.events import DomainEvent, EventRecorder
 from flash.domain.shared.ports import Clock
 from flash.infrastructure.db.models import OutboxModel
 from flash.infrastructure.db.repositories import (
+    SqlAlchemyAgentRepository,
+    SqlAlchemyCashOrderRepository,
     SqlAlchemyLedgerRepository,
     SqlAlchemyUserRepository,
     SqlAlchemyWalletRepository,
@@ -46,6 +48,8 @@ class SqlAlchemyUnitOfWork:
         self.users = SqlAlchemyUserRepository(self._session, self)
         self.wallets = SqlAlchemyWalletRepository(self._session, self)
         self.ledger = SqlAlchemyLedgerRepository(self._session)
+        self.agents = SqlAlchemyAgentRepository(self._session, self)
+        self.cash_orders = SqlAlchemyCashOrderRepository(self._session, self)
         return self
 
     def __exit__(self, exc_type: object, exc: object, tb: object) -> None:

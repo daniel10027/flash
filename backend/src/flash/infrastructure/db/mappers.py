@@ -9,6 +9,8 @@ from __future__ import annotations
 
 from uuid import NAMESPACE_URL, uuid5
 
+from flash.domain.agent.agent import Agent, AgentStatus
+from flash.domain.cash.order import CashOrder, CashOrderStatus, CashOrderType
 from flash.domain.identity.kyc import KycTier
 from flash.domain.identity.user import PhoneNumber, User, UserStatus
 from flash.domain.ledger.chart import Direction
@@ -17,6 +19,8 @@ from flash.domain.shared.identifiers import CountryCode, EntityId, Msisdn
 from flash.domain.shared.money import Currency, Money
 from flash.domain.wallet.wallet import Wallet, WalletStatus
 from flash.infrastructure.db.models import (
+    AgentModel,
+    CashOrderModel,
     LedgerPostingModel,
     LedgerTransactionModel,
     PhoneNumberModel,
@@ -156,7 +160,83 @@ def ledger_transaction_to_domain(model: LedgerTransactionModel) -> LedgerTransac
     )
 
 
+# ------------------------------------------------------------------------ agent
+
+
+def agent_to_domain(model: AgentModel) -> Agent:
+    currency = Currency.of(model.currency)
+    return Agent(
+        id=EntityId(model.id),
+        user_id=EntityId(model.user_id),
+        currency=currency,
+        float_available=Money(model.float_available_minor, currency),
+        float_cap=Money(model.float_cap_minor, currency),
+        commission_bps=model.commission_bps,
+        created_at=model.created_at,
+        status=AgentStatus(model.status),
+    )
+
+
+def agent_to_model(agent: Agent) -> AgentModel:
+    return AgentModel(
+        id=str(agent.id),
+        user_id=str(agent.user_id),
+        currency=agent.currency.code,
+        float_available_minor=agent.float_available.amount_minor,
+        float_cap_minor=agent.float_cap.amount_minor,
+        commission_bps=agent.commission_bps,
+        status=agent.status.value,
+        created_at=agent.created_at,
+    )
+
+
+# ------------------------------------------------------------------- ordre cash
+
+
+def cash_order_to_domain(model: CashOrderModel) -> CashOrder:
+    currency = Currency.of(model.currency)
+    return CashOrder(
+        id=EntityId(model.id),
+        type=CashOrderType(model.type),
+        client_id=EntityId(model.client_id),
+        amount=Money(model.amount_minor, currency),
+        fee=Money(model.fee_minor, currency),
+        currency_code=model.currency,
+        status=CashOrderStatus(model.status),
+        created_at=model.created_at,
+        agent_id=EntityId(model.agent_id) if model.agent_id else None,
+        code_hash=model.code_hash,
+        expires_at=model.expires_at,
+        ledger_transaction_id=(
+            EntityId(model.ledger_transaction_id) if model.ledger_transaction_id else None
+        ),
+    )
+
+
+def cash_order_to_model(order: CashOrder) -> CashOrderModel:
+    return CashOrderModel(
+        id=str(order.id),
+        type=order.type.value,
+        client_id=str(order.client_id),
+        agent_id=str(order.agent_id) if order.agent_id else None,
+        amount_minor=order.amount.amount_minor,
+        fee_minor=order.fee.amount_minor,
+        currency=order.currency_code,
+        status=order.status.value,
+        code_hash=order.code_hash,
+        expires_at=order.expires_at,
+        ledger_transaction_id=(
+            str(order.ledger_transaction_id) if order.ledger_transaction_id else None
+        ),
+        created_at=order.created_at,
+    )
+
+
 __all__ = [
+    "agent_to_domain",
+    "agent_to_model",
+    "cash_order_to_domain",
+    "cash_order_to_model",
     "ledger_transaction_to_domain",
     "ledger_transaction_to_model",
     "user_to_domain",

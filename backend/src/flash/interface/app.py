@@ -21,6 +21,7 @@ from flash.infrastructure.config import Settings, get_settings
 from flash.interface.container import Deps, build_deps, register_deps
 from flash.interface.errors import status_for, to_payload
 from flash.interface.http import auth as auth_routes
+from flash.interface.http import cash as cash_routes
 from flash.interface.http import phones as phones_routes
 from flash.interface.http import statement as statement_routes
 from flash.interface.http import transfers as transfers_routes
@@ -65,6 +66,8 @@ def create_app(
     app.register_blueprint(wallets_routes.bp)
     app.register_blueprint(transfers_routes.bp)
     app.register_blueprint(statement_routes.bp)
+    app.register_blueprint(cash_routes.withdrawals_bp)
+    app.register_blueprint(cash_routes.agent_bp)
     return app
 
 

@@ -9,6 +9,8 @@ from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
 
+from flash.domain.agent.ports import AgentRepository
+from flash.domain.cash.ports import CashOrderRepository
 from flash.domain.identity.ports import UserRepository
 from flash.domain.ledger.ports import LedgerRepository
 from flash.domain.shared.events import DomainEvent
@@ -27,6 +29,12 @@ class WorkUnitOfWork(Protocol):
 
     @property
     def ledger(self) -> LedgerRepository: ...
+
+    @property
+    def agents(self) -> AgentRepository: ...
+
+    @property
+    def cash_orders(self) -> CashOrderRepository: ...
 
     def __enter__(self) -> WorkUnitOfWork: ...
 

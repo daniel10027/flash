@@ -72,5 +72,49 @@ def openapi_dump(output: str) -> None:
     click.echo(f"OpenAPI écrit dans {dump_spec(output)}")
 
 
+@main.group()
+def agent() -> None:
+    """Gestion des agents cash."""
+
+
+@agent.command("enroll")
+@click.argument("phone_number")
+@click.option("--country", default="CI")
+@click.option("--float-cap", "float_cap", type=int, required=True, help="Plafond de float (XOF).")
+@click.option("--initial-float", "initial_float", type=int, default=0)
+@click.option("--commission-bps", "commission_bps", type=int, default=100)
+def agent_enroll(
+    phone_number: str,
+    country: str,
+    float_cap: int,
+    initial_float: int,
+    commission_bps: int,
+) -> None:
+    """Fait d'un compte existant un agent cash."""
+    from flash.application.cash.operations import EnrollAgent, EnrollAgentCommand
+    from flash.domain.shared.identifiers import CountryCode, Msisdn
+    from flash.infrastructure.config import get_settings
+    from flash.interface.container import build_app_services
+
+    settings = get_settings()
+    services = build_app_services(settings)
+    msisdn = Msisdn.parse(phone_number, default_country=CountryCode(country.upper()))
+    with services.uow() as uow:
+        user = uow.users.get_by_msisdn(msisdn)
+        if user is None:
+            raise click.ClickException(f"Aucun compte pour {msisdn.masked()}.")
+        user_id = str(user.id)
+
+    view = EnrollAgent(services=services).execute(
+        EnrollAgentCommand(
+            user_id=user_id,
+            float_cap_minor=float_cap,
+            initial_float_minor=initial_float,
+            commission_bps=commission_bps,
+        )
+    )
+    click.echo(f"Agent {view.agent_id} — float {view.float_available_minor}/{view.float_cap_minor}")
+
+
 if __name__ == "__main__":
     main()

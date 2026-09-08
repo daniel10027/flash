@@ -12,6 +12,8 @@ from typing import Protocol
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from flash.domain.agent.agent import Agent
+from flash.domain.cash.order import CashOrder
 from flash.domain.identity.user import User
 from flash.domain.ledger.chart import AccountType
 from flash.domain.ledger.transaction import LedgerTransaction
@@ -22,6 +24,8 @@ from flash.domain.shared.money import Currency
 from flash.domain.wallet.wallet import Wallet
 from flash.infrastructure.db import mappers
 from flash.infrastructure.db.models import (
+    AgentModel,
+    CashOrderModel,
     LedgerAccountModel,
     LedgerPostingModel,
     LedgerTransactionModel,
@@ -190,11 +194,85 @@ class SqlAlchemyLedgerRepository:
         return new_id
 
 
+class SqlAlchemyAgentRepository:
+    def __init__(self, session: Session, tracker: _AggregateTracker) -> None:
+        self._session = session
+        self._tracker = tracker
+
+    def _load(self, model: AgentModel | None) -> Agent | None:
+        if model is None:
+            return None
+        agent = mappers.agent_to_domain(model)
+        self._tracker.track(agent)
+        return agent
+
+    def get(self, agent_id: EntityId) -> Agent | None:
+        return self._load(self._session.get(AgentModel, str(agent_id)))
+
+    def get_by_user_id(self, user_id: EntityId) -> Agent | None:
+        stmt = select(AgentModel).where(AgentModel.user_id == str(user_id))
+        return self._load(self._session.scalars(stmt).first())
+
+    def get_for_update(self, agent_id: EntityId) -> Agent:
+        stmt = select(AgentModel).where(AgentModel.id == str(agent_id)).with_for_update()
+        model = self._session.scalars(stmt).first()
+        if model is None:
+            raise KeyError(agent_id)
+        loaded = self._load(model)
+        assert loaded is not None
+        return loaded
+
+    def add(self, agent: Agent) -> None:
+        self._session.add(mappers.agent_to_model(agent))
+        self._tracker.track(agent)
+
+    def save(self, agent: Agent) -> None:
+        self._session.merge(mappers.agent_to_model(agent))
+        self._tracker.track(agent)
+
+
+class SqlAlchemyCashOrderRepository:
+    def __init__(self, session: Session, tracker: _AggregateTracker) -> None:
+        self._session = session
+        self._tracker = tracker
+
+    def _load(self, model: CashOrderModel | None) -> CashOrder | None:
+        if model is None:
+            return None
+        order = mappers.cash_order_to_domain(model)
+        self._tracker.track(order)
+        return order
+
+    def get(self, order_id: EntityId) -> CashOrder | None:
+        return self._load(self._session.get(CashOrderModel, str(order_id)))
+
+    def get_pending_withdrawal_by_code_hash(self, code_hash: str) -> CashOrder | None:
+        stmt = (
+            select(CashOrderModel)
+            .where(
+                CashOrderModel.code_hash == code_hash,
+                CashOrderModel.status == "INITIATED",
+            )
+            .with_for_update()
+        )
+        return self._load(self._session.scalars(stmt).first())
+
+    def add(self, order: CashOrder) -> None:
+        self._session.add(mappers.cash_order_to_model(order))
+        self._tracker.track(order)
+
+    def save(self, order: CashOrder) -> None:
+        self._session.merge(mappers.cash_order_to_model(order))
+        self._tracker.track(order)
+
+
 def _new_account_id() -> EntityId:
     return EntityId(str(uuid7()))
 
 
 __all__ = [
+    "SqlAlchemyAgentRepository",
+    "SqlAlchemyCashOrderRepository",
     "SqlAlchemyLedgerRepository",
     "SqlAlchemyUserRepository",
     "SqlAlchemyWalletRepository",

@@ -30,12 +30,20 @@ _TIER_CAPS: dict[KycTier, tuple[int, int]] = {
 }
 
 
+_OPERATIONS = (
+    OperationType.TRANSFER,
+    OperationType.MERCHANT_PAYMENT,
+    OperationType.CASH_DEPOSIT,
+    OperationType.CASH_WITHDRAWAL,
+)
+
+
 def _default_rules() -> list[LimitRule]:
     rules: list[LimitRule] = []
     for code in _XOF_COUNTRIES:
         country = CountryCode(code)
         for tier, (per_tx, balance_max) in _TIER_CAPS.items():
-            for operation in (OperationType.TRANSFER, OperationType.MERCHANT_PAYMENT):
+            for operation in _OPERATIONS:
                 rules.append(
                     LimitRule(
                         country=country,

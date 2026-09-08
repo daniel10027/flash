@@ -376,6 +376,31 @@ class LedgerTransaction:
         )
 
     @staticmethod
+    def agent_float_topup(
+        *,
+        id: EntityId,
+        occurred_at: datetime,
+        reference: str,
+        bank_settlement_account_id: EntityId,
+        agent_float_account_id: EntityId,
+        amount: Money,
+        metadata: Mapping[str, Any] | None = None,
+    ) -> LedgerTransaction:
+        """L'agent achète de l'e-money : trésorerie Flash ↑, float de l'agent ↑."""
+        return LedgerTransaction(
+            id=id,
+            kind=TransactionKind.AGENT_FLOAT_TOPUP,
+            postings=(
+                _debit(bank_settlement_account_id, amount),
+                _credit(agent_float_account_id, amount),
+            ),
+            occurred_at=occurred_at,
+            reference=reference,
+            reason="Approvisionnement du float agent",
+            metadata=metadata or {},
+        )
+
+    @staticmethod
     def interest(
         *,
         id: EntityId,

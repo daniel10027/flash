@@ -9,6 +9,8 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 
+from flash.domain.agent.agent import Agent
+from flash.domain.cash.order import CashOrder, CashOrderStatus, CashOrderType
 from flash.domain.identity.user import User
 from flash.domain.ledger.chart import AccountType
 from flash.domain.ledger.transaction import LedgerTransaction
@@ -161,6 +163,71 @@ class InMemoryLedgerRepository:
         return list(self._by_id.values())
 
 
+class InMemoryAgentRepository(_Tracking):
+    def __init__(self) -> None:
+        super().__init__()
+        self._by_id: dict[str, Agent] = {}
+
+    def get(self, agent_id: EntityId) -> Agent | None:
+        agent = self._by_id.get(str(agent_id))
+        if agent is not None:
+            self._track(agent)
+        return agent
+
+    def get_by_user_id(self, user_id: EntityId) -> Agent | None:
+        for agent in self._by_id.values():
+            if agent.user_id == user_id:
+                self._track(agent)
+                return agent
+        return None
+
+    def get_for_update(self, agent_id: EntityId) -> Agent:
+        agent = self._by_id.get(str(agent_id))
+        if agent is None:
+            raise KeyError(agent_id)
+        self._track(agent)
+        return agent
+
+    def add(self, agent: Agent) -> None:
+        self._by_id[str(agent.id)] = agent
+        self._track(agent)
+
+    def save(self, agent: Agent) -> None:
+        self._by_id[str(agent.id)] = agent
+        self._track(agent)
+
+
+class InMemoryCashOrderRepository(_Tracking):
+    def __init__(self) -> None:
+        super().__init__()
+        self._by_id: dict[str, CashOrder] = {}
+
+    def get(self, order_id: EntityId) -> CashOrder | None:
+        order = self._by_id.get(str(order_id))
+        if order is not None:
+            self._track(order)
+        return order
+
+    def get_pending_withdrawal_by_code_hash(self, code_hash: str) -> CashOrder | None:
+        for order in self._by_id.values():
+            if (
+                order.type is CashOrderType.WITHDRAWAL
+                and order.status is CashOrderStatus.INITIATED
+                and order.code_hash == code_hash
+            ):
+                self._track(order)
+                return order
+        return None
+
+    def add(self, order: CashOrder) -> None:
+        self._by_id[str(order.id)] = order
+        self._track(order)
+
+    def save(self, order: CashOrder) -> None:
+        self._by_id[str(order.id)] = order
+        self._track(order)
+
+
 class InMemoryUnitOfWork:
     """Frontière transactionnelle en mémoire."""
 
@@ -170,10 +237,14 @@ class InMemoryUnitOfWork:
         users: InMemoryUserRepository | None = None,
         wallets: InMemoryWalletRepository | None = None,
         ledger: InMemoryLedgerRepository | None = None,
+        agents: InMemoryAgentRepository | None = None,
+        cash_orders: InMemoryCashOrderRepository | None = None,
     ) -> None:
         self.users = users or InMemoryUserRepository()
         self.wallets = wallets or InMemoryWalletRepository()
         self.ledger = ledger or InMemoryLedgerRepository()
+        self.agents = agents or InMemoryAgentRepository()
+        self.cash_orders = cash_orders or InMemoryCashOrderRepository()
         self.committed = False
         self.rolled_back = False
         self._extra_events: list[DomainEvent] = []
@@ -198,7 +269,12 @@ class InMemoryUnitOfWork:
 
     def collect_new_events(self) -> list[DomainEvent]:
         events: list[DomainEvent] = []
-        for aggregate in (*self.users.seen, *self.wallets.seen):
+        for aggregate in (
+            *self.users.seen,
+            *self.wallets.seen,
+            *self.agents.seen,
+            *self.cash_orders.seen,
+        ):
             events.extend(aggregate.pull_events())
         events.extend(self._extra_events)
         self._extra_events = []
@@ -206,6 +282,8 @@ class InMemoryUnitOfWork:
 
 
 __all__ = [
+    "InMemoryAgentRepository",
+    "InMemoryCashOrderRepository",
     "InMemoryLedgerRepository",
     "InMemoryUnitOfWork",
     "InMemoryUserRepository",

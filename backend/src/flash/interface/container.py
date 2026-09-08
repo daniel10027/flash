@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from flask import Flask, current_app
 
 from flash.application.auth.tokens import TokenService
+from flash.application.cash.ports import WithdrawalCodes
 from flash.application.ports import OtpService
 from flash.application.services import AppServices
 from flash.domain.country.directory import CountryDirectory, StaticCountryDirectory
@@ -20,6 +21,7 @@ from flash.domain.pricing.pricing import PricingService
 from flash.infrastructure.cache.idempotency import RedisIdempotencyStore
 from flash.infrastructure.cache.redis import get_redis
 from flash.infrastructure.clock import SystemClock
+from flash.infrastructure.codes import PepperedWithdrawalCodes
 from flash.infrastructure.config import Settings
 from flash.infrastructure.db.engine import get_session_factory
 from flash.infrastructure.db.uow import SqlAlchemyUnitOfWork
@@ -43,20 +45,24 @@ class Deps:
     pricing: PricingService
     limits: LimitPolicy
     kyc: KycPolicy
+    codes: WithdrawalCodes
 
 
-def build_deps(settings: Settings, *, tokens: TokenService) -> Deps:
+def build_app_services(settings: Settings) -> AppServices:
     clock = SystemClock()
     session_factory = get_session_factory()
-    redis = get_redis()
-
-    services = AppServices(
+    return AppServices(
         uow=lambda: SqlAlchemyUnitOfWork(session_factory, clock),
         clock=clock,
         ids=Uuid7Generator(),
         events=LoggingEventPublisher(),
-        idempotency=RedisIdempotencyStore(redis),
+        idempotency=RedisIdempotencyStore(get_redis()),
     )
+
+
+def build_deps(settings: Settings, *, tokens: TokenService) -> Deps:
+    redis = get_redis()
+    services = build_app_services(settings)
     otp = RedisOtpService(
         redis,
         ConsoleOtpChannel(),
@@ -73,6 +79,7 @@ def build_deps(settings: Settings, *, tokens: TokenService) -> Deps:
         pricing=PricingService(build_pricing_repository()),
         limits=LimitPolicy(build_limit_repository(), NullLimitCounter()),
         kyc=KycPolicy(),
+        codes=PepperedWithdrawalCodes(settings.secret_key),
     )
 
 
@@ -87,4 +94,4 @@ def deps() -> Deps:
     return bundle
 
 
-__all__ = ["Deps", "build_deps", "deps", "register_deps"]
+__all__ = ["Deps", "build_app_services", "build_deps", "deps", "register_deps"]

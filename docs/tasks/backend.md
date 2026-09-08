@@ -85,14 +85,17 @@ Chaque tâche livrée : code complet + tests + doc, **zéro `TODO`**.
 - [ ] **BE-033** · `PresentMerchantQr` / `PayMerchant` : QR statique (id marchand) ou
   dynamique (montant, référence, expiration). Frais marchand selon `pricing_rules`.
   Règlement marchand différé via compte `bank_settlement`.
-- [ ] **BE-034** · `CreateCashDeposit` (agent) : agent encaisse le cash → débit
+- [x] **BE-034** · `CreateCashDeposit` (agent) : agent encaisse le cash → débit
   `agent_float`, crédit wallet client ; commission agent (`agent_commission_expense`).
-  Vérifie plafond float agent, KYC client, limites.
-- [ ] **BE-035** · `InitiateCashWithdrawal` (client) : génère un **code de retrait** à
-  usage unique + réserve le montant+frais sur le wallet. TTL configurable.
-- [ ] **BE-036** · `ConfirmCashWithdrawal` (agent saisit le code) : libère la réserve,
+  Vérifie plafond float agent, KYC client, limites. Agrégats `Agent` + `CashOrder`,
+  `EnrollAgent` + CLI `flash agent enroll`, `LedgerTransaction.agent_float_topup`.
+- [x] **BE-035** · `InitiateCashWithdrawal` (client) : génère un **code de retrait** à
+  usage unique (`PepperedWithdrawalCodes`, SHA-256 poivré) + réserve le montant+frais
+  sur le wallet. TTL 15 min. `POST /v1/withdrawals`, idempotent.
+- [x] **BE-036** · `ConfirmCashWithdrawal` (agent saisit le code) : libère la réserve,
   débit wallet client, crédit `agent_float`, frais → `flash_fee_income`, commission
-  agent. Idempotent. Expiration → `CancelCashWithdrawal` (rend la réserve).
+  agent. Idempotent. `POST /v1/agent/withdrawals/confirm`. Annulation →
+  `CancelCashWithdrawal` (`POST /v1/withdrawals/<id>/cancel`, rend la réserve).
 - [ ] **BE-037** · `CancelTransfer` / `RefundMerchantPayment` : `LedgerTransaction.reversal`
   (jamais de suppression), fenêtre et règles d'autorisation.
 - [x] **BE-038** · `ListStatement` : historique paginé (curseur), filtres (type, période,

@@ -1145,6 +1145,236 @@
           }
         ]
       }
+    },
+    "/v1/withdrawals": {
+      "post": {
+        "summary": "Générer un code de retrait cash (réserve les fonds)",
+        "tags": [
+          "cash"
+        ],
+        "responses": {
+          "201": {
+            "description": "Succès"
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "amount_minor": {
+                    "examples": [
+                      20000
+                    ],
+                    "exclusiveMinimum": 0,
+                    "title": "Amount Minor",
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "amount_minor"
+                ],
+                "title": "InitiateWithdrawalRequest",
+                "type": "object"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 255
+            }
+          }
+        ]
+      }
+    },
+    "/v1/withdrawals/{order_id}/cancel": {
+      "post": {
+        "summary": "Annuler un retrait en attente (rend les fonds réservés)",
+        "tags": [
+          "cash"
+        ],
+        "responses": {
+          "204": {
+            "description": "Succès"
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/v1/agent/deposits": {
+      "post": {
+        "summary": "Dépôt cash : l'agent crédite le portefeuille d'un client",
+        "tags": [
+          "cash"
+        ],
+        "responses": {
+          "201": {
+            "description": "Succès"
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "client_phone_number": {
+                    "maxLength": 24,
+                    "minLength": 6,
+                    "title": "Client Phone Number",
+                    "type": "string"
+                  },
+                  "amount_minor": {
+                    "examples": [
+                      50000
+                    ],
+                    "exclusiveMinimum": 0,
+                    "title": "Amount Minor",
+                    "type": "integer"
+                  },
+                  "country": {
+                    "anyOf": [
+                      {
+                        "maxLength": 2,
+                        "minLength": 2,
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "title": "Country"
+                  }
+                },
+                "required": [
+                  "client_phone_number",
+                  "amount_minor"
+                ],
+                "title": "AgentDepositRequest",
+                "type": "object"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 255
+            }
+          }
+        ]
+      }
+    },
+    "/v1/agent/withdrawals/confirm": {
+      "post": {
+        "summary": "Retrait cash : l'agent confirme avec le code du client",
+        "tags": [
+          "cash"
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès"
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "code": {
+                    "maxLength": 16,
+                    "minLength": 4,
+                    "title": "Code",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "code"
+                ],
+                "title": "ConfirmWithdrawalRequest",
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {

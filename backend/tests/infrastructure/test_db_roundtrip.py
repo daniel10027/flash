@@ -160,6 +160,76 @@ class TestLedgerAndWalletRoundtrip:
             uow.commit()
 
 
+class TestAgentAndCashOrderRoundtrip:
+    def test_agent_and_cash_order_persist_and_reload(
+        self, session_factory: sessionmaker[Session]
+    ) -> None:
+        from datetime import timedelta
+
+        from flash.domain.agent.agent import Agent, AgentStatus
+        from flash.domain.cash.order import CashOrder, CashOrderStatus
+
+        clock = FixedClock(T0)
+        client = _new_user("+2250700000021")
+        agent_user = _new_user("+2250700000029")
+        agent = Agent.enroll(
+            agent_id=EntityId(str(uuid7())),
+            user_id=agent_user.id,
+            currency=XOF,
+            float_cap=Money(1_000_000, XOF),
+            commission_bps=100,
+            now=T0,
+            initial_float=Money(200_000, XOF),
+        )
+        order = CashOrder.initiate_withdrawal(
+            order_id=EntityId(str(uuid7())),
+            client_id=client.id,
+            amount=Money(30_000, XOF),
+            fee=Money(0, XOF),
+            code_hash="deadbeef" * 8,
+            expires_at=T0 + timedelta(minutes=15),
+            now=T0,
+        )
+
+        with SqlAlchemyUnitOfWork(session_factory, clock) as uow:
+            uow.users.add(client)
+            uow.users.add(agent_user)
+            uow.commit()
+
+        with SqlAlchemyUnitOfWork(session_factory, clock) as uow:
+            uow.agents.add(agent)
+            uow.cash_orders.add(order)
+            uow.commit()
+
+        with SqlAlchemyUnitOfWork(session_factory, clock) as uow:
+            reloaded_agent = uow.agents.get_by_user_id(agent_user.id)
+            assert reloaded_agent is not None
+            assert reloaded_agent.float_available == Money(200_000, XOF)
+            assert reloaded_agent.status is AgentStatus.ACTIVE
+
+            pending = uow.cash_orders.get_pending_withdrawal_by_code_hash("deadbeef" * 8)
+            assert pending is not None
+            assert pending.status is CashOrderStatus.INITIATED
+            assert pending.amount == Money(30_000, XOF)
+
+            reloaded_agent.collect_float(Money(30_000, XOF), T0)
+            pending.confirm(
+                agent_id=reloaded_agent.id,
+                code_matches=True,
+                ledger_transaction_id=EntityId(str(uuid7())),
+                now=T0,
+            )
+            uow.agents.save(reloaded_agent)
+            uow.cash_orders.save(pending)
+            uow.commit()
+
+        with SqlAlchemyUnitOfWork(session_factory, clock) as uow:
+            assert uow.cash_orders.get_pending_withdrawal_by_code_hash("deadbeef" * 8) is None
+            final_agent = uow.agents.get(agent.id)
+            assert final_agent is not None
+            assert final_agent.float_available == Money(230_000, XOF)
+
+
 class TestUnitOfWork:
     def test_commit_writes_domain_events_to_outbox(
         self, session_factory: sessionmaker[Session], db_session: Session
