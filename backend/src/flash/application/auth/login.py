@@ -48,7 +48,7 @@ class Login(UseCase[LoginCommand, SessionTokens]):
             raise InvalidInput(str(exc)) from exc
 
         with self._services.uow() as uow:
-            user: User | None = uow.users.get_by_msisdn(msisdn)  # type: ignore[attr-defined]
+            user: User | None = uow.users.get_by_msisdn(msisdn)
 
         if user is None or not user.verify_pin(pin, self._pins):
             raise InvalidCredentials()

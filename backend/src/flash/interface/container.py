@@ -15,6 +15,8 @@ from flash.application.ports import OtpService
 from flash.application.services import AppServices
 from flash.domain.country.directory import CountryDirectory, StaticCountryDirectory
 from flash.domain.identity.pin import PinHasher
+from flash.domain.limits.limits import KycPolicy, LimitPolicy
+from flash.domain.pricing.pricing import PricingService
 from flash.infrastructure.cache.idempotency import RedisIdempotencyStore
 from flash.infrastructure.cache.redis import get_redis
 from flash.infrastructure.clock import SystemClock
@@ -23,7 +25,9 @@ from flash.infrastructure.db.engine import get_session_factory
 from flash.infrastructure.db.uow import SqlAlchemyUnitOfWork
 from flash.infrastructure.events import LoggingEventPublisher
 from flash.infrastructure.ids import Uuid7Generator
+from flash.infrastructure.limits import NullLimitCounter, build_limit_repository
 from flash.infrastructure.otp import ConsoleOtpChannel, RedisOtpService
+from flash.infrastructure.pricing import build_pricing_repository
 from flash.infrastructure.security.pin_hasher import Argon2PinHasher
 
 _EXT_KEY = "flash_deps"
@@ -36,6 +40,9 @@ class Deps:
     pins: PinHasher
     otp: OtpService
     tokens: TokenService
+    pricing: PricingService
+    limits: LimitPolicy
+    kyc: KycPolicy
 
 
 def build_deps(settings: Settings, *, tokens: TokenService) -> Deps:
@@ -63,6 +70,9 @@ def build_deps(settings: Settings, *, tokens: TokenService) -> Deps:
         pins=Argon2PinHasher(),
         otp=otp,
         tokens=tokens,
+        pricing=PricingService(build_pricing_repository()),
+        limits=LimitPolicy(build_limit_repository(), NullLimitCounter()),
+        kyc=KycPolicy(),
     )
 
 

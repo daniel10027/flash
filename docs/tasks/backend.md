@@ -76,8 +76,8 @@ Chaque tâche livrée : code complet + tests + doc, **zéro `TODO`**.
   `RemovePhoneNumber`, `SetPrimaryPhoneNumber`.
 - [ ] **BE-029** · `SubmitKyc` (tier 1 : identité + selfie via port `DocumentStore`),
   `ReviewKyc` (back‑office) → change `KycTier`, recharge les limites applicables.
-- [ ] **BE-030** · `GetWallet` / `ListWallets` (soldes depuis projection + cohérence).
-- [ ] **BE-031** · `SendP2PTransfer` : cf. flux §3 architecture. Frais 0,8 %, limites,
+- [x] **BE-030** · `GetWallet` / `ListWallets` (soldes depuis projection + cohérence).
+- [x] **BE-031** · `SendP2PTransfer` : cf. flux §3 architecture. Frais 0,8 %, limites,
   KYC, idempotence, `LedgerTransaction.transfer`+`fee`, événement `TransferCompleted`,
   reçu. Cas d'erreur couverts par tests.
 - [ ] **BE-032** · `RequestMoney` (demande de paiement entre utilisateurs) + acceptation

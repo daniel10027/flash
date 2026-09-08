@@ -800,6 +800,260 @@
           }
         }
       }
+    },
+    "/v1/wallets": {
+      "get": {
+        "summary": "Lister mes portefeuilles",
+        "tags": [
+          "wallets"
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "currency": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string"
+                    },
+                    "available_minor": {
+                      "type": "integer"
+                    },
+                    "reserved_minor": {
+                      "type": "integer"
+                    },
+                    "balance_minor": {
+                      "type": "integer"
+                    },
+                    "created_at": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/v1/wallets/{wallet_id}": {
+      "get": {
+        "summary": "Consulter un portefeuille",
+        "tags": [
+          "wallets"
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "currency": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string"
+                    },
+                    "available_minor": {
+                      "type": "integer"
+                    },
+                    "reserved_minor": {
+                      "type": "integer"
+                    },
+                    "balance_minor": {
+                      "type": "integer"
+                    },
+                    "created_at": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/v1/transfers": {
+      "post": {
+        "summary": "Envoyer de l'argent à un autre compte Flash",
+        "tags": [
+          "transfers"
+        ],
+        "responses": {
+          "201": {
+            "description": "Succès",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "transfer_id": {
+                      "type": "string"
+                    },
+                    "reference": {
+                      "type": "string"
+                    },
+                    "amount_minor": {
+                      "type": "integer"
+                    },
+                    "fee_minor": {
+                      "type": "integer"
+                    },
+                    "total_minor": {
+                      "type": "integer"
+                    },
+                    "currency": {
+                      "type": "string"
+                    },
+                    "recipient_masked": {
+                      "type": "string"
+                    },
+                    "sender_balance_after_minor": {
+                      "type": "integer"
+                    },
+                    "occurred_at": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "recipient_phone_number": {
+                    "examples": [
+                      "+2250700000002"
+                    ],
+                    "maxLength": 24,
+                    "minLength": 6,
+                    "title": "Recipient Phone Number",
+                    "type": "string"
+                  },
+                  "amount_minor": {
+                    "examples": [
+                      10000
+                    ],
+                    "exclusiveMinimum": 0,
+                    "title": "Amount Minor",
+                    "type": "integer"
+                  },
+                  "country": {
+                    "anyOf": [
+                      {
+                        "maxLength": 2,
+                        "minLength": 2,
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "title": "Country"
+                  },
+                  "note": {
+                    "anyOf": [
+                      {
+                        "maxLength": 140,
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "title": "Note"
+                  }
+                },
+                "required": [
+                  "recipient_phone_number",
+                  "amount_minor"
+                ],
+                "title": "TransferRequest",
+                "type": "object"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 255
+            }
+          }
+        ]
+      }
     }
   },
   "components": {

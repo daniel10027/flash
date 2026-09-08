@@ -11,6 +11,7 @@ import pytest
 
 from flash.application.idempotency import IdempotencyGuard, IdempotencyOutcome
 from flash.application.transaction import execute_in_uow
+from flash.application.unit_of_work import WorkUnitOfWork
 from flash.application.use_case import Command, UseCase
 from flash.domain.identity.user import User
 from flash.domain.shared.errors import DuplicateOperation
@@ -50,7 +51,7 @@ class TestExecuteInUow:
         uow = InMemoryUnitOfWork()
         events = RecordingEventPublisher()
 
-        def work(u: InMemoryUnitOfWork) -> str:
+        def work(u: WorkUnitOfWork) -> str:
             user = User.register(
                 user_id=USER_ID,
                 country=CountryCode("CI"),
@@ -75,7 +76,7 @@ class TestExecuteInUow:
         uow = InMemoryUnitOfWork()
         events = RecordingEventPublisher()
 
-        def work(u: InMemoryUnitOfWork) -> None:
+        def work(u: WorkUnitOfWork) -> None:
             u.users.add(
                 User.register(
                     user_id=USER_ID,

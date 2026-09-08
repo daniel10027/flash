@@ -5,15 +5,15 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
 
+from flash.application.unit_of_work import WorkUnitOfWork
 from flash.domain.shared.ports import (
     Clock,
     EventPublisher,
     IdempotencyStore,
     IdGenerator,
-    UnitOfWork,
 )
 
-UnitOfWorkFactory = Callable[[], UnitOfWork]
+UnitOfWorkFactory = Callable[[], WorkUnitOfWork]
 
 
 @dataclass(frozen=True, slots=True)

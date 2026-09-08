@@ -1,19 +1,22 @@
 # Flash — Map de développement
 
 > **Dernière mise à jour : 2026-09-08**
-> **Phase 1 backend terminée + Phase 2 : BE-025 → BE-028 (auth complète + gestion des 5 numéros).**
-> Blueprint `phones` (authentifié) : lister / ajouter (OTP `ADD_PHONE_NUMBER`) / vérifier /
-> retirer / définir principal — parcours vérifié end-to-end via docker compose.
-> 371 tests unit + 6 d'intégration.
-> `application/auth/` : `TokenService` (politique) + port `TokenCodec` (impl. JWT dans
-> `infrastructure/`), `Login`, `VerifyOtp`, `ResendOtp`. Blueprint `auth` :
-> `register`, `verify-otp`, `resend-otp` (rate-limité), `login` (rate-limité), `refresh`,
-> `logout`. Réponses d'auth indifférenciées (pas de fuite d'existence de compte).
-> **Parcours vérifié end-to-end via docker compose** : register 201 → verify-otp 200
-> (jetons) → login 200 → refresh 200 → refresh rejoué 401 → logout 204 → access révoqué 401.
-> 350 tests unit + 6 d'intégration, couverture 100 % domain+application, ruff + mypy stricts.
-> **Prochaine : BE-030 (`GetWallet` / `ListWallets` + blueprint `wallets`), BE-031
-> (`SendP2PTransfer` — frais 0,8 %, ledger partie double, idempotent), BE-029 (KYC).**
+> **Phase 1 backend terminée + Phase 2 : BE-025 → BE-031 (auth, numéros, wallets, transfert P2P).**
+> Domaine complet (identity + PIN Argon2, wallet, ledger partie double, pricing 0,8 %,
+> limits, référentiel pays). Application : `RegisterUser`, auth (`Login`/`VerifyOtp`/
+> `ResendOtp` + `TokenService`), gestion des numéros, `GetWallet`/`ListWallets`,
+> **`SendP2PTransfer`** (flux §3 archi, frais 0,8 %, ledger équilibré, idempotent,
+> `TransferCompleted`). Port `WorkUnitOfWork` (UoW typée) + `add_event` pour les
+> événements transverses. Infra : grilles tarifaire/plafonds statiques (UEMOA).
+> **14 routes** : `auth` (6), `phones` (5), `wallets` (2), `transfers` (1) + `/health*`,
+> `/openapi.json`, `/docs`, `/redoc`.
+> **Transfert vérifié end-to-end via docker compose** : `POST /v1/transfers` → 201 (reçu
+> avec frais 0,8 %), soldes émetteur/destinataire mis à jour, **ledger équilibré
+> (débits = crédits = 25 200)**, `TransferCompleted` en outbox, rejeu idempotent OK.
+> 393 tests unit + 6 d'intégration (Postgres réel), couverture 100 % domain+application,
+> ruff + mypy stricts.
+> **Prochaine : BE-029 (KYC par paliers), BE-032 (RequestMoney), BE-033 (paiement marchand
+> QR), BE-034/035/036 (dépôt & retrait cash agent), BE-038 (historique / relevé).**
 
 Ce fichier est la vue d'ensemble. Le détail (une ligne = une tâche cochable) est dans
 `docs/tasks/`. On avance **dans l'ordre des identifiants** à l'intérieur de chaque lot,
@@ -31,7 +34,7 @@ mais les lots Backend / Infra avancent en priorité car Web et Mobile en dépend
 | Lot | Fichier détaillé | Fait / Total |
 |-----|------------------|--------------|
 | Fondations & docs | ce fichier | 6 / 6 |
-| Backend (BE) | [docs/tasks/backend.md](docs/tasks/backend.md) | 28 / 78 |
+| Backend (BE) | [docs/tasks/backend.md](docs/tasks/backend.md) | 30 / 78 |
 | Web (WEB) | [docs/tasks/frontend-web.md](docs/tasks/frontend-web.md) | 0 / 46 |
 | Mobile (MOB) | [docs/tasks/mobile.md](docs/tasks/mobile.md) | 0 / 44 |
 | Infra & CI/CD (INFRA) | [docs/tasks/infra.md](docs/tasks/infra.md) | 2 / 24 |
@@ -39,7 +42,7 @@ mais les lots Backend / Infra avancent en priorité car Web et Mobile en dépend
 
 ---
 
-## Phase 0 — Fondations (en cours)
+## Phase 0 — Fondations (terminée)
 
 - [x] F0‑1 · Structure du monorepo (`backend web mobile infra design docs`)
 - [x] F0‑2 · `README.md` + principes non négociables
@@ -48,14 +51,14 @@ mais les lots Backend / Infra avancent en priorité car Web et Mobile en dépend
 - [x] F0‑5 · `docs/domain-model.md` (entités, invariants, agrégats, événements)
 - [x] F0‑6 · ADR 0001‑0004 (stack, hexagonal, ledger partie double, multi‑pays)
 
-## Phase 1 — Socle backend
+## Phase 1 — Socle backend (terminée)
 
 Domaine partagé (Money, Currency, Country), identité (User, PhoneNumber ≤ 5), wallet,
 **ledger partie double**, ports, config multi‑pays, app factory Flask, Postgres + Alembic,
 auth (téléphone + PIN + OTP, JWT), erreurs & idempotence, tests unitaires du domaine.
 → `BE-001` à `BE-024`.
 
-## Phase 2 — Cas d'usage cœur
+## Phase 2 — Cas d'usage cœur (en cours : 6 / 22)
 
 Ouverture de compte, KYC par paliers, transfert P2P (frais 0,8 %), paiement marchand par
 QR, dépôt cash agent, retrait cash agent (code de retrait), annulation / remboursement,
@@ -99,7 +102,7 @@ charge, revue sécurité (OWASP ASVS, secrets, rate‑limit), doc API publiée, 
 
 ## Prochaine action
 
-`BE-030` — `GetWallet` / `ListWallets` (soldes depuis la projection) + blueprint `wallets`
-(`GET /v1/wallets`, `GET /v1/wallets/{id}`) authentifié. Puis `BE-031` (`SendP2PTransfer` :
-flux §3 de l'archi — frais 0,8 %, `LedgerTransaction.transfer`, limites, KYC, idempotent,
-événement `TransferCompleted`, reçu) + blueprint `transfers`.
+`BE-029` — `SubmitKyc` (palier 1 : pièce d'identité + selfie via port `DocumentStore`) et
+`ReviewKyc` (back‑office) → change `KycTier` et recharge les limites. Puis `BE-032`
+(`RequestMoney`), `BE-033` (paiement marchand QR), `BE-034` → `BE-036` (dépôt & retrait
+cash en agence avec code de retrait), `BE-038` (relevé / historique paginé).

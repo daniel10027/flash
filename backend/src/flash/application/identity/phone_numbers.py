@@ -14,6 +14,7 @@ from typing import Any
 from flash.application.ports import OtpPurpose, OtpService
 from flash.application.services import AppServices
 from flash.application.transaction import execute_in_uow
+from flash.application.unit_of_work import WorkUnitOfWork
 from flash.application.use_case import Command, UseCase
 from flash.domain.identity.user import PhoneNumber, User, UserStatus
 from flash.domain.shared.errors import InvalidInput, PhoneNumberAlreadyLinked, UserFrozen
@@ -102,7 +103,7 @@ class AddPhoneNumber(UseCase[AddPhoneNumberCommand, AddPhoneNumberResult]):
         msisdn = _parse_msisdn(command.phone_number, command.country)
         now = self._services.clock.now()
 
-        def work(uow: Any) -> None:
+        def work(uow: WorkUnitOfWork) -> None:
             user = _load_user(uow, command.user_id)
             if user.status in (UserStatus.FROZEN, UserStatus.CLOSED):
                 raise UserFrozen()
@@ -135,7 +136,7 @@ class VerifyPhoneNumber(UseCase[VerifyPhoneNumberCommand, PhoneNumberView]):
         now = self._services.clock.now()
         captured: list[PhoneNumberView] = []
 
-        def work(uow: Any) -> None:
+        def work(uow: WorkUnitOfWork) -> None:
             user = _load_user(uow, command.user_id)
             self._otp.verify(msisdn, OtpPurpose.ADD_PHONE_NUMBER, command.code)
             user.verify_phone_number(msisdn, now)  # PhoneNumberNotFound si absent
@@ -163,7 +164,7 @@ class RemovePhoneNumber(UseCase[RemovePhoneNumberCommand, None]):
         msisdn = _parse_msisdn(command.phone_number, command.country)
         now = self._services.clock.now()
 
-        def work(uow: Any) -> None:
+        def work(uow: WorkUnitOfWork) -> None:
             user = _load_user(uow, command.user_id)
             user.remove_phone_number(msisdn, now)  # ni le dernier, ni le principal
             uow.users.save(user)
@@ -188,7 +189,7 @@ class SetPrimaryPhoneNumber(UseCase[SetPrimaryPhoneNumberCommand, list[PhoneNumb
         now = self._services.clock.now()
         captured: list[list[PhoneNumberView]] = []
 
-        def work(uow: Any) -> None:
+        def work(uow: WorkUnitOfWork) -> None:
             user = _load_user(uow, command.user_id)
             user.set_primary_phone_number(msisdn, now)  # doit être vérifié
             uow.users.save(user)

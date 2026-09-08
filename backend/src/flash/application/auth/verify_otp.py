@@ -14,6 +14,7 @@ from flash.application.auth.tokens import TokenService
 from flash.application.ports import OtpPurpose, OtpService
 from flash.application.services import AppServices
 from flash.application.transaction import execute_in_uow
+from flash.application.unit_of_work import WorkUnitOfWork
 from flash.application.use_case import Command, UseCase
 from flash.domain.country.directory import CountryDirectory
 from flash.domain.identity.user import User, UserStatus
@@ -68,15 +69,15 @@ class VerifyOtp(UseCase[VerifyOtpCommand, SessionTokens]):
         now = self._services.clock.now()
         activated: list[EntityId] = []
 
-        def work(uow: object) -> None:
-            user: User | None = uow.users.get_by_msisdn(msisdn)  # type: ignore[attr-defined]
+        def work(uow: WorkUnitOfWork) -> None:
+            user: User | None = uow.users.get_by_msisdn(msisdn)
             if user is None:
                 raise InvalidCredentials("Aucun compte pour ce numéro.")
             if user.status is not UserStatus.PENDING_ACTIVATION:
                 raise InvalidAccountState("Ce compte est déjà activé.", status=user.status.value)
             self._otp.verify(msisdn, OtpPurpose.ACTIVATION, command.code)
             user.activate(now)
-            uow.users.save(user)  # type: ignore[attr-defined]
+            uow.users.save(user)
             activated.append(user.id)
 
         execute_in_uow(self._services.uow, self._services.events, work)
@@ -96,7 +97,7 @@ class ResendOtp(UseCase[ResendOtpCommand, ResendOtpResult]):
         _, msisdn = _parse(command.phone_number, command.country)
 
         with self._services.uow() as uow:
-            user: User | None = uow.users.get_by_msisdn(msisdn)  # type: ignore[attr-defined]
+            user: User | None = uow.users.get_by_msisdn(msisdn)
             status = user.status if user is not None else None
 
         if user is None or status is not UserStatus.PENDING_ACTIVATION:

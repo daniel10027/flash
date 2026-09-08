@@ -53,10 +53,23 @@ class WalletUnfrozen(DomainEvent):
     pass
 
 
+@dataclass(frozen=True, slots=True, kw_only=True)
+class TransferCompleted(DomainEvent):
+    """Un transfert P2P a été exécuté. ``aggregate_id`` = id de la LedgerTransaction."""
+
+    sender_id: str
+    recipient_id: str
+    amount_minor: int
+    fee_minor: int
+    currency: str
+    reference: str
+
+
 __all__ = [
     "FundsReleased",
     "FundsReserved",
     "ReservationSettled",
+    "TransferCompleted",
     "WalletCredited",
     "WalletDebited",
     "WalletFrozen",

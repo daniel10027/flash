@@ -34,12 +34,14 @@ class SqlAlchemyUnitOfWork:
         self._clock = clock
         self._session: Session | None = None
         self._tracked: list[EventRecorder] = []
+        self._extra_events: list[DomainEvent] = []
         self._pending_events: list[DomainEvent] = []
 
     # ------------------------------------------------------------- contexte
     def __enter__(self) -> Self:
         self._session = self._session_factory()
         self._tracked = []
+        self._extra_events = []
         self._pending_events = []
         self.users = SqlAlchemyUserRepository(self._session, self)
         self.wallets = SqlAlchemyWalletRepository(self._session, self)
@@ -59,6 +61,10 @@ class SqlAlchemyUnitOfWork:
     def track(self, aggregate: EventRecorder) -> None:
         if all(aggregate is not seen for seen in self._tracked):
             self._tracked.append(aggregate)
+
+    def add_event(self, event: DomainEvent) -> None:
+        """Ajoute un événement transverse (non porté par un agrégat unique)."""
+        self._extra_events.append(event)
 
     def commit(self) -> None:
         session = self._require_session()
@@ -97,6 +103,8 @@ class SqlAlchemyUnitOfWork:
         events: list[DomainEvent] = []
         for aggregate in self._tracked:
             events.extend(aggregate.pull_events())
+        events.extend(self._extra_events)
+        self._extra_events = []
         return events
 
 

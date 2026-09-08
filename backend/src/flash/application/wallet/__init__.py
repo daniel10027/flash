@@ -1,0 +1,1 @@
+"""wallet — cas d'usage."""

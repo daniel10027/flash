@@ -9,18 +9,9 @@ import pytest
 from flask import Flask
 from flask.testing import FlaskClient
 
-from flash.application.services import AppServices
-from flash.domain.country.directory import StaticCountryDirectory
 from flash.infrastructure.config import Settings
 from flash.interface.app import create_app
-from flash.interface.container import Deps
-from tests.support.fakes import (
-    FakePinHasher,
-    FixedClock,
-    InMemoryIdempotencyStore,
-    RecordingEventPublisher,
-    SeqIdGenerator,
-)
+from tests.support.deps import build_test_deps
 from tests.support.otp import RecordingOtpService
 from tests.support.repositories import InMemoryUnitOfWork
 from tests.support.security import build_test_security
@@ -36,21 +27,8 @@ def otp() -> RecordingOtpService:
 
 @pytest.fixture
 def app(otp: RecordingOtpService) -> Flask:
-    uow = InMemoryUnitOfWork()
     bundle = build_test_security()
-    deps = Deps(
-        services=AppServices(
-            uow=lambda: uow,
-            clock=FixedClock(),
-            ids=SeqIdGenerator(),
-            events=RecordingEventPublisher(),
-            idempotency=InMemoryIdempotencyStore(),
-        ),
-        countries=StaticCountryDirectory(),
-        pins=FakePinHasher(),
-        otp=otp,
-        tokens=bundle.tokens,
-    )
+    deps = build_test_deps(uow=InMemoryUnitOfWork(), otp=otp, bundle=bundle)
     return create_app(
         Settings(FLASH_ENV="test", FLASH_SECRET_KEY=SECRET),
         security_bundle=bundle,

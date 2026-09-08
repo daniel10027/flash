@@ -13,6 +13,8 @@ _STATUS_BY_CODE: dict[str, int] = {
     "INVALID_CREDENTIALS": 401,
     # 404 — ressource absente
     "PHONE_NUMBER_NOT_FOUND": 404,
+    "WALLET_NOT_FOUND": 404,
+    "RECIPIENT_NOT_FOUND": 404,
     # 409 — conflit / état incompatible
     "DUPLICATE_OPERATION": 409,
     "PHONE_NUMBER_ALREADY_LINKED": 409,

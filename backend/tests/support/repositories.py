@@ -165,6 +165,7 @@ class InMemoryUnitOfWork:
         self.ledger = ledger or InMemoryLedgerRepository()
         self.committed = False
         self.rolled_back = False
+        self._extra_events: list[DomainEvent] = []
 
     def __enter__(self) -> InMemoryUnitOfWork:
         self.committed = False
@@ -178,6 +179,9 @@ class InMemoryUnitOfWork:
     def commit(self) -> None:
         self.committed = True
 
+    def add_event(self, event: DomainEvent) -> None:
+        self._extra_events.append(event)
+
     def rollback(self) -> None:
         self.rolled_back = True
 
@@ -185,6 +189,8 @@ class InMemoryUnitOfWork:
         events: list[DomainEvent] = []
         for aggregate in (*self.users.seen, *self.wallets.seen):
             events.extend(aggregate.pull_events())
+        events.extend(self._extra_events)
+        self._extra_events = []
         return events
 
 

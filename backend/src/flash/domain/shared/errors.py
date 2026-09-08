@@ -96,6 +96,16 @@ class PhoneNumberNotFound(DomainError):
     message = "Numéro introuvable sur ce compte."
 
 
+class WalletNotFound(DomainError):
+    code = "WALLET_NOT_FOUND"
+    message = "Portefeuille introuvable."
+
+
+class RecipientNotFound(DomainError):
+    code = "RECIPIENT_NOT_FOUND"
+    message = "Aucun compte Flash pour ce numéro."
+
+
 class PhoneNumberNotVerified(DomainError):
     code = "PHONE_NUMBER_NOT_VERIFIED"
     message = "Ce numéro n'est pas encore vérifié."

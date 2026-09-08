@@ -9,13 +9,14 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from flash.domain.shared.ports import EventPublisher, UnitOfWork
+from flash.application.unit_of_work import WorkUnitOfWork
+from flash.domain.shared.ports import EventPublisher
 
 
-def execute_in_uow[U: UnitOfWork, R](
-    uow_factory: Callable[[], U],
+def execute_in_uow[R](
+    uow_factory: Callable[[], WorkUnitOfWork],
     events: EventPublisher,
-    work: Callable[[U], R],
+    work: Callable[[WorkUnitOfWork], R],
 ) -> R:
     with uow_factory() as uow:
         result = work(uow)

@@ -18,6 +18,7 @@ from flash.application.idempotency import IdempotencyGuard
 from flash.application.ports import OtpPurpose, OtpService
 from flash.application.services import AppServices
 from flash.application.transaction import execute_in_uow
+from flash.application.unit_of_work import WorkUnitOfWork
 from flash.application.use_case import Command, UseCase
 from flash.domain.country.directory import CountryDirectory
 from flash.domain.identity.pin import Pin, PinHasher
@@ -113,7 +114,7 @@ class RegisterUser(UseCase[RegisterUserCommand, RegisterUserResult]):
         user_id = self._services.ids.new_id()
         wallet_id = self._services.ids.new_id()
 
-        def work(uow: Any) -> None:
+        def work(uow: WorkUnitOfWork) -> None:
             if uow.users.exists_with_msisdn(msisdn):
                 raise PhoneNumberAlreadyLinked(msisdn=msisdn.masked())
             user = User.register(
