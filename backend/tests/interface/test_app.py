@@ -14,7 +14,9 @@ from flash.interface.app import create_app
 @pytest.fixture
 def app() -> Flask:
     application = create_app(
-        Settings(FLASH_ENV="test", FLASH_SECRET_KEY="test-secret-key-0123456789")
+        Settings(
+            FLASH_ENV="test", FLASH_SECRET_KEY="flash-test-secret-please-ignore-0123456789abcd"
+        )
     )
 
     @application.get("/_boom/domain")

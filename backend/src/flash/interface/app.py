@@ -18,11 +18,16 @@ from flash.domain.shared.errors import DomainError
 from flash.infrastructure.config import Settings, get_settings
 from flash.interface.errors import status_for, to_payload
 from flash.interface.logging import configure_logging
+from flash.interface.openapi import register_docs
+from flash.interface.security.auth import Unauthenticated
+from flash.interface.security.wiring import SecurityBundle, build_security, register_security
 
 _log = structlog.get_logger("flash.http")
 
 
-def create_app(settings: Settings | None = None) -> Flask:
+def create_app(
+    settings: Settings | None = None, *, security_bundle: SecurityBundle | None = None
+) -> Flask:
     settings = settings or get_settings()
     configure_logging(settings.log_level, json_output=settings.is_production)
 
@@ -36,10 +41,12 @@ def create_app(settings: Settings | None = None) -> Flask:
         PROPAGATE_EXCEPTIONS=False,
     )
     app.extensions["flash_settings"] = settings
+    register_security(app, security_bundle or build_security(settings))
 
     _register_request_context(app, settings)
     _register_error_handlers(app)
     _register_health(app)
+    register_docs(app)
     return app
 
 
@@ -79,6 +86,10 @@ def _register_error_handlers(app: Flask) -> None:
         if status >= 500:  # pragma: no cover - défensif
             _log.error("domain_error", code=error.code)
         return jsonify(to_payload(error)), status
+
+    @app.errorhandler(Unauthenticated)
+    def _handle_unauthenticated(error: Unauthenticated) -> tuple[Response, int]:
+        return jsonify({"code": "UNAUTHENTICATED", "message": error.message, "details": {}}), 401
 
     @app.errorhandler(HTTPException)
     def _handle_http_exception(error: HTTPException) -> tuple[Response, int]:

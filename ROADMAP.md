@@ -1,18 +1,19 @@
 # Flash — Map de développement
 
 > **Dernière mise à jour : 2026-09-08**
-> **Session courante :** Backend BE-001 → BE-021 + INFRA-001/002 faits. Domaine complet
-> (identity, wallet, ledger partie double, pricing 0,8 %, limits) + couche application
-> (UseCase, UoW, idempotence). Infrastructure : config (env), modèles SQLAlchemy +
-> mappers ORM↔domaine, `SqlAlchemyUnitOfWork` + dépôts concrets (outbox d'événements),
-> Alembic + migration initiale, adapters (SystemClock, Uuid7Generator, Argon2PinHasher,
-> RedisIdempotencyStore, publishers). Flask : app factory, `/health` + `/health/ready`,
-> gestion d'erreurs `DomainError`→HTTP, request-id, logs JSON, CORS. CLI `flash db …`.
-> Docker : `infra/docker-compose.yml` (db/redis/mailhog/api) + `backend/Dockerfile`
-> multi-stage — **stack vérifiée : `docker compose up` → migrations auto → `/health` 200**.
-> 280 tests (dont 6 d'intégration sur Postgres réel), couverture 100 %, ruff + mypy OK.
-> Prochaine : BE-022 (sécurité JWT + rate-limit), BE-023 (test d'architecture),
-> BE-024 (OpenAPI), puis Phase 2 (BE-025 : inscription).
+> **Session courante : Phase 1 backend terminée (BE-001 → BE-024) + INFRA-001/002.**
+> Domaine complet (identity, wallet, ledger partie double, pricing 0,8 %, limits) +
+> application (UseCase, UoW, idempotence) + infrastructure (config env, SQLAlchemy +
+> mappers, `SqlAlchemyUnitOfWork` + dépôts + outbox, Alembic + migration initiale,
+> adapters clock/UUIDv7/Argon2/Redis) + interface Flask (app factory, `/health`,
+> `DomainError`→HTTP, logs JSON, CORS ; **JWT** access/refresh rotatif + révocation +
+> **rate-limit** Redis ; **OpenAPI 3.1** + `/docs` + `/redoc` + `flash openapi dump`) +
+> **test d'architecture** (domaine pur, vérifié par AST). CLI `flash db|openapi|serve`.
+> Docker : stack `docker compose up` vérifiée de bout en bout.
+> 292 tests unit + 6 d'intégration (Postgres réel), couverture 100 % domain+application,
+> ruff + mypy stricts, `docs/api/openapi.json` généré.
+> **Prochaine : Phase 2 — BE-025 `RegisterUser` + blueprint `auth`, puis BE-026/027
+> (OTP, login), BE-028 (numéros), BE-030/031 (wallet, transfert P2P).**
 
 Ce fichier est la vue d'ensemble. Le détail (une ligne = une tâche cochable) est dans
 `docs/tasks/`. On avance **dans l'ordre des identifiants** à l'intérieur de chaque lot,
@@ -30,7 +31,7 @@ mais les lots Backend / Infra avancent en priorité car Web et Mobile en dépend
 | Lot | Fichier détaillé | Fait / Total |
 |-----|------------------|--------------|
 | Fondations & docs | ce fichier | 6 / 6 |
-| Backend (BE) | [docs/tasks/backend.md](docs/tasks/backend.md) | 21 / 78 |
+| Backend (BE) | [docs/tasks/backend.md](docs/tasks/backend.md) | 24 / 78 |
 | Web (WEB) | [docs/tasks/frontend-web.md](docs/tasks/frontend-web.md) | 0 / 46 |
 | Mobile (MOB) | [docs/tasks/mobile.md](docs/tasks/mobile.md) | 0 / 44 |
 | Infra & CI/CD (INFRA) | [docs/tasks/infra.md](docs/tasks/infra.md) | 2 / 24 |
@@ -98,8 +99,9 @@ charge, revue sécurité (OWASP ASVS, secrets, rate‑limit), doc API publiée, 
 
 ## Prochaine action
 
-`BE-022` — sécurité : émission/vérif JWT (access 15 min + refresh rotatif lié au
-`device_id`), dépendance `current_user`, révocation via Redis `jti`, rate-limit (token
-bucket Redis) décorable par route. Puis `BE-023` (test d'architecture : `domain/` sans
-import interdit), `BE-024` (génération OpenAPI + `/docs`). Ensuite Phase 2 : `BE-025`
-(`RegisterUser`) et les premiers blueprints REST.
+**Phase 2.** `BE-025` — cas d'usage `RegisterUser` (msisdn + PIN + pays → `User` tier 0
++ wallet devise du pays + compte ledger client, OTP d'activation, idempotent) et le
+blueprint `auth` (`POST /v1/auth/register`) avec ses schémas pydantic et sa doc OpenAPI.
+Puis `BE-026` (VerifyOtp/ResendOtp + port `OtpChannel` console/SMS), `BE-027` (Login /
+Refresh / Logout via `TokenService`), `BE-028` (ajout/suppression/promotion de numéro),
+`BE-030` (GetWallet/ListWallets), `BE-031` (`SendP2PTransfer`, frais 0,8 %).

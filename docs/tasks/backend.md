@@ -56,12 +56,12 @@ Chaque tâche livrée : code complet + tests + doc, **zéro `TODO`**.
 - [x] **BE-021** · `interface/app.py` : `create_app(config)` ; enregistrement blueprints ;
   handler d'erreurs (`DomainError` → JSON `{code,message,details}` + HTTP) ; `request_id`
   middleware ; logs structlog JSON ; CORS configurable ; `/health` `/health/ready`.
-- [ ] **BE-022** · `interface/security/` : émission/vérif JWT (access 15 min, refresh
+- [x] **BE-022** · `interface/security/` : émission/vérif JWT (access 15 min, refresh
   rotatif lié `device_id`), dépendance `current_user`, révocation via Redis `jti`,
   rate‑limit (Redis token bucket) décorable par route.
-- [ ] **BE-023** · `tests/architecture/test_dependencies.py` : échoue si `domain/` importe
+- [x] **BE-023** · `tests/architecture/test_dependencies.py` : échoue si `domain/` importe
   flask / sqlalchemy / redis / requests / pydantic. + `ruff` + `mypy` config stricte.
-- [ ] **BE-024** · `interface/openapi.py` : génération OpenAPI 3.1 depuis les schémas
+- [x] **BE-024** · `interface/openapi.py` : génération OpenAPI 3.1 depuis les schémas
   pydantic + routes ; `/docs` (Swagger UI statique embarqué), `/redoc` ; écriture
   `docs/api/openapi.json` via `flask flash openapi-dump`.
 

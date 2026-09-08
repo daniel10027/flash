@@ -59,5 +59,18 @@ def serve(host: str, port: int) -> None:
     create_app().run(host=host, port=port, debug=True, use_reloader=True)
 
 
+@main.group()
+def openapi() -> None:
+    """Spécification OpenAPI."""
+
+
+@openapi.command("dump")
+@click.option("-o", "--output", default="docs/api/openapi.json")
+def openapi_dump(output: str) -> None:
+    from flash.interface.openapi import dump_spec
+
+    click.echo(f"OpenAPI écrit dans {dump_spec(output)}")
+
+
 if __name__ == "__main__":
     main()
