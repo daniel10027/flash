@@ -21,6 +21,7 @@ from flash.infrastructure.config import Settings, get_settings
 from flash.interface.container import Deps, build_deps, register_deps
 from flash.interface.errors import status_for, to_payload
 from flash.interface.http import auth as auth_routes
+from flash.interface.http import phones as phones_routes
 from flash.interface.logging import configure_logging
 from flash.interface.openapi import register_docs
 from flash.interface.security.auth import Unauthenticated
@@ -57,6 +58,7 @@ def create_app(
     _register_health(app)
     register_docs(app)
     app.register_blueprint(auth_routes.bp)
+    app.register_blueprint(phones_routes.bp)
     return app
 
 

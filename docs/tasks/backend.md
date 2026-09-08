@@ -72,7 +72,7 @@ Chaque tâche livrée : code complet + tests + doc, **zéro `TODO`**.
 - [x] **BE-026** · `VerifyOtp` / `ResendOtp` (port `OtpChannel`, store Redis TTL, essais
   limités, anti‑bruteforce).
 - [x] **BE-027** · `Login` (msisdn + pin + device) → tokens ; `RefreshToken` ; `Logout`.
-- [ ] **BE-028** · `AddPhoneNumber` (OTP sur le nouveau numéro, ≤ 5, unicité globale),
+- [x] **BE-028** · `AddPhoneNumber` (OTP sur le nouveau numéro, ≤ 5, unicité globale),
   `RemovePhoneNumber`, `SetPrimaryPhoneNumber`.
 - [ ] **BE-029** · `SubmitKyc` (tier 1 : identité + selfie via port `DocumentStore`),
   `ReviewKyc` (back‑office) → change `KycTier`, recharge les limites applicables.

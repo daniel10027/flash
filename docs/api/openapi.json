@@ -497,6 +497,309 @@
           }
         ]
       }
+    },
+    "/v1/phones": {
+      "get": {
+        "summary": "Lister les numéros du compte",
+        "tags": [
+          "phones"
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès"
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "post": {
+        "summary": "Ajouter un numéro (envoie un code de vérification)",
+        "tags": [
+          "phones"
+        ],
+        "responses": {
+          "202": {
+            "description": "Succès"
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "phone_number": {
+                    "examples": [
+                      "+2250700000000"
+                    ],
+                    "maxLength": 24,
+                    "minLength": 6,
+                    "title": "Phone Number",
+                    "type": "string"
+                  },
+                  "country": {
+                    "anyOf": [
+                      {
+                        "maxLength": 2,
+                        "minLength": 2,
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "title": "Country"
+                  }
+                },
+                "required": [
+                  "phone_number"
+                ],
+                "title": "PhoneRef",
+                "type": "object"
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Retirer un numéro (ni le dernier, ni le principal)",
+        "tags": [
+          "phones"
+        ],
+        "responses": {
+          "204": {
+            "description": "Succès"
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "phone_number": {
+                    "examples": [
+                      "+2250700000000"
+                    ],
+                    "maxLength": 24,
+                    "minLength": 6,
+                    "title": "Phone Number",
+                    "type": "string"
+                  },
+                  "country": {
+                    "anyOf": [
+                      {
+                        "maxLength": 2,
+                        "minLength": 2,
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "title": "Country"
+                  }
+                },
+                "required": [
+                  "phone_number"
+                ],
+                "title": "PhoneRef",
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/phones/verify": {
+      "post": {
+        "summary": "Vérifier un numéro ajouté avec le code reçu",
+        "tags": [
+          "phones"
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès"
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "phone_number": {
+                    "examples": [
+                      "+2250700000000"
+                    ],
+                    "maxLength": 24,
+                    "minLength": 6,
+                    "title": "Phone Number",
+                    "type": "string"
+                  },
+                  "country": {
+                    "anyOf": [
+                      {
+                        "maxLength": 2,
+                        "minLength": 2,
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "title": "Country"
+                  },
+                  "code": {
+                    "maxLength": 8,
+                    "minLength": 4,
+                    "title": "Code",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "phone_number",
+                  "code"
+                ],
+                "title": "VerifyPhoneRequest",
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/phones/primary": {
+      "post": {
+        "summary": "Définir le numéro principal (doit être vérifié)",
+        "tags": [
+          "phones"
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès"
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "phone_number": {
+                    "examples": [
+                      "+2250700000000"
+                    ],
+                    "maxLength": 24,
+                    "minLength": 6,
+                    "title": "Phone Number",
+                    "type": "string"
+                  },
+                  "country": {
+                    "anyOf": [
+                      {
+                        "maxLength": 2,
+                        "minLength": 2,
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "title": "Country"
+                  }
+                },
+                "required": [
+                  "phone_number"
+                ],
+                "title": "PhoneRef",
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {

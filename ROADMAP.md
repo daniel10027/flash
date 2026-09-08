@@ -1,7 +1,10 @@
 # Flash — Map de développement
 
 > **Dernière mise à jour : 2026-09-08**
-> **Phase 1 backend terminée + Phase 2 : BE-025 → BE-027 (parcours d'authentification complet).**
+> **Phase 1 backend terminée + Phase 2 : BE-025 → BE-028 (auth complète + gestion des 5 numéros).**
+> Blueprint `phones` (authentifié) : lister / ajouter (OTP `ADD_PHONE_NUMBER`) / vérifier /
+> retirer / définir principal — parcours vérifié end-to-end via docker compose.
+> 371 tests unit + 6 d'intégration.
 > `application/auth/` : `TokenService` (politique) + port `TokenCodec` (impl. JWT dans
 > `infrastructure/`), `Login`, `VerifyOtp`, `ResendOtp`. Blueprint `auth` :
 > `register`, `verify-otp`, `resend-otp` (rate-limité), `login` (rate-limité), `refresh`,
@@ -9,8 +12,8 @@
 > **Parcours vérifié end-to-end via docker compose** : register 201 → verify-otp 200
 > (jetons) → login 200 → refresh 200 → refresh rejoué 401 → logout 204 → access révoqué 401.
 > 350 tests unit + 6 d'intégration, couverture 100 % domain+application, ruff + mypy stricts.
-> **Prochaine : BE-028 (ajout/suppression/promotion de numéro, avec OTP), BE-029 (KYC),
-> BE-030 (GetWallet/ListWallets), BE-031 (`SendP2PTransfer`, frais 0,8 %).**
+> **Prochaine : BE-030 (`GetWallet` / `ListWallets` + blueprint `wallets`), BE-031
+> (`SendP2PTransfer` — frais 0,8 %, ledger partie double, idempotent), BE-029 (KYC).**
 
 Ce fichier est la vue d'ensemble. Le détail (une ligne = une tâche cochable) est dans
 `docs/tasks/`. On avance **dans l'ordre des identifiants** à l'intérieur de chaque lot,
@@ -28,7 +31,7 @@ mais les lots Backend / Infra avancent en priorité car Web et Mobile en dépend
 | Lot | Fichier détaillé | Fait / Total |
 |-----|------------------|--------------|
 | Fondations & docs | ce fichier | 6 / 6 |
-| Backend (BE) | [docs/tasks/backend.md](docs/tasks/backend.md) | 27 / 78 |
+| Backend (BE) | [docs/tasks/backend.md](docs/tasks/backend.md) | 28 / 78 |
 | Web (WEB) | [docs/tasks/frontend-web.md](docs/tasks/frontend-web.md) | 0 / 46 |
 | Mobile (MOB) | [docs/tasks/mobile.md](docs/tasks/mobile.md) | 0 / 44 |
 | Infra & CI/CD (INFRA) | [docs/tasks/infra.md](docs/tasks/infra.md) | 2 / 24 |
@@ -96,8 +99,7 @@ charge, revue sécurité (OWASP ASVS, secrets, rate‑limit), doc API publiée, 
 
 ## Prochaine action
 
-`BE-028` — `AddPhoneNumber` (OTP `ADD_PHONE_NUMBER` sur le nouveau numéro, ≤ 5, unicité
-globale), `RemovePhoneNumber`, `SetPrimaryPhoneNumber`, avec le blueprint `phones`
-(`GET/POST /v1/phones`, `DELETE /v1/phones/{msisdn}`, `POST /v1/phones/{msisdn}/primary`)
-— routes authentifiées. Puis `BE-030` (`GetWallet` / `ListWallets` + blueprint `wallets`),
-`BE-031` (`SendP2PTransfer` — frais 0,8 %, ledger partie double, idempotent).
+`BE-030` — `GetWallet` / `ListWallets` (soldes depuis la projection) + blueprint `wallets`
+(`GET /v1/wallets`, `GET /v1/wallets/{id}`) authentifié. Puis `BE-031` (`SendP2PTransfer` :
+flux §3 de l'archi — frais 0,8 %, `LedgerTransaction.transfer`, limites, KYC, idempotent,
+événement `TransferCompleted`, reçu) + blueprint `transfers`.
