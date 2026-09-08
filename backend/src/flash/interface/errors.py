@@ -9,6 +9,8 @@ from __future__ import annotations
 from flash.domain.shared.errors import DomainError
 
 _STATUS_BY_CODE: dict[str, int] = {
+    # 401 — authentification
+    "INVALID_CREDENTIALS": 401,
     # 404 — ressource absente
     "PHONE_NUMBER_NOT_FOUND": 404,
     # 409 — conflit / état incompatible

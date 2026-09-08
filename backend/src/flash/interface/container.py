@@ -10,6 +10,7 @@ from dataclasses import dataclass
 
 from flask import Flask, current_app
 
+from flash.application.auth.tokens import TokenService
 from flash.application.ports import OtpService
 from flash.application.services import AppServices
 from flash.domain.country.directory import CountryDirectory, StaticCountryDirectory
@@ -34,9 +35,10 @@ class Deps:
     countries: CountryDirectory
     pins: PinHasher
     otp: OtpService
+    tokens: TokenService
 
 
-def build_deps(settings: Settings) -> Deps:
+def build_deps(settings: Settings, *, tokens: TokenService) -> Deps:
     clock = SystemClock()
     session_factory = get_session_factory()
     redis = get_redis()
@@ -60,6 +62,7 @@ def build_deps(settings: Settings) -> Deps:
         countries=StaticCountryDirectory(),
         pins=Argon2PinHasher(),
         otp=otp,
+        tokens=tokens,
     )
 
 

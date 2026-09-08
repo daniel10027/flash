@@ -4,12 +4,14 @@ from __future__ import annotations
 
 import time
 
-from flash.interface.security.stores import (
+from flash.application.auth.stores import (
     AccessRevocationStore,
     RateLimiter,
     RefreshTokenStore,
 )
-from flash.interface.security.tokens import TokenService
+from flash.application.auth.tokens import TokenService
+from flash.domain.shared.ports import Clock
+from flash.infrastructure.security.jwt_codec import JwtTokenCodec
 from flash.interface.security.wiring import SecurityBundle
 
 
@@ -56,18 +58,17 @@ def build_test_security(
     secret: str = "flash-test-secret-please-ignore-0123456789abcd",
     access_ttl_seconds: int = 900,
     refresh_ttl_seconds: int = 3600,
-    clock: object | None = None,
+    clock: Clock | None = None,
     rate_limiter: RateLimiter | None = None,
     refresh_store: RefreshTokenStore | None = None,
     revocation_store: AccessRevocationStore | None = None,
 ) -> SecurityBundle:
     tokens = TokenService(
-        secret=secret,
+        codec=JwtTokenCodec(secret, clock=clock),
         access_ttl_seconds=access_ttl_seconds,
         refresh_ttl_seconds=refresh_ttl_seconds,
         refresh_store=refresh_store or InMemoryRefreshTokenStore(),
         revocation_store=revocation_store or InMemoryAccessRevocationStore(),
-        clock=clock,
     )
     return SecurityBundle(tokens=tokens, rate_limiter=rate_limiter or InMemoryRateLimiter())
 

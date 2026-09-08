@@ -135,6 +135,368 @@
           }
         ]
       }
+    },
+    "/v1/auth/verify-otp": {
+      "post": {
+        "summary": "Activer un compte avec le code reçu par SMS",
+        "tags": [
+          "auth"
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "access_token": {
+                      "type": "string"
+                    },
+                    "refresh_token": {
+                      "type": "string"
+                    },
+                    "access_expires_in": {
+                      "type": "integer"
+                    },
+                    "refresh_expires_in": {
+                      "type": "integer"
+                    },
+                    "user_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "phone_number": {
+                    "examples": [
+                      "+2250700000000"
+                    ],
+                    "maxLength": 24,
+                    "minLength": 6,
+                    "title": "Phone Number",
+                    "type": "string"
+                  },
+                  "country": {
+                    "examples": [
+                      "CI"
+                    ],
+                    "maxLength": 2,
+                    "minLength": 2,
+                    "title": "Country",
+                    "type": "string"
+                  },
+                  "code": {
+                    "examples": [
+                      "000000"
+                    ],
+                    "maxLength": 8,
+                    "minLength": 4,
+                    "title": "Code",
+                    "type": "string"
+                  },
+                  "device_id": {
+                    "examples": [
+                      "a1b2c3d4"
+                    ],
+                    "maxLength": 128,
+                    "minLength": 1,
+                    "title": "Device Id",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "phone_number",
+                  "country",
+                  "code",
+                  "device_id"
+                ],
+                "title": "VerifyOtpRequest",
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/auth/resend-otp": {
+      "post": {
+        "summary": "Renvoyer le code d'activation",
+        "tags": [
+          "auth"
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès"
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "phone_number": {
+                    "examples": [
+                      "+2250700000000"
+                    ],
+                    "maxLength": 24,
+                    "minLength": 6,
+                    "title": "Phone Number",
+                    "type": "string"
+                  },
+                  "country": {
+                    "examples": [
+                      "CI"
+                    ],
+                    "maxLength": 2,
+                    "minLength": 2,
+                    "title": "Country",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "phone_number",
+                  "country"
+                ],
+                "title": "ResendOtpRequest",
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/auth/login": {
+      "post": {
+        "summary": "Se connecter avec numéro + code secret",
+        "tags": [
+          "auth"
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "access_token": {
+                      "type": "string"
+                    },
+                    "refresh_token": {
+                      "type": "string"
+                    },
+                    "access_expires_in": {
+                      "type": "integer"
+                    },
+                    "refresh_expires_in": {
+                      "type": "integer"
+                    },
+                    "user_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "phone_number": {
+                    "examples": [
+                      "+2250700000000"
+                    ],
+                    "maxLength": 24,
+                    "minLength": 6,
+                    "title": "Phone Number",
+                    "type": "string"
+                  },
+                  "country": {
+                    "examples": [
+                      "CI"
+                    ],
+                    "maxLength": 2,
+                    "minLength": 2,
+                    "title": "Country",
+                    "type": "string"
+                  },
+                  "pin": {
+                    "examples": [
+                      "1397"
+                    ],
+                    "maxLength": 6,
+                    "minLength": 4,
+                    "title": "Pin",
+                    "type": "string"
+                  },
+                  "device_id": {
+                    "examples": [
+                      "a1b2c3d4"
+                    ],
+                    "maxLength": 128,
+                    "minLength": 1,
+                    "title": "Device Id",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "phone_number",
+                  "country",
+                  "pin",
+                  "device_id"
+                ],
+                "title": "LoginRequest",
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/auth/refresh": {
+      "post": {
+        "summary": "Échanger un refresh token contre une nouvelle paire",
+        "tags": [
+          "auth"
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "access_token": {
+                      "type": "string"
+                    },
+                    "refresh_token": {
+                      "type": "string"
+                    },
+                    "access_expires_in": {
+                      "type": "integer"
+                    },
+                    "refresh_expires_in": {
+                      "type": "integer"
+                    },
+                    "user_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "refresh_token": {
+                    "minLength": 10,
+                    "title": "Refresh Token",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "refresh_token"
+                ],
+                "title": "RefreshRequest",
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/auth/logout": {
+      "post": {
+        "summary": "Révoquer la session de l'appareil courant",
+        "tags": [
+          "auth"
+        ],
+        "responses": {
+          "204": {
+            "description": "Succès"
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
     }
   },
   "components": {

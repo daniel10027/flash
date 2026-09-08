@@ -8,12 +8,13 @@ from uuid import UUID
 import pytest
 from flask import Flask, Response, jsonify
 
+from flash.application.auth.tokens import TokenError, TokenReused, TokenService
 from flash.domain.shared.identifiers import EntityId
 from flash.infrastructure.config import Settings
+from flash.infrastructure.security.jwt_codec import JwtTokenCodec
 from flash.interface.app import create_app
 from flash.interface.security.auth import current_principal, require_auth
 from flash.interface.security.rate_limit import rate_limit
-from flash.interface.security.tokens import TokenError, TokenReused, TokenService
 from tests.support.fakes import FixedClock
 from tests.support.security import (
     InMemoryAccessRevocationStore,
@@ -28,12 +29,11 @@ DEVICE = "device-abc"
 
 def _service(clock: FixedClock | None = None) -> TokenService:
     return TokenService(
-        secret="flash-test-secret-please-ignore-0123456789abcd",
+        codec=JwtTokenCodec("flash-test-secret-please-ignore-0123456789abcd", clock=clock),
         access_ttl_seconds=900,
         refresh_ttl_seconds=3600,
         refresh_store=InMemoryRefreshTokenStore(),
         revocation_store=InMemoryAccessRevocationStore(),
-        clock=clock,
     )
 
 

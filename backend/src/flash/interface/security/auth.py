@@ -8,8 +8,8 @@ from typing import Any, cast
 
 from flask import g, request
 
-from flash.interface.security.principal import AuthPrincipal
-from flash.interface.security.tokens import TokenError
+from flash.application.auth.principal import AuthPrincipal
+from flash.application.auth.tokens import TokenError
 from flash.interface.security.wiring import security
 
 

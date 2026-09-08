@@ -102,6 +102,11 @@ class PhoneNumberNotVerified(DomainError):
 
 
 # ----------------------------------------------------------------------- comptes
+class InvalidCredentials(DomainError):
+    code = "INVALID_CREDENTIALS"
+    message = "Numéro ou code secret incorrect."
+
+
 class UserFrozen(DomainError):
     code = "USER_FROZEN"
     message = "Ce compte est gelé."

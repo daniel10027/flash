@@ -69,9 +69,9 @@ Chaque tâche livrée : code complet + tests + doc, **zéro `TODO`**.
 
 - [x] **BE-025** · `RegisterUser` : msisdn + pin + pays → crée `User` (KYC tier 0),
   wallet devise du pays, `LedgerAccount` client. OTP d'activation. Idempotent.
-- [ ] **BE-026** · `VerifyOtp` / `ResendOtp` (port `OtpChannel`, store Redis TTL, essais
+- [x] **BE-026** · `VerifyOtp` / `ResendOtp` (port `OtpChannel`, store Redis TTL, essais
   limités, anti‑bruteforce).
-- [ ] **BE-027** · `Login` (msisdn + pin + device) → tokens ; `RefreshToken` ; `Logout`.
+- [x] **BE-027** · `Login` (msisdn + pin + device) → tokens ; `RefreshToken` ; `Logout`.
 - [ ] **BE-028** · `AddPhoneNumber` (OTP sur le nouveau numéro, ≤ 5, unicité globale),
   `RemovePhoneNumber`, `SetPrimaryPhoneNumber`.
 - [ ] **BE-029** · `SubmitKyc` (tier 1 : identité + selfie via port `DocumentStore`),

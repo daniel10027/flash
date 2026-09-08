@@ -15,6 +15,7 @@ from flask import Flask, Response, g, jsonify, request
 from pydantic import ValidationError
 from werkzeug.exceptions import HTTPException
 
+from flash.application.auth.tokens import TokenError
 from flash.domain.shared.errors import DomainError
 from flash.infrastructure.config import Settings, get_settings
 from flash.interface.container import Deps, build_deps, register_deps
@@ -47,8 +48,9 @@ def create_app(
         PROPAGATE_EXCEPTIONS=False,
     )
     app.extensions["flash_settings"] = settings
-    register_security(app, security_bundle or build_security(settings))
-    register_deps(app, deps or build_deps(settings))
+    bundle = security_bundle or build_security(settings)
+    register_security(app, bundle)
+    register_deps(app, deps or build_deps(settings, tokens=bundle.tokens))
 
     _register_request_context(app, settings)
     _register_error_handlers(app)
@@ -98,6 +100,12 @@ def _register_error_handlers(app: Flask) -> None:
     @app.errorhandler(Unauthenticated)
     def _handle_unauthenticated(error: Unauthenticated) -> tuple[Response, int]:
         return jsonify({"code": "UNAUTHENTICATED", "message": error.message, "details": {}}), 401
+
+    @app.errorhandler(TokenError)
+    def _handle_token_error(error: TokenError) -> tuple[Response, int]:
+        return jsonify(
+            {"code": "INVALID_TOKEN", "message": str(error) or "Jeton invalide.", "details": {}}
+        ), 401
 
     @app.errorhandler(ValidationError)
     def _handle_validation_error(error: ValidationError) -> tuple[Response, int]:
