@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+dist/
+build/
+
+# Node / Web
+node_modules/
+web/dist/
+*.local
+
+# Flutter / mobile
+mobile/.dart_tool/
+mobile/build/
+mobile/.flutter-plugins*
+mobile/ios/Pods/
+**/key.properties
+**/*.keystore
+**/*.jks
+
+# Env & secrets
+.env
+.env.*
+!.env.example
+*.pem
+secrets/
+
+# OS / IDE
+.DS_Store
+.idea/
+.vscode/
+*.swp
