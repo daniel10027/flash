@@ -1,8 +1,8 @@
 # Flash — Map de développement
 
 > **Dernière mise à jour : 2026-09-08**
-> **Phase 1 terminée + Phase 2 : BE-025 → BE-031, BE-034/035/036, BE-038**
-> (auth, numéros, wallets, transfert, **dépôt & retrait cash agent**, relevé).
+> **Phase 1 terminée + Phase 2 : BE-025 → BE-031, BE-034/035/036, BE-038, BE-029**
+> (auth, numéros, wallets, transfert, **dépôt & retrait cash agent**, relevé, **KYC**).
 > Domaine complet (identity + PIN Argon2, wallet, ledger partie double, pricing 0,8 %,
 > limits, référentiel pays, **agent + ordre cash**). Application : `RegisterUser`, auth
 > (`Login`/`VerifyOtp`/`ResendOtp` + `TokenService`), gestion des numéros,
@@ -13,17 +13,23 @@
 > par Flash, ledger toujours équilibré. Port `WorkUnitOfWork` (UoW typée, +`agents`
 > +`cash_orders`) + `add_event`. Infra : grilles tarifaire/plafonds statiques (UEMOA),
 > migration `agents` + `cash_orders`, CLI `flash agent enroll`.
-> **19 routes** : `auth` (6), `phones` (5), `wallets` (2), `transfers` (1), `statement` (1),
-> `withdrawals` (2), `agent` (2) + `/health*`, `/openapi.json`, `/docs`, `/redoc`.
-> **Transfert + cash vérifiés end-to-end via docker compose** : dépôt agent 200 000 →
+> **KYC (BE-029)** : agrégat `KycCase` (+ `KycDocument`), port `DocumentStore`
+> (`LocalFilesystemDocumentStore`), `SubmitKyc` (base64, idempotent) / `WithdrawKyc` /
+> `GetKycStatus` / `ReviewKyc` (back-office par clé `X-Admin-Key`, RBAC = BE-071).
+> L'approbation relève `KycTier` → les plafonds `(pays, palier)` s'appliquent aussitôt.
+> **25 routes** : `auth` (6), `phones` (5), `wallets` (2), `transfers` (1), `statement` (1),
+> `withdrawals` (2), `agent` (2), `kyc` (4) + `admin/kyc` (1) + `/health*`, `/openapi.json`,
+> `/docs`, `/redoc`.
+> **Transfert + cash + KYC vérifiés end-to-end via docker compose** : dépôt agent 200 000 →
 > wallet client crédité, float agent 1 000 000 − 200 000 + 2 000 (commission) = 802 000 ;
 > retrait 50 000 → réserve puis règlement (solde 150 000), float 802 000 + 50 000 + 500 =
-> 852 500 ; **ledger équilibré** (`AFT` 1 000 000, `DEP` 202 000, `WDL` 50 500) ; relevé
-> client affiche `CASH_IN 200000` / `CASH_OUT 50000`.
-> 455 tests unit + 7 d'intégration (Postgres réel), couverture 100 % domain+application,
+> 852 500 ; **ledger équilibré** (`AFT` 1 000 000, `DEP` 202 000, `WDL` 50 500) ; soumission
+> KYC tier 1 → revue clé admin → `KycTier` 0 → 1, pièces écrites sur disque, `KycCaseSubmitted`
+> / `KycCaseApproved` / `KycTierChanged` en outbox.
+> 497 tests unit + 8 d'intégration (Postgres réel), couverture 100 % domain+application,
 > ruff + mypy stricts.
-> **Prochaine : BE-029 (KYC par paliers), BE-032 (RequestMoney), BE-033 (paiement marchand
-> QR), BE-037 (annulation/remboursement), BE-039 (reçu détaillé).**
+> **Prochaine : BE-032 (RequestMoney), BE-033 (paiement marchand QR),
+> BE-037 (annulation/remboursement), BE-039 (reçu détaillé).**
 
 Ce fichier est la vue d'ensemble. Le détail (une ligne = une tâche cochable) est dans
 `docs/tasks/`. On avance **dans l'ordre des identifiants** à l'intérieur de chaque lot,
@@ -41,7 +47,7 @@ mais les lots Backend / Infra avancent en priorité car Web et Mobile en dépend
 | Lot | Fichier détaillé | Fait / Total |
 |-----|------------------|--------------|
 | Fondations & docs | ce fichier | 6 / 6 |
-| Backend (BE) | [docs/tasks/backend.md](docs/tasks/backend.md) | 34 / 78 |
+| Backend (BE) | [docs/tasks/backend.md](docs/tasks/backend.md) | 35 / 78 |
 | Web (WEB) | [docs/tasks/frontend-web.md](docs/tasks/frontend-web.md) | 0 / 46 |
 | Mobile (MOB) | [docs/tasks/mobile.md](docs/tasks/mobile.md) | 0 / 44 |
 | Infra & CI/CD (INFRA) | [docs/tasks/infra.md](docs/tasks/infra.md) | 2 / 24 |
@@ -65,7 +71,7 @@ Domaine partagé (Money, Currency, Country), identité (User, PhoneNumber ≤ 5)
 auth (téléphone + PIN + OTP, JWT), erreurs & idempotence, tests unitaires du domaine.
 → `BE-001` à `BE-024`.
 
-## Phase 2 — Cas d'usage cœur (en cours : 10 / 22)
+## Phase 2 — Cas d'usage cœur (en cours : 11 / 22)
 
 Ouverture de compte, KYC par paliers, transfert P2P (frais 0,8 %), paiement marchand par
 QR, dépôt cash agent, retrait cash agent (code de retrait), annulation / remboursement,
@@ -109,8 +115,8 @@ charge, revue sécurité (OWASP ASVS, secrets, rate‑limit), doc API publiée, 
 
 ## Prochaine action
 
-`BE-029` — `SubmitKyc` (palier 1 : pièce d'identité + selfie via port `DocumentStore`) et
-`ReviewKyc` (back‑office) → change `KycTier` et recharge les limites. Puis `BE-032`
-(`RequestMoney`), `BE-033` (paiement marchand QR), `BE-037` (annulation / remboursement
-via `LedgerTransaction.reversal`), `BE-039` (reçu détaillé). ✅ `BE-034` → `BE-036`
-(dépôt & retrait cash en agence avec code de retrait) livrés.
+`BE-032` — `RequestMoney` : demande de paiement entre utilisateurs, l'acceptation
+déclenche un `SendP2PTransfer`. Puis `BE-033` (paiement marchand QR statique/dynamique,
+règlement différé `bank_settlement`), `BE-037` (annulation / remboursement via
+`LedgerTransaction.reversal`), `BE-039` (reçu détaillé). ✅ Livrés : `BE-029` (KYC par
+paliers), `BE-034` → `BE-036` (dépôt & retrait cash en agence).

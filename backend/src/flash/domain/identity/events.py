@@ -41,6 +41,32 @@ class KycTierChanged(DomainEvent):
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
+class KycCaseSubmitted(DomainEvent):
+    user_id: str
+    target_tier: int
+    document_kinds: list[str]
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class KycCaseApproved(DomainEvent):
+    user_id: str
+    target_tier: int
+    reviewer_id: str
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class KycCaseRejected(DomainEvent):
+    user_id: str
+    reviewer_id: str
+    reason: str
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class KycCaseWithdrawn(DomainEvent):
+    user_id: str
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
 class PinChanged(DomainEvent):
     pass
 
@@ -61,6 +87,10 @@ class UserClosed(DomainEvent):
 
 
 __all__ = [
+    "KycCaseApproved",
+    "KycCaseRejected",
+    "KycCaseSubmitted",
+    "KycCaseWithdrawn",
     "KycTierChanged",
     "PhoneNumberAdded",
     "PhoneNumberRemoved",

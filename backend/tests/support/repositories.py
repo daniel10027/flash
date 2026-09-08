@@ -11,6 +11,7 @@ from collections.abc import Iterable
 
 from flash.domain.agent.agent import Agent
 from flash.domain.cash.order import CashOrder, CashOrderStatus, CashOrderType
+from flash.domain.identity.kyc_case import KycCase, KycCaseStatus
 from flash.domain.identity.user import User
 from flash.domain.ledger.chart import AccountType
 from flash.domain.ledger.transaction import LedgerTransaction
@@ -228,6 +229,40 @@ class InMemoryCashOrderRepository(_Tracking):
         self._track(order)
 
 
+class InMemoryKycCaseRepository(_Tracking):
+    def __init__(self) -> None:
+        super().__init__()
+        self._by_id: dict[str, KycCase] = {}
+
+    def get(self, case_id: EntityId) -> KycCase | None:
+        case = self._by_id.get(str(case_id))
+        if case is not None:
+            self._track(case)
+        return case
+
+    def get_pending_for_user(self, user_id: EntityId) -> KycCase | None:
+        for case in self._by_id.values():
+            if case.user_id == user_id and case.status is KycCaseStatus.PENDING:
+                self._track(case)
+                return case
+        return None
+
+    def list_for_user(self, user_id: EntityId) -> list[KycCase]:
+        cases = [c for c in self._by_id.values() if c.user_id == user_id]
+        cases.sort(key=lambda c: c.submitted_at, reverse=True)
+        for case in cases:
+            self._track(case)
+        return cases
+
+    def add(self, case: KycCase) -> None:
+        self._by_id[str(case.id)] = case
+        self._track(case)
+
+    def save(self, case: KycCase) -> None:
+        self._by_id[str(case.id)] = case
+        self._track(case)
+
+
 class InMemoryUnitOfWork:
     """Frontière transactionnelle en mémoire."""
 
@@ -239,12 +274,14 @@ class InMemoryUnitOfWork:
         ledger: InMemoryLedgerRepository | None = None,
         agents: InMemoryAgentRepository | None = None,
         cash_orders: InMemoryCashOrderRepository | None = None,
+        kyc_cases: InMemoryKycCaseRepository | None = None,
     ) -> None:
         self.users = users or InMemoryUserRepository()
         self.wallets = wallets or InMemoryWalletRepository()
         self.ledger = ledger or InMemoryLedgerRepository()
         self.agents = agents or InMemoryAgentRepository()
         self.cash_orders = cash_orders or InMemoryCashOrderRepository()
+        self.kyc_cases = kyc_cases or InMemoryKycCaseRepository()
         self.committed = False
         self.rolled_back = False
         self._extra_events: list[DomainEvent] = []
@@ -274,6 +311,7 @@ class InMemoryUnitOfWork:
             *self.wallets.seen,
             *self.agents.seen,
             *self.cash_orders.seen,
+            *self.kyc_cases.seen,
         ):
             events.extend(aggregate.pull_events())
         events.extend(self._extra_events)
@@ -284,6 +322,7 @@ class InMemoryUnitOfWork:
 __all__ = [
     "InMemoryAgentRepository",
     "InMemoryCashOrderRepository",
+    "InMemoryKycCaseRepository",
     "InMemoryLedgerRepository",
     "InMemoryUnitOfWork",
     "InMemoryUserRepository",

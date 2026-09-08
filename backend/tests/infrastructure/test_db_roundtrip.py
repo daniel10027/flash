@@ -230,6 +230,69 @@ class TestAgentAndCashOrderRoundtrip:
             assert final_agent.float_available == Money(230_000, XOF)
 
 
+class TestKycCaseRoundtrip:
+    def test_kyc_case_with_documents_persists_and_reloads(
+        self, session_factory: sessionmaker[Session]
+    ) -> None:
+        from flash.domain.identity.kyc import KycTier
+        from flash.domain.identity.kyc_case import (
+            KycCase,
+            KycCaseStatus,
+            KycDocument,
+            KycDocumentKind,
+        )
+
+        clock = FixedClock(T0)
+        user = _new_user("+2250700000031")
+        case = KycCase.submit(
+            case_id=EntityId(str(uuid7())),
+            user_id=user.id,
+            target_tier=KycTier.TIER_1,
+            documents=[
+                KycDocument(
+                    kind=KycDocumentKind.ID_FRONT,
+                    storage_key="u/c/id-front.jpg",
+                    content_type="image/jpeg",
+                    byte_size=2048,
+                    uploaded_at=T0,
+                ),
+                KycDocument(
+                    kind=KycDocumentKind.SELFIE,
+                    storage_key="u/c/selfie.jpg",
+                    content_type="image/jpeg",
+                    byte_size=4096,
+                    uploaded_at=T0,
+                ),
+            ],
+            now=T0,
+        )
+
+        with SqlAlchemyUnitOfWork(session_factory, clock) as uow:
+            uow.users.add(user)
+            uow.commit()
+
+        with SqlAlchemyUnitOfWork(session_factory, clock) as uow:
+            uow.kyc_cases.add(case)
+            uow.commit()
+
+        with SqlAlchemyUnitOfWork(session_factory, clock) as uow:
+            pending = uow.kyc_cases.get_pending_for_user(user.id)
+            assert pending is not None
+            assert {d.kind for d in pending.documents} == {
+                KycDocumentKind.ID_FRONT,
+                KycDocumentKind.SELFIE,
+            }
+            pending.approve(reviewer_id=EntityId(str(uuid7())), now=T0)
+            uow.kyc_cases.save(pending)
+            uow.commit()
+
+        with SqlAlchemyUnitOfWork(session_factory, clock) as uow:
+            assert uow.kyc_cases.get_pending_for_user(user.id) is None
+            [only] = uow.kyc_cases.list_for_user(user.id)
+            assert only.status is KycCaseStatus.APPROVED
+            assert len(only.documents) == 2
+
+
 class TestUnitOfWork:
     def test_commit_writes_domain_events_to_outbox(
         self, session_factory: sessionmaker[Session], db_session: Session

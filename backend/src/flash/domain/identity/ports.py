@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
 
+from flash.domain.identity.kyc_case import KycCase
 from flash.domain.identity.user import User
 from flash.domain.shared.identifiers import EntityId, Msisdn
 
@@ -28,4 +29,19 @@ class UserRepository(Protocol):
     def save(self, user: User) -> None: ...
 
 
-__all__ = ["UserRepository"]
+@runtime_checkable
+class KycCaseRepository(Protocol):
+    """Persistance de l'agrégat ``KycCase``."""
+
+    def get(self, case_id: EntityId) -> KycCase | None: ...
+
+    def get_pending_for_user(self, user_id: EntityId) -> KycCase | None: ...
+
+    def list_for_user(self, user_id: EntityId) -> list[KycCase]: ...
+
+    def add(self, case: KycCase) -> None: ...
+
+    def save(self, case: KycCase) -> None: ...
+
+
+__all__ = ["KycCaseRepository", "UserRepository"]

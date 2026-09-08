@@ -7,6 +7,7 @@ from flash.domain.country.directory import StaticCountryDirectory
 from flash.domain.limits.limits import KycPolicy, LimitPolicy
 from flash.domain.pricing.pricing import PricingService
 from flash.infrastructure.codes import PepperedWithdrawalCodes
+from flash.infrastructure.documents import InMemoryDocumentStore
 from flash.infrastructure.limits import NullLimitCounter, build_limit_repository
 from flash.infrastructure.pricing import build_pricing_repository
 from flash.interface.container import Deps
@@ -48,6 +49,8 @@ def build_test_deps(
         limits=LimitPolicy(build_limit_repository(), NullLimitCounter()),
         kyc=KycPolicy(),
         codes=PepperedWithdrawalCodes("test-pepper-0123456789"),
+        documents=InMemoryDocumentStore(),
+        admin_api_key="test-admin-key",
     )
 
 

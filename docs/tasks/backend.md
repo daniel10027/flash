@@ -74,8 +74,11 @@ Chaque tâche livrée : code complet + tests + doc, **zéro `TODO`**.
 - [x] **BE-027** · `Login` (msisdn + pin + device) → tokens ; `RefreshToken` ; `Logout`.
 - [x] **BE-028** · `AddPhoneNumber` (OTP sur le nouveau numéro, ≤ 5, unicité globale),
   `RemovePhoneNumber`, `SetPrimaryPhoneNumber`.
-- [ ] **BE-029** · `SubmitKyc` (tier 1 : identité + selfie via port `DocumentStore`),
-  `ReviewKyc` (back‑office) → change `KycTier`, recharge les limites applicables.
+- [x] **BE-029** · `SubmitKyc` (paliers 1/2 : pièces via port `DocumentStore`, base64,
+  idempotent), `WithdrawKyc`, `GetKycStatus`/`ListMyKycCases`, `ReviewKyc` (back‑office
+  par clé `X-Admin-Key` en attendant le RBAC BE-071) → `approve` relève `KycTier` (les
+  limites étant résolues par `(pays, palier)` à chaque opération). Agrégat `KycCase`
+  (+ `KycDocument`), tables `kyc_cases`/`kyc_documents`, `LocalFilesystemDocumentStore`.
 - [x] **BE-030** · `GetWallet` / `ListWallets` (soldes depuis projection + cohérence).
 - [x] **BE-031** · `SendP2PTransfer` : cf. flux §3 architecture. Frais 0,8 %, limites,
   KYC, idempotence, `LedgerTransaction.transfer`+`fee`, événement `TransferCompleted`,

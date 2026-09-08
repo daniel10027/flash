@@ -12,6 +12,7 @@ from flask import Flask, current_app
 
 from flash.application.auth.tokens import TokenService
 from flash.application.cash.ports import WithdrawalCodes
+from flash.application.identity.documents import DocumentStore
 from flash.application.ports import OtpService
 from flash.application.services import AppServices
 from flash.domain.country.directory import CountryDirectory, StaticCountryDirectory
@@ -25,6 +26,7 @@ from flash.infrastructure.codes import PepperedWithdrawalCodes
 from flash.infrastructure.config import Settings
 from flash.infrastructure.db.engine import get_session_factory
 from flash.infrastructure.db.uow import SqlAlchemyUnitOfWork
+from flash.infrastructure.documents import LocalFilesystemDocumentStore
 from flash.infrastructure.events import LoggingEventPublisher
 from flash.infrastructure.ids import Uuid7Generator
 from flash.infrastructure.limits import NullLimitCounter, build_limit_repository
@@ -46,6 +48,8 @@ class Deps:
     limits: LimitPolicy
     kyc: KycPolicy
     codes: WithdrawalCodes
+    documents: DocumentStore
+    admin_api_key: str
 
 
 def build_app_services(settings: Settings) -> AppServices:
@@ -80,6 +84,8 @@ def build_deps(settings: Settings, *, tokens: TokenService) -> Deps:
         limits=LimitPolicy(build_limit_repository(), NullLimitCounter()),
         kyc=KycPolicy(),
         codes=PepperedWithdrawalCodes(settings.secret_key),
+        documents=LocalFilesystemDocumentStore(settings.kyc_document_dir),
+        admin_api_key=settings.admin_api_key,
     )
 
 

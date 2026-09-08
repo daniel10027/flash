@@ -55,6 +55,26 @@ Invariants :
 `PhoneNumberRemoved`, `PrimaryPhoneNumberChanged`, `KycTierChanged`, `UserFrozen`,
 `UserUnfrozen`, `UserClosed`.
 
+### KycCase  *(racine)*
+Dossier de vérification d'identité visant un palier supérieur.
+Champs : `id`, `user_id`, `target_tier` (`1 | 2`), `status`
+(`PENDING | APPROVED | REJECTED | WITHDRAWN`), `documents: KycDocument[]`,
+`submitted_at`, `decided_at?`, `reviewer_id?`, `decision_reason?`.
+`KycDocument` : `kind` (`ID_FRONT | ID_BACK | SELFIE | PROOF_OF_ADDRESS`), `storage_key`
+(clé opaque du port `DocumentStore` — les octets ne touchent jamais le domaine),
+`content_type`, `byte_size`, `uploaded_at`.
+
+Invariants :
+- Pièces requises par palier : tier 1 → `ID_FRONT` + `SELFIE` ; tier 2 → + `ID_BACK` +
+  `PROOF_OF_ADDRESS`. Manque → `InvalidInput`.
+- Une seule pièce par `kind`, un seul dossier `PENDING` par utilisateur (index partiel).
+- `approve` / `reject` / `withdraw` uniquement depuis `PENDING` → sinon
+  `InvalidAccountState`. `reject` exige un motif.
+- `approve` porte `target_tier` : le cas d'usage relève alors `User.kyc_tier` (les
+  plafonds `(pays, palier)` s'appliquent à l'opération suivante, rien à recharger).
+
+Événements : `KycCaseSubmitted`, `KycCaseApproved`, `KycCaseRejected`, `KycCaseWithdrawn`.
+
 ### Wallet  *(racine)*
 Champs : `id`, `user_id`, `currency`, `status` (`ACTIVE | FROZEN`), `available: Money`,
 `reserved: Money`, `vault_total: Money` (dérivé).

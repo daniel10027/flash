@@ -219,6 +219,56 @@ class CashOrderModel(Base):
     )
 
 
+class KycCaseModel(Base):
+    __tablename__ = "kyc_cases"
+
+    id: Mapped[str] = mapped_column(_UUID, primary_key=True)
+    user_id: Mapped[str] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
+    )
+    target_tier: Mapped[int] = mapped_column(SmallInteger, nullable=False)
+    status: Mapped[str] = mapped_column(String(12), nullable=False)
+    submitted_at: Mapped[datetime] = mapped_column(TZDateTime, nullable=False)
+    decided_at: Mapped[datetime | None] = mapped_column(TZDateTime, nullable=True)
+    reviewer_id: Mapped[str | None] = mapped_column(_UUID, nullable=True)
+    decision_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    documents: Mapped[list[KycDocumentModel]] = relationship(
+        back_populates="case",
+        cascade="all, delete-orphan",
+        order_by="KycDocumentModel.kind",
+        lazy="selectin",
+    )
+
+    __table_args__ = (
+        Index("ix_kyc_cases_user_id", "user_id"),
+        Index(
+            "ux_kyc_cases_one_pending_per_user",
+            "user_id",
+            unique=True,
+            postgresql_where=text("status = 'PENDING'"),
+        ),
+    )
+
+
+class KycDocumentModel(Base):
+    __tablename__ = "kyc_documents"
+
+    id: Mapped[str] = mapped_column(_UUID, primary_key=True)
+    case_id: Mapped[str] = mapped_column(
+        ForeignKey("kyc_cases.id", ondelete="CASCADE"), nullable=False
+    )
+    kind: Mapped[str] = mapped_column(String(24), nullable=False)
+    storage_key: Mapped[str] = mapped_column(String(512), nullable=False)
+    content_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    byte_size: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    uploaded_at: Mapped[datetime] = mapped_column(TZDateTime, nullable=False)
+
+    case: Mapped[KycCaseModel] = relationship(back_populates="documents")
+
+    __table_args__ = (UniqueConstraint("case_id", "kind"),)
+
+
 class OutboxModel(Base):
     __tablename__ = "outbox"
 
@@ -243,6 +293,8 @@ __all__ = [
     "AgentModel",
     "CashOrderModel",
     "IdempotencyKeyModel",
+    "KycCaseModel",
+    "KycDocumentModel",
     "LedgerAccountModel",
     "LedgerPostingModel",
     "LedgerTransactionModel",

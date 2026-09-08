@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 
 from flash.domain.agent.agent import Agent
 from flash.domain.cash.order import CashOrder
+from flash.domain.identity.kyc_case import KycCase
 from flash.domain.identity.user import User
 from flash.domain.ledger.chart import AccountType
 from flash.domain.ledger.transaction import LedgerTransaction
@@ -26,6 +27,7 @@ from flash.infrastructure.db import mappers
 from flash.infrastructure.db.models import (
     AgentModel,
     CashOrderModel,
+    KycCaseModel,
     LedgerAccountModel,
     LedgerPostingModel,
     LedgerTransactionModel,
@@ -266,6 +268,46 @@ class SqlAlchemyCashOrderRepository:
         self._tracker.track(order)
 
 
+class SqlAlchemyKycCaseRepository:
+    def __init__(self, session: Session, tracker: _AggregateTracker) -> None:
+        self._session = session
+        self._tracker = tracker
+
+    def _load(self, model: KycCaseModel | None) -> KycCase | None:
+        if model is None:
+            return None
+        case = mappers.kyc_case_to_domain(model)
+        self._tracker.track(case)
+        return case
+
+    def get(self, case_id: EntityId) -> KycCase | None:
+        return self._load(self._session.get(KycCaseModel, str(case_id)))
+
+    def get_pending_for_user(self, user_id: EntityId) -> KycCase | None:
+        stmt = (
+            select(KycCaseModel)
+            .where(KycCaseModel.user_id == str(user_id), KycCaseModel.status == "PENDING")
+            .with_for_update()
+        )
+        return self._load(self._session.scalars(stmt).first())
+
+    def list_for_user(self, user_id: EntityId) -> list[KycCase]:
+        stmt = (
+            select(KycCaseModel)
+            .where(KycCaseModel.user_id == str(user_id))
+            .order_by(KycCaseModel.submitted_at.desc())
+        )
+        return [c for c in (self._load(m) for m in self._session.scalars(stmt)) if c is not None]
+
+    def add(self, case: KycCase) -> None:
+        self._session.add(mappers.kyc_case_to_model(case))
+        self._tracker.track(case)
+
+    def save(self, case: KycCase) -> None:
+        self._session.merge(mappers.kyc_case_to_model(case))
+        self._tracker.track(case)
+
+
 def _new_account_id() -> EntityId:
     return EntityId(str(uuid7()))
 
@@ -273,6 +315,7 @@ def _new_account_id() -> EntityId:
 __all__ = [
     "SqlAlchemyAgentRepository",
     "SqlAlchemyCashOrderRepository",
+    "SqlAlchemyKycCaseRepository",
     "SqlAlchemyLedgerRepository",
     "SqlAlchemyUserRepository",
     "SqlAlchemyWalletRepository",

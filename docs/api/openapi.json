@@ -1375,6 +1375,249 @@
           }
         }
       }
+    },
+    "/v1/kyc/status": {
+      "get": {
+        "summary": "Palier KYC courant et dossier en attente éventuel",
+        "tags": [
+          "kyc"
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès"
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/v1/kyc/submissions": {
+      "get": {
+        "summary": "Historique des dossiers KYC de l'utilisateur",
+        "tags": [
+          "kyc"
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès"
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "post": {
+        "summary": "Soumettre un dossier de vérification d'identité",
+        "tags": [
+          "kyc"
+        ],
+        "responses": {
+          "201": {
+            "description": "Succès"
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$defs": {
+                  "KycDocumentPayload": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "kind": {
+                        "examples": [
+                          "ID_FRONT",
+                          "SELFIE"
+                        ],
+                        "title": "Kind",
+                        "type": "string"
+                      },
+                      "content_base64": {
+                        "minLength": 8,
+                        "title": "Content Base64",
+                        "type": "string"
+                      },
+                      "content_type": {
+                        "examples": [
+                          "image/jpeg"
+                        ],
+                        "title": "Content Type",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "kind",
+                      "content_base64",
+                      "content_type"
+                    ],
+                    "title": "KycDocumentPayload",
+                    "type": "object"
+                  }
+                },
+                "additionalProperties": false,
+                "properties": {
+                  "target_tier": {
+                    "examples": [
+                      1
+                    ],
+                    "maximum": 2,
+                    "minimum": 1,
+                    "title": "Target Tier",
+                    "type": "integer"
+                  },
+                  "documents": {
+                    "items": {
+                      "$ref": "#/$defs/KycDocumentPayload"
+                    },
+                    "maxItems": 6,
+                    "minItems": 1,
+                    "title": "Documents",
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "target_tier",
+                  "documents"
+                ],
+                "title": "SubmitKycRequest",
+                "type": "object"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 255
+            }
+          }
+        ]
+      }
+    },
+    "/v1/kyc/submissions/{case_id}/withdraw": {
+      "post": {
+        "summary": "Retirer un dossier KYC en attente",
+        "tags": [
+          "kyc"
+        ],
+        "responses": {
+          "204": {
+            "description": "Succès"
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/v1/admin/kyc/submissions/{case_id}/review": {
+      "post": {
+        "summary": "Back-office : approuver ou rejeter un dossier KYC",
+        "tags": [
+          "kyc",
+          "admin"
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès"
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "approve": {
+                    "title": "Approve",
+                    "type": "boolean"
+                  },
+                  "reason": {
+                    "default": "",
+                    "maxLength": 500,
+                    "title": "Reason",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "approve"
+                ],
+                "title": "ReviewKycRequest",
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {

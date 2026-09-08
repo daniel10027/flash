@@ -49,6 +49,10 @@ class Settings(BaseSettings):
     smtp_from: str = Field(default="Flash <no-reply@flash.local>", alias="SMTP_FROM")
     fcm_credentials_json: str = Field(default="", alias="FCM_CREDENTIALS_JSON")
 
+    # --- KYC
+    kyc_document_dir: str = Field(default="/tmp/flash-kyc", alias="KYC_DOCUMENT_DIR")
+    admin_api_key: str = Field(default="", alias="ADMIN_API_KEY")
+
     # --- pays par défaut
     default_country: str = Field(default="CI", alias="DEFAULT_COUNTRY")
     default_currency: str = Field(default="XOF", alias="DEFAULT_CURRENCY")

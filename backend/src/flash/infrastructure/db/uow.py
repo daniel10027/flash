@@ -23,6 +23,7 @@ from flash.infrastructure.db.models import OutboxModel
 from flash.infrastructure.db.repositories import (
     SqlAlchemyAgentRepository,
     SqlAlchemyCashOrderRepository,
+    SqlAlchemyKycCaseRepository,
     SqlAlchemyLedgerRepository,
     SqlAlchemyUserRepository,
     SqlAlchemyWalletRepository,
@@ -50,6 +51,7 @@ class SqlAlchemyUnitOfWork:
         self.ledger = SqlAlchemyLedgerRepository(self._session)
         self.agents = SqlAlchemyAgentRepository(self._session, self)
         self.cash_orders = SqlAlchemyCashOrderRepository(self._session, self)
+        self.kyc_cases = SqlAlchemyKycCaseRepository(self._session, self)
         return self
 
     def __exit__(self, exc_type: object, exc: object, tb: object) -> None:

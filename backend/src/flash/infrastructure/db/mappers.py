@@ -12,6 +12,12 @@ from uuid import NAMESPACE_URL, uuid5
 from flash.domain.agent.agent import Agent, AgentStatus
 from flash.domain.cash.order import CashOrder, CashOrderStatus, CashOrderType
 from flash.domain.identity.kyc import KycTier
+from flash.domain.identity.kyc_case import (
+    KycCase,
+    KycCaseStatus,
+    KycDocument,
+    KycDocumentKind,
+)
 from flash.domain.identity.user import PhoneNumber, User, UserStatus
 from flash.domain.ledger.chart import Direction
 from flash.domain.ledger.transaction import LedgerTransaction, Posting, TransactionKind
@@ -21,6 +27,8 @@ from flash.domain.wallet.wallet import Wallet, WalletStatus
 from flash.infrastructure.db.models import (
     AgentModel,
     CashOrderModel,
+    KycCaseModel,
+    KycDocumentModel,
     LedgerPostingModel,
     LedgerTransactionModel,
     PhoneNumberModel,
@@ -232,11 +240,66 @@ def cash_order_to_model(order: CashOrder) -> CashOrderModel:
     )
 
 
+def _kyc_document_id(case_id: str, kind: str) -> str:
+    """Identifiant déterministe d'une pièce : stable d'un ``merge`` à l'autre."""
+    return str(uuid5(NAMESPACE_URL, f"flash:kyc-doc:{case_id}:{kind}"))
+
+
+def kyc_case_to_domain(model: KycCaseModel) -> KycCase:
+    return KycCase(
+        id=EntityId(model.id),
+        user_id=EntityId(model.user_id),
+        target_tier=KycTier(model.target_tier),
+        status=KycCaseStatus(model.status),
+        documents=[
+            KycDocument(
+                kind=KycDocumentKind(d.kind),
+                storage_key=d.storage_key,
+                content_type=d.content_type,
+                byte_size=d.byte_size,
+                uploaded_at=d.uploaded_at,
+            )
+            for d in model.documents
+        ],
+        submitted_at=model.submitted_at,
+        decided_at=model.decided_at,
+        reviewer_id=EntityId(model.reviewer_id) if model.reviewer_id else None,
+        decision_reason=model.decision_reason,
+    )
+
+
+def kyc_case_to_model(case: KycCase) -> KycCaseModel:
+    return KycCaseModel(
+        id=str(case.id),
+        user_id=str(case.user_id),
+        target_tier=int(case.target_tier),
+        status=case.status.value,
+        submitted_at=case.submitted_at,
+        decided_at=case.decided_at,
+        reviewer_id=str(case.reviewer_id) if case.reviewer_id else None,
+        decision_reason=case.decision_reason,
+        documents=[
+            KycDocumentModel(
+                id=_kyc_document_id(str(case.id), d.kind.value),
+                case_id=str(case.id),
+                kind=d.kind.value,
+                storage_key=d.storage_key,
+                content_type=d.content_type,
+                byte_size=d.byte_size,
+                uploaded_at=d.uploaded_at,
+            )
+            for d in case.documents
+        ],
+    )
+
+
 __all__ = [
     "agent_to_domain",
     "agent_to_model",
     "cash_order_to_domain",
     "cash_order_to_model",
+    "kyc_case_to_domain",
+    "kyc_case_to_model",
     "ledger_transaction_to_domain",
     "ledger_transaction_to_model",
     "user_to_domain",
