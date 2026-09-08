@@ -4,12 +4,18 @@ from __future__ import annotations
 
 from flask import Blueprint, Response, jsonify, request
 
-from flash.application.statement.queries import ListStatement, ListStatementCommand
+from flash.application.statement.queries import (
+    GetReceipt,
+    GetReceiptCommand,
+    ListStatement,
+    ListStatementCommand,
+)
 from flash.interface.container import deps
 from flash.interface.openapi import document
 from flash.interface.security.auth import current_principal, require_auth
 
 bp = Blueprint("statement", __name__, url_prefix="/v1/statement")
+receipts_bp = Blueprint("receipts", __name__, url_prefix="/v1/receipts")
 
 _LINE_SCHEMA = {
     "type": "object",
@@ -56,4 +62,17 @@ def list_statement() -> tuple[Response, int]:
     return jsonify(page.to_dict()), 200
 
 
-__all__ = ["bp"]
+@receipts_bp.get("/<reference>")
+@require_auth
+@document(
+    summary="Reçu détaillé d'une opération (par id de transaction ou référence)",
+    tags=["statement"],
+)
+def get_receipt(reference: str) -> tuple[Response, int]:
+    receipt = GetReceipt(services=deps().services).execute(
+        GetReceiptCommand(user_id=str(current_principal().user_id), reference=reference)
+    )
+    return jsonify(receipt.to_dict()), 200
+
+
+__all__ = ["bp", "receipts_bp"]

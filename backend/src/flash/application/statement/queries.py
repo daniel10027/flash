@@ -16,11 +16,58 @@ from typing import Any
 from flash.application.services import AppServices
 from flash.application.use_case import Command, UseCase
 from flash.domain.ledger.chart import Direction
-from flash.domain.ledger.transaction import LedgerTransaction
+from flash.domain.ledger.transaction import LedgerTransaction, TransactionKind
+from flash.domain.shared.errors import WalletNotFound
 from flash.domain.shared.identifiers import EntityId
 
 _MAX_LIMIT = 100
 _DEFAULT_LIMIT = 20
+
+# Opérations où le payeur supporte lui-même les frais (débit = montant + frais).
+_FEE_ON_PAYER = {TransactionKind.TRANSFER, TransactionKind.CASH_OUT}
+
+
+@dataclass(frozen=True, slots=True)
+class _Projection:
+    direction: str  # "in" | "out"
+    amount_minor: int
+    fee_minor: int
+    currency: str
+    counterparty_masked: str | None
+    note: str | None
+
+
+def _project_for_wallets(txn: LedgerTransaction, wallet_ids: set[str]) -> _Projection:
+    """Projette une transaction du point de vue des portefeuilles de l'appelant."""
+    mine = [p for p in txn.postings if p.wallet_id is not None and str(p.wallet_id) in wallet_ids]
+    net = 0
+    currency = txn.postings[0].amount.currency.code
+    for p in mine:
+        currency = p.amount.currency.code
+        net += -p.amount.amount_minor if p.direction is Direction.DEBIT else p.amount.amount_minor
+
+    meta = dict(txn.metadata)
+    is_out = net < 0
+    gross = abs(net)
+    meta_fee = int(meta.get("fee_minor", 0))
+    # Les frais ne sont « supportés » par l'appelant que sur les sorties où son débit
+    # les inclut (transfert, retrait). Sur un paiement marchand, la commission est
+    # payée par le marchand : rien à isoler côté payeur.
+    fee_minor = meta_fee if (is_out and txn.kind in _FEE_ON_PAYER) else 0
+    amount = gross - fee_minor if is_out else gross
+
+    counterparty = meta.get("recipient_masked") if is_out else meta.get("sender_masked")
+    if counterparty is None:
+        counterparty = meta.get("merchant_name") or meta.get("client_masked")
+
+    return _Projection(
+        direction="out" if is_out else "in",
+        amount_minor=amount,
+        fee_minor=fee_minor,
+        currency=currency,
+        counterparty_masked=counterparty,
+        note=meta.get("note"),
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -93,37 +140,123 @@ class ListStatement(UseCase[ListStatementCommand, StatementPage]):
             return StatementPage(lines=lines, next_cursor=next_cursor)
 
     def _project(self, txn: LedgerTransaction, wallet_ids: set[str]) -> StatementLine:
-        mine = [
-            p for p in txn.postings if p.wallet_id is not None and str(p.wallet_id) in wallet_ids
-        ]
-        net = 0
-        currency = txn.postings[0].amount.currency.code
-        for p in mine:
-            currency = p.amount.currency.code
-            net += (
-                -p.amount.amount_minor if p.direction is Direction.DEBIT else p.amount.amount_minor
-            )
-
-        meta = dict(txn.metadata)
-        is_out = net < 0
-        fee_minor = int(meta.get("fee_minor", 0)) if is_out else 0
-        gross = abs(net)
-        # Pour une sortie, `net` inclut les frais : on isole le montant transféré.
-        amount = gross - fee_minor if is_out else gross
-        counterparty = meta.get("recipient_masked") if is_out else meta.get("sender_masked")
-
+        p = _project_for_wallets(txn, wallet_ids)
         return StatementLine(
             id=str(txn.id),
             reference=txn.reference,
             kind=txn.kind.value,
-            direction="out" if is_out else "in",
-            amount_minor=amount,
-            fee_minor=fee_minor,
-            currency=currency,
-            counterparty_masked=counterparty,
-            note=meta.get("note"),
+            direction=p.direction,
+            amount_minor=p.amount_minor,
+            fee_minor=p.fee_minor,
+            currency=p.currency,
+            counterparty_masked=p.counterparty_masked,
+            note=p.note,
             occurred_at=txn.occurred_at.isoformat(),
         )
 
 
-__all__ = ["ListStatement", "ListStatementCommand", "StatementLine", "StatementPage"]
+# --------------------------------------------------------------------- reçu (BE-039)
+@dataclass(frozen=True, slots=True)
+class GetReceiptCommand(Command):
+    user_id: str
+    reference: str  # id de LedgerTransaction ou référence métier (« TRX-… », « MPY-… »…)
+
+
+@dataclass(frozen=True, slots=True)
+class ReceiptView:
+    transaction_id: str
+    reference: str
+    kind: str
+    direction: str  # "in" | "out"
+    amount_minor: int
+    fee_minor: int
+    currency: str
+    counterparty_masked: str | None
+    note: str | None
+    status: str  # "COMPLETED" | "REVERSED"
+    occurred_at: str
+    reversed_at: str | None
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "transaction_id": self.transaction_id,
+            "reference": self.reference,
+            "kind": self.kind,
+            "direction": self.direction,
+            "amount_minor": self.amount_minor,
+            "fee_minor": self.fee_minor,
+            "currency": self.currency,
+            "counterparty_masked": self.counterparty_masked,
+            "note": self.note,
+            "status": self.status,
+            "occurred_at": self.occurred_at,
+            "reversed_at": self.reversed_at,
+        }
+
+
+class GetReceipt(UseCase[GetReceiptCommand, ReceiptView]):
+    """Reçu détaillé d'une opération, du point de vue de l'appelant.
+
+    L'appelant doit être partie prenante : l'un de ses portefeuilles est touché par la
+    transaction. Sinon ``WalletNotFound`` (404, sans divulgation).
+    """
+
+    def __init__(self, *, services: AppServices) -> None:
+        self._services = services
+
+    def execute(self, command: GetReceiptCommand) -> ReceiptView:
+        with self._services.uow() as uow:
+            wallets = uow.wallets.list_for_user(EntityId(command.user_id))
+            wallet_ids = {str(w.id) for w in wallets}
+            if not wallet_ids:
+                raise WalletNotFound("Reçu introuvable.")
+
+            txns = self._resolve(uow, command.reference)
+            original = next((t for t in txns if t.kind is not TransactionKind.REVERSAL), None)
+            reversal = next((t for t in txns if t.kind is TransactionKind.REVERSAL), None)
+            if original is None:
+                raise WalletNotFound("Reçu introuvable.")
+
+            touched = any(
+                p.wallet_id is not None and str(p.wallet_id) in wallet_ids
+                for p in original.postings
+            )
+            if not touched:
+                raise WalletNotFound("Reçu introuvable.")
+
+            p = _project_for_wallets(original, wallet_ids)
+            return ReceiptView(
+                transaction_id=str(original.id),
+                reference=original.reference,
+                kind=original.kind.value,
+                direction=p.direction,
+                amount_minor=p.amount_minor,
+                fee_minor=p.fee_minor,
+                currency=p.currency,
+                counterparty_masked=p.counterparty_masked,
+                note=p.note,
+                status="REVERSED" if reversal is not None else "COMPLETED",
+                occurred_at=original.occurred_at.isoformat(),
+                reversed_at=reversal.occurred_at.isoformat() if reversal is not None else None,
+            )
+
+    def _resolve(self, uow: Any, reference: str) -> list[LedgerTransaction]:
+        try:
+            txn_id = EntityId(reference)
+        except ValueError:
+            return list(uow.ledger.get_by_reference(reference))
+        found = uow.ledger.get(txn_id)
+        if found is None:
+            return []
+        return list(uow.ledger.get_by_reference(found.reference))
+
+
+__all__ = [
+    "GetReceipt",
+    "GetReceiptCommand",
+    "ListStatement",
+    "ListStatementCommand",
+    "ReceiptView",
+    "StatementLine",
+    "StatementPage",
+]

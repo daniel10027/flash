@@ -1398,6 +1398,34 @@
         ]
       }
     },
+    "/v1/receipts/{reference}": {
+      "get": {
+        "summary": "Reçu détaillé d'une opération (par id de transaction ou référence)",
+        "tags": [
+          "statement"
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès"
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
     "/v1/withdrawals": {
       "post": {
         "summary": "Générer un code de retrait cash (réserve les fonds)",

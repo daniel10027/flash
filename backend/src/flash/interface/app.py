@@ -70,6 +70,7 @@ def create_app(
     app.register_blueprint(transfers_routes.bp)
     app.register_blueprint(payment_request_routes.bp)
     app.register_blueprint(statement_routes.bp)
+    app.register_blueprint(statement_routes.receipts_bp)
     app.register_blueprint(cash_routes.withdrawals_bp)
     app.register_blueprint(cash_routes.agent_bp)
     app.register_blueprint(kyc_routes.bp)

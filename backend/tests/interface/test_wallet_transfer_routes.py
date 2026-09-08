@@ -279,3 +279,50 @@ class TestStatementEndpoint:
             f"/v1/statement?limit=2&cursor={first['next_cursor']}", headers=sender.headers
         ).get_json()
         assert len(rest["lines"]) == 1 and rest["next_cursor"] is None
+
+
+class TestReceiptEndpoint:
+    def test_requires_auth(self, client: FlaskClient) -> None:
+        assert client.get("/v1/receipts/TRX-x").status_code == 401
+
+    def test_receipt_by_reference_and_hidden_for_stranger(
+        self, client: FlaskClient, uow: InMemoryUnitOfWork
+    ) -> None:
+        sender = _onboard(client, "+2250700000001", "rc-key-s-longenough")
+        _onboard(client, "+2250700000002", "rc-key-r-longenough")
+        stranger = _onboard(client, "+2250700000003", "rc-key-x-longenough")
+        _fund(uow, sender.wallet_id, 100_000)
+        ref = client.post(
+            "/v1/transfers",
+            json={"recipient_phone_number": "+2250700000002", "amount_minor": 20_000, "note": "y"},
+            headers={**sender.headers, "Idempotency-Key": "rc-trx-0001"},
+        ).get_json()["reference"]
+
+        ok = client.get(f"/v1/receipts/{ref}", headers=sender.headers)
+        assert ok.status_code == 200
+        body = ok.get_json()
+        assert body["direction"] == "out"
+        assert body["amount_minor"] == 20_000
+        assert body["status"] == "COMPLETED"
+        assert body["note"] == "y"
+
+        assert client.get(f"/v1/receipts/{ref}", headers=stranger.headers).status_code == 404
+
+    def test_receipt_reflects_cancellation(
+        self, client: FlaskClient, uow: InMemoryUnitOfWork
+    ) -> None:
+        sender = _onboard(client, "+2250700000001", "rc2-key-s-longenough")
+        _onboard(client, "+2250700000002", "rc2-key-r-longenough")
+        _fund(uow, sender.wallet_id, 100_000)
+        tid = client.post(
+            "/v1/transfers",
+            json={"recipient_phone_number": "+2250700000002", "amount_minor": 20_000},
+            headers={**sender.headers, "Idempotency-Key": "rc2-trx-0001"},
+        ).get_json()["transfer_id"]
+        client.post(
+            f"/v1/transfers/{tid}/cancel",
+            headers={**sender.headers, "Idempotency-Key": "rc2-rev-0001"},
+        )
+        body = client.get(f"/v1/receipts/{tid}", headers=sender.headers).get_json()
+        assert body["status"] == "REVERSED"
+        assert body["reversed_at"] is not None

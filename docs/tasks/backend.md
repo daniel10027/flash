@@ -117,8 +117,12 @@ Chaque tâche livrée : code complet + tests + doc, **zéro `TODO`**.
   `MerchantPaymentRefunded`.
 - [x] **BE-038** · `ListStatement` : historique paginé (curseur), filtres (type, période,
   contrepartie, statut), projection `statement_entries` alimentée par les événements.
-- [ ] **BE-039** · `GetReceipt` : reçu détaillé d'une opération (montant, frais, réf,
-  parties masquées, QR de vérification).
+- [x] **BE-039** · `GetReceipt` : reçu détaillé d'une opération à partir du ledger (par
+  id de transaction **ou** référence métier `TRX-`/`MPY-`/`DEP-`/`WDL-`…). Sens, montant
+  net, frais supportés par l'appelant (isolés uniquement pour transfert / retrait),
+  contrepartie masquée, note, statut `COMPLETED` / `REVERSED` (+ `reversed_at`).
+  Réservé aux parties prenantes (un portefeuille touché) → sinon 404. Route
+  `GET /v1/receipts/<reference>`. Projection factorisée avec `ListStatement`.
 - [ ] **BE-040** · Notifications — port `Notifier` ; handlers d'événements → push (FCM),
   in‑app (table + SSE), email (SMTP) pour : réception d'argent, débit, dépôt/retrait
   agent, KYC, sécurité (nouvel appareil).
