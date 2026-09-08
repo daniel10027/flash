@@ -21,6 +21,7 @@ from flash.domain.identity.kyc_case import (
 from flash.domain.identity.user import PhoneNumber, User, UserStatus
 from flash.domain.ledger.chart import Direction
 from flash.domain.ledger.transaction import LedgerTransaction, Posting, TransactionKind
+from flash.domain.payments.request import PaymentRequest, PaymentRequestStatus
 from flash.domain.shared.identifiers import CountryCode, EntityId, Msisdn
 from flash.domain.shared.money import Currency, Money
 from flash.domain.wallet.wallet import Wallet, WalletStatus
@@ -31,6 +32,7 @@ from flash.infrastructure.db.models import (
     KycDocumentModel,
     LedgerPostingModel,
     LedgerTransactionModel,
+    PaymentRequestModel,
     PhoneNumberModel,
     UserModel,
     WalletModel,
@@ -293,6 +295,41 @@ def kyc_case_to_model(case: KycCase) -> KycCaseModel:
     )
 
 
+def payment_request_to_domain(model: PaymentRequestModel) -> PaymentRequest:
+    currency = Currency.of(model.currency)
+    return PaymentRequest(
+        id=EntityId(model.id),
+        requester_id=EntityId(model.requester_id),
+        payer_id=EntityId(model.payer_id),
+        amount=Money(model.amount_minor, currency),
+        currency_code=model.currency,
+        status=PaymentRequestStatus(model.status),
+        created_at=model.created_at,
+        expires_at=model.expires_at,
+        note=model.note,
+        resulting_transfer_id=(
+            EntityId(model.resulting_transfer_id) if model.resulting_transfer_id else None
+        ),
+    )
+
+
+def payment_request_to_model(request: PaymentRequest) -> PaymentRequestModel:
+    return PaymentRequestModel(
+        id=str(request.id),
+        requester_id=str(request.requester_id),
+        payer_id=str(request.payer_id),
+        amount_minor=request.amount.amount_minor,
+        currency=request.currency_code,
+        status=request.status.value,
+        note=request.note,
+        created_at=request.created_at,
+        expires_at=request.expires_at,
+        resulting_transfer_id=(
+            str(request.resulting_transfer_id) if request.resulting_transfer_id else None
+        ),
+    )
+
+
 __all__ = [
     "agent_to_domain",
     "agent_to_model",
@@ -302,6 +339,8 @@ __all__ = [
     "kyc_case_to_model",
     "ledger_transaction_to_domain",
     "ledger_transaction_to_model",
+    "payment_request_to_domain",
+    "payment_request_to_model",
     "user_to_domain",
     "user_to_model",
     "wallet_to_domain",

@@ -18,6 +18,7 @@ from flash.domain.identity.kyc_case import KycCase
 from flash.domain.identity.user import User
 from flash.domain.ledger.chart import AccountType
 from flash.domain.ledger.transaction import LedgerTransaction
+from flash.domain.payments.request import PaymentRequest
 from flash.domain.shared.errors import PhoneNumberAlreadyLinked
 from flash.domain.shared.events import EventRecorder
 from flash.domain.shared.identifiers import EntityId, Msisdn
@@ -31,6 +32,7 @@ from flash.infrastructure.db.models import (
     LedgerAccountModel,
     LedgerPostingModel,
     LedgerTransactionModel,
+    PaymentRequestModel,
     PhoneNumberModel,
     UserModel,
     WalletModel,
@@ -308,6 +310,46 @@ class SqlAlchemyKycCaseRepository:
         self._tracker.track(case)
 
 
+class SqlAlchemyPaymentRequestRepository:
+    def __init__(self, session: Session, tracker: _AggregateTracker) -> None:
+        self._session = session
+        self._tracker = tracker
+
+    def _load(self, model: PaymentRequestModel | None) -> PaymentRequest | None:
+        if model is None:
+            return None
+        request = mappers.payment_request_to_domain(model)
+        self._tracker.track(request)
+        return request
+
+    def get(self, request_id: EntityId) -> PaymentRequest | None:
+        return self._load(self._session.get(PaymentRequestModel, str(request_id)))
+
+    def list_incoming(self, payer_id: EntityId) -> list[PaymentRequest]:
+        stmt = (
+            select(PaymentRequestModel)
+            .where(PaymentRequestModel.payer_id == str(payer_id))
+            .order_by(PaymentRequestModel.created_at.desc())
+        )
+        return [r for r in (self._load(m) for m in self._session.scalars(stmt)) if r is not None]
+
+    def list_outgoing(self, requester_id: EntityId) -> list[PaymentRequest]:
+        stmt = (
+            select(PaymentRequestModel)
+            .where(PaymentRequestModel.requester_id == str(requester_id))
+            .order_by(PaymentRequestModel.created_at.desc())
+        )
+        return [r for r in (self._load(m) for m in self._session.scalars(stmt)) if r is not None]
+
+    def add(self, request: PaymentRequest) -> None:
+        self._session.add(mappers.payment_request_to_model(request))
+        self._tracker.track(request)
+
+    def save(self, request: PaymentRequest) -> None:
+        self._session.merge(mappers.payment_request_to_model(request))
+        self._tracker.track(request)
+
+
 def _new_account_id() -> EntityId:
     return EntityId(str(uuid7()))
 
@@ -317,6 +359,7 @@ __all__ = [
     "SqlAlchemyCashOrderRepository",
     "SqlAlchemyKycCaseRepository",
     "SqlAlchemyLedgerRepository",
+    "SqlAlchemyPaymentRequestRepository",
     "SqlAlchemyUserRepository",
     "SqlAlchemyWalletRepository",
 ]

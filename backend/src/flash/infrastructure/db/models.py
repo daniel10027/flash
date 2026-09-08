@@ -219,6 +219,32 @@ class CashOrderModel(Base):
     )
 
 
+class PaymentRequestModel(Base):
+    __tablename__ = "payment_requests"
+
+    id: Mapped[str] = mapped_column(_UUID, primary_key=True)
+    requester_id: Mapped[str] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
+    )
+    payer_id: Mapped[str] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
+    )
+    amount_minor: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    currency: Mapped[str] = mapped_column(_CCY, nullable=False)
+    status: Mapped[str] = mapped_column(String(12), nullable=False)
+    note: Mapped[str | None] = mapped_column(String(140), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(TZDateTime, nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(TZDateTime, nullable=False)
+    resulting_transfer_id: Mapped[str | None] = mapped_column(_UUID, nullable=True)
+
+    __table_args__ = (
+        CheckConstraint("amount_minor > 0", name="amount_positive"),
+        CheckConstraint("requester_id <> payer_id", name="not_self_request"),
+        Index("ix_payment_requests_payer_id", "payer_id"),
+        Index("ix_payment_requests_requester_id", "requester_id"),
+    )
+
+
 class KycCaseModel(Base):
     __tablename__ = "kyc_cases"
 
@@ -299,6 +325,7 @@ __all__ = [
     "LedgerPostingModel",
     "LedgerTransactionModel",
     "OutboxModel",
+    "PaymentRequestModel",
     "PhoneNumberModel",
     "UserModel",
     "WalletModel",

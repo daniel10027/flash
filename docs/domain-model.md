@@ -128,6 +128,25 @@ pas déjà dépensé (règle : autorisé même si dépensé → passe le destina
 en litige).
 Événements : `TransferCompleted`, `TransferReversed`.
 
+### PaymentRequest  *(racine)*
+Un *requester* réclame un paiement à un *payer*. L'agrégat ne déplace pas d'argent : il
+porte l'intention.
+Champs : `id`, `requester_id`, `payer_id`, `amount`, `currency_code`, `status`
+(`PENDING | ACCEPTED | DECLINED | CANCELLED | EXPIRED`), `note?`, `created_at`,
+`expires_at` (TTL 7 j), `resulting_transfer_id?`.
+
+Invariants :
+- `requester_id != payer_id`, `amount > 0`.
+- `accept` / `decline` / `cancel` uniquement depuis `PENDING` ; `accept` refusé si
+  `now > expires_at`.
+- `accept` : le cas d'usage déclenche un `SendP2PTransfer` du *payer* vers le *requester*
+  avec une clé d'idempotence **dérivée de la demande** (`paymentreq-<id>`) — accepter
+  deux fois ne déplace l'argent qu'une fois. Fonds insuffisants → la demande **reste**
+  `PENDING`.
+
+Événements : `PaymentRequestCreated`, `PaymentRequestAccepted`, `PaymentRequestDeclined`,
+`PaymentRequestCancelled`, `PaymentRequestExpired`.
+
 ### MerchantPayment
 `id`, `payer_id`, `merchant_id`, `till_id?`, `amount`, `fee` (grille marchand),
 `reference`, `status` (`COMPLETED | REFUNDED`), `ledger_transaction_id`.

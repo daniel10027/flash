@@ -1055,6 +1055,218 @@
         ]
       }
     },
+    "/v1/payment-requests": {
+      "post": {
+        "summary": "Réclamer un paiement à un autre compte Flash",
+        "tags": [
+          "payment-requests"
+        ],
+        "responses": {
+          "201": {
+            "description": "Succès"
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "payer_phone_number": {
+                    "examples": [
+                      "+2250700000002"
+                    ],
+                    "maxLength": 24,
+                    "minLength": 6,
+                    "title": "Payer Phone Number",
+                    "type": "string"
+                  },
+                  "amount_minor": {
+                    "examples": [
+                      15000
+                    ],
+                    "exclusiveMinimum": 0,
+                    "title": "Amount Minor",
+                    "type": "integer"
+                  },
+                  "note": {
+                    "anyOf": [
+                      {
+                        "maxLength": 140,
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "title": "Note"
+                  },
+                  "country": {
+                    "anyOf": [
+                      {
+                        "maxLength": 2,
+                        "minLength": 2,
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "title": "Country"
+                  }
+                },
+                "required": [
+                  "payer_phone_number",
+                  "amount_minor"
+                ],
+                "title": "CreatePaymentRequestBody",
+                "type": "object"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 255
+            }
+          }
+        ]
+      },
+      "get": {
+        "summary": "Lister ses demandes de paiement (reçues ou émises)",
+        "tags": [
+          "payment-requests"
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès"
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/v1/payment-requests/{request_id}/accept": {
+      "post": {
+        "summary": "Accepter une demande de paiement (déclenche le transfert)",
+        "tags": [
+          "payment-requests"
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès"
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/v1/payment-requests/{request_id}/decline": {
+      "post": {
+        "summary": "Refuser une demande de paiement reçue",
+        "tags": [
+          "payment-requests"
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès"
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/v1/payment-requests/{request_id}/cancel": {
+      "post": {
+        "summary": "Annuler une demande de paiement que l'on a émise",
+        "tags": [
+          "payment-requests"
+        ],
+        "responses": {
+          "204": {
+            "description": "Succès"
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
     "/v1/statement": {
       "get": {
         "summary": "Historique des opérations du compte (paginé par curseur)",

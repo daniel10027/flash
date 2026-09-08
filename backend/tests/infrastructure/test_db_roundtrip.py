@@ -293,6 +293,54 @@ class TestKycCaseRoundtrip:
             assert len(only.documents) == 2
 
 
+class TestPaymentRequestRoundtrip:
+    def test_payment_request_persists_and_reloads(
+        self, session_factory: sessionmaker[Session]
+    ) -> None:
+        from datetime import timedelta
+
+        from flash.domain.payments.request import PaymentRequest, PaymentRequestStatus
+
+        clock = FixedClock(T0)
+        requester = _new_user("+2250700000041")
+        payer = _new_user("+2250700000042")
+        request = PaymentRequest.open(
+            request_id=EntityId(str(uuid7())),
+            requester_id=requester.id,
+            payer_id=payer.id,
+            amount=Money(15_000, XOF),
+            now=T0,
+            expires_at=T0 + timedelta(days=7),
+            note="Part de course",
+        )
+
+        with SqlAlchemyUnitOfWork(session_factory, clock) as uow:
+            uow.users.add(requester)
+            uow.users.add(payer)
+            uow.commit()
+
+        with SqlAlchemyUnitOfWork(session_factory, clock) as uow:
+            uow.payment_requests.add(request)
+            uow.commit()
+
+        with SqlAlchemyUnitOfWork(session_factory, clock) as uow:
+            [incoming] = uow.payment_requests.list_incoming(payer.id)
+            assert incoming.status is PaymentRequestStatus.PENDING
+            assert incoming.note == "Part de course"
+            assert uow.payment_requests.list_outgoing(requester.id)[0].id == request.id
+
+            transfer_id = EntityId(str(uuid7()))
+            incoming.accept(transfer_id=transfer_id, now=T0)
+            uow.payment_requests.save(incoming)
+            uow.commit()
+
+        with SqlAlchemyUnitOfWork(session_factory, clock) as uow:
+            reloaded = uow.payment_requests.get(request.id)
+            assert reloaded is not None
+            assert reloaded.status is PaymentRequestStatus.ACCEPTED
+            assert reloaded.resulting_transfer_id is not None
+
+
 class TestUnitOfWork:
     def test_commit_writes_domain_events_to_outbox(
         self, session_factory: sessionmaker[Session], db_session: Session

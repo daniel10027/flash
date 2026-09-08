@@ -83,8 +83,12 @@ Chaque tâche livrée : code complet + tests + doc, **zéro `TODO`**.
 - [x] **BE-031** · `SendP2PTransfer` : cf. flux §3 architecture. Frais 0,8 %, limites,
   KYC, idempotence, `LedgerTransaction.transfer`+`fee`, événement `TransferCompleted`,
   reçu. Cas d'erreur couverts par tests.
-- [ ] **BE-032** · `RequestMoney` (demande de paiement entre utilisateurs) + acceptation
-  = déclenche un `SendP2PTransfer`.
+- [x] **BE-032** · Demandes de paiement : agrégat `PaymentRequest` (PENDING → ACCEPTED /
+  DECLINED / CANCELLED / EXPIRED, TTL 7 j). `CreatePaymentRequest` (idempotent),
+  `AcceptPaymentRequest` (clé de transfert dérivée `paymentreq-<id>` → pas de double
+  débit ; échoue proprement si fonds insuffisants, demande reste PENDING),
+  `DeclinePaymentRequest`, `CancelPaymentRequest`, `ListPaymentRequests` (incoming /
+  outgoing). Blueprint `/v1/payment-requests`, table `payment_requests`.
 - [ ] **BE-033** · `PresentMerchantQr` / `PayMerchant` : QR statique (id marchand) ou
   dynamique (montant, référence, expiration). Frais marchand selon `pricing_rules`.
   Règlement marchand différé via compte `bank_settlement`.

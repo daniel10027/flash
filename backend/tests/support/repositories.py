@@ -15,6 +15,7 @@ from flash.domain.identity.kyc_case import KycCase, KycCaseStatus
 from flash.domain.identity.user import User
 from flash.domain.ledger.chart import AccountType
 from flash.domain.ledger.transaction import LedgerTransaction
+from flash.domain.payments.request import PaymentRequest
 from flash.domain.shared.errors import PhoneNumberAlreadyLinked
 from flash.domain.shared.events import DomainEvent, EventRecorder
 from flash.domain.shared.identifiers import EntityId, Msisdn
@@ -263,6 +264,38 @@ class InMemoryKycCaseRepository(_Tracking):
         self._track(case)
 
 
+class InMemoryPaymentRequestRepository(_Tracking):
+    def __init__(self) -> None:
+        super().__init__()
+        self._by_id: dict[str, PaymentRequest] = {}
+
+    def get(self, request_id: EntityId) -> PaymentRequest | None:
+        request = self._by_id.get(str(request_id))
+        if request is not None:
+            self._track(request)
+        return request
+
+    def _recent(self, rows: list[PaymentRequest]) -> list[PaymentRequest]:
+        rows.sort(key=lambda r: r.created_at, reverse=True)
+        for r in rows:
+            self._track(r)
+        return rows
+
+    def list_incoming(self, payer_id: EntityId) -> list[PaymentRequest]:
+        return self._recent([r for r in self._by_id.values() if r.payer_id == payer_id])
+
+    def list_outgoing(self, requester_id: EntityId) -> list[PaymentRequest]:
+        return self._recent([r for r in self._by_id.values() if r.requester_id == requester_id])
+
+    def add(self, request: PaymentRequest) -> None:
+        self._by_id[str(request.id)] = request
+        self._track(request)
+
+    def save(self, request: PaymentRequest) -> None:
+        self._by_id[str(request.id)] = request
+        self._track(request)
+
+
 class InMemoryUnitOfWork:
     """Frontière transactionnelle en mémoire."""
 
@@ -275,6 +308,7 @@ class InMemoryUnitOfWork:
         agents: InMemoryAgentRepository | None = None,
         cash_orders: InMemoryCashOrderRepository | None = None,
         kyc_cases: InMemoryKycCaseRepository | None = None,
+        payment_requests: InMemoryPaymentRequestRepository | None = None,
     ) -> None:
         self.users = users or InMemoryUserRepository()
         self.wallets = wallets or InMemoryWalletRepository()
@@ -282,6 +316,7 @@ class InMemoryUnitOfWork:
         self.agents = agents or InMemoryAgentRepository()
         self.cash_orders = cash_orders or InMemoryCashOrderRepository()
         self.kyc_cases = kyc_cases or InMemoryKycCaseRepository()
+        self.payment_requests = payment_requests or InMemoryPaymentRequestRepository()
         self.committed = False
         self.rolled_back = False
         self._extra_events: list[DomainEvent] = []
@@ -312,6 +347,7 @@ class InMemoryUnitOfWork:
             *self.agents.seen,
             *self.cash_orders.seen,
             *self.kyc_cases.seen,
+            *self.payment_requests.seen,
         ):
             events.extend(aggregate.pull_events())
         events.extend(self._extra_events)
@@ -324,6 +360,7 @@ __all__ = [
     "InMemoryCashOrderRepository",
     "InMemoryKycCaseRepository",
     "InMemoryLedgerRepository",
+    "InMemoryPaymentRequestRepository",
     "InMemoryUnitOfWork",
     "InMemoryUserRepository",
     "InMemoryWalletRepository",
