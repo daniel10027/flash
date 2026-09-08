@@ -52,7 +52,11 @@ class TestExecuteInUow:
 
         def work(u: InMemoryUnitOfWork) -> str:
             user = User.register(
-                user_id=USER_ID, country=CountryCode("CI"), msisdn=Msisdn("+2250700000001"), now=T0
+                user_id=USER_ID,
+                country=CountryCode("CI"),
+                msisdn=Msisdn("+2250700000001"),
+                pin_hash="hashed:1397",
+                now=T0,
             )
             u.users.add(user)
             wallet = Wallet.open(
@@ -77,6 +81,7 @@ class TestExecuteInUow:
                     user_id=USER_ID,
                     country=CountryCode("CI"),
                     msisdn=Msisdn("+2250700000001"),
+                    pin_hash="hashed:1397",
                     now=T0,
                 )
             )
@@ -115,7 +120,7 @@ class TestIdempotencyGuard:
 
         outcome = guard.run(
             key=KEY,
-            user_id=USER_ID,
+            subject=str(USER_ID),
             route="POST /v1/transfers",
             produce=produce,
             rebuild=lambda d: d["value"],
@@ -134,7 +139,7 @@ class TestIdempotencyGuard:
         def call() -> IdempotencyOutcome[str]:
             return guard.run(
                 key=KEY,
-                user_id=USER_ID,
+                subject=str(USER_ID),
                 route="POST /v1/transfers",
                 produce=produce,
                 rebuild=lambda d: d["value"],
@@ -155,7 +160,7 @@ class TestIdempotencyGuard:
         with pytest.raises(DuplicateOperation):
             guard.run(
                 key=KEY,
-                user_id=USER_ID,
+                subject=str(USER_ID),
                 route="POST /v1/transfers",
                 produce=lambda: ("X", {"value": "X"}),
                 rebuild=lambda d: d["value"],
@@ -179,10 +184,13 @@ class TestIdempotencyGuard:
             def save_result(self, key: str, result: dict[str, str], *, ttl_seconds: int) -> None:
                 raise AssertionError("ne doit pas écrire quand un pair a déjà résolu la clé")
 
+            def forget(self, key: str) -> None:
+                raise AssertionError("ne doit pas oublier la clé sur ce chemin")
+
         guard = IdempotencyGuard(RacingStore(), ttl_seconds=60)
         outcome = guard.run(
             key=KEY,
-            user_id=USER_ID,
+            subject=str(USER_ID),
             route="POST /v1/transfers",
             produce=lambda: ("LOCAL", {"value": "LOCAL"}),
             rebuild=lambda d: d["value"],
@@ -190,18 +198,47 @@ class TestIdempotencyGuard:
         assert outcome.replayed is True
         assert outcome.result == "FROM_PEER"
 
+    def test_failed_operation_releases_the_key_for_retry(self) -> None:
+        guard, _ = self._guard()
+        attempts = []
+
+        def flaky() -> tuple[str, dict[str, str]]:
+            attempts.append(1)
+            if len(attempts) == 1:
+                raise RuntimeError("panne transitoire")
+            return "OK", {"value": "OK"}
+
+        with pytest.raises(RuntimeError):
+            guard.run(
+                key=KEY,
+                subject=str(USER_ID),
+                route="POST /v1/transfers",
+                produce=flaky,
+                rebuild=lambda d: d["value"],
+            )
+        # même clé, nouvel essai : la clé a été libérée, l'opération repart
+        retry = guard.run(
+            key=KEY,
+            subject=str(USER_ID),
+            route="POST /v1/transfers",
+            produce=flaky,
+            rebuild=lambda d: d["value"],
+        )
+        assert retry.result == "OK"
+        assert attempts == [1, 1]
+
     def test_keys_are_scoped_per_user_and_route(self) -> None:
         guard, _ = self._guard()
         r1 = guard.run(
             key=KEY,
-            user_id=USER_ID,
+            subject=str(USER_ID),
             route="POST /v1/transfers",
             produce=lambda: ("A", {"value": "A"}),
             rebuild=lambda d: d["value"],
         )
         r2 = guard.run(
             key=KEY,
-            user_id=EntityId(UUID(int=99)),
+            subject=str(EntityId(UUID(int=99))),
             route="POST /v1/transfers",
             produce=lambda: ("B", {"value": "B"}),
             rebuild=lambda d: d["value"],

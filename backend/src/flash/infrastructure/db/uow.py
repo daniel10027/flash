@@ -13,7 +13,6 @@ best-effort (SSE, métriques) via l'``EventPublisher`` injecté au niveau applic
 
 from __future__ import annotations
 
-from types import TracebackType
 from typing import Self
 
 from sqlalchemy.orm import Session, sessionmaker
@@ -47,12 +46,7 @@ class SqlAlchemyUnitOfWork:
         self.ledger = SqlAlchemyLedgerRepository(self._session)
         return self
 
-    def __exit__(
-        self,
-        exc_type: type[BaseException] | None,
-        exc: BaseException | None,
-        tb: TracebackType | None,
-    ) -> None:
+    def __exit__(self, exc_type: object, exc: object, tb: object) -> None:
         try:
             if exc_type is not None:
                 self.rollback()

@@ -47,6 +47,11 @@ class IdempotencyStore(Protocol):
 
     def save_result(self, key: str, result: dict[str, Any], *, ttl_seconds: int) -> None: ...
 
+    def forget(self, key: str) -> None:
+        """Oublie la clé (marqueur + résultat). Appelé quand l'opération a échoué, pour
+        qu'un nouvel essai avec la même clé soit possible."""
+        ...
+
 
 @runtime_checkable
 class EventPublisher(Protocol):

@@ -30,6 +30,11 @@ class DomainError(Exception):
 
 
 # --------------------------------------------------------------------------- argent
+class InvalidInput(DomainError):
+    code = "INVALID_INPUT"
+    message = "Donnée fournie invalide."
+
+
 class CurrencyMismatch(DomainError):
     code = "CURRENCY_MISMATCH"
     message = "Opération entre deux devises différentes."

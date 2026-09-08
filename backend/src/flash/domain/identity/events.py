@@ -41,6 +41,11 @@ class KycTierChanged(DomainEvent):
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
+class PinChanged(DomainEvent):
+    pass
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
 class UserFrozen(DomainEvent):
     reason: str
 
@@ -60,6 +65,7 @@ __all__ = [
     "PhoneNumberAdded",
     "PhoneNumberRemoved",
     "PhoneNumberVerified",
+    "PinChanged",
     "PrimaryPhoneNumberChanged",
     "UserClosed",
     "UserFrozen",

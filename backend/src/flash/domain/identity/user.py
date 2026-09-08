@@ -21,6 +21,7 @@ from flash.domain.identity.events import (
     PhoneNumberAdded,
     PhoneNumberRemoved,
     PhoneNumberVerified,
+    PinChanged,
     PrimaryPhoneNumberChanged,
     UserClosed,
     UserFrozen,
@@ -28,6 +29,7 @@ from flash.domain.identity.events import (
     UserUnfrozen,
 )
 from flash.domain.identity.kyc import KycTier
+from flash.domain.identity.pin import Pin, PinHasher
 from flash.domain.shared.errors import (
     AccountClosed,
     CannotRemoveLastPhoneNumber,
@@ -84,16 +86,20 @@ class User(EventRecorder):
         kyc_tier: KycTier,
         phone_numbers: list[PhoneNumber],
         created_at: datetime,
+        pin_hash: str,
     ) -> None:
         super().__init__()
         if not phone_numbers:
             raise InvalidAccountState("Un compte doit avoir au moins un numéro.")
+        if not pin_hash:
+            raise InvalidAccountState("Un compte doit avoir un code secret défini.")
         self.id = id
         self.country = country
         self.status = status
         self.kyc_tier = kyc_tier
         self._phones: list[PhoneNumber] = list(phone_numbers)
         self.created_at = created_at
+        self.pin_hash = pin_hash
         self._assert_invariants()
 
     # ------------------------------------------------------------------ fabrique
@@ -104,6 +110,7 @@ class User(EventRecorder):
         user_id: EntityId,
         country: CountryCode,
         msisdn: Msisdn,
+        pin_hash: str,
         now: datetime,
     ) -> User:
         """Crée un compte en attente d'activation avec un numéro principal non vérifié."""
@@ -114,6 +121,7 @@ class User(EventRecorder):
             kyc_tier=KycTier.TIER_0,
             phone_numbers=[PhoneNumber(msisdn=msisdn, linked_at=now, is_primary=True)],
             created_at=now,
+            pin_hash=pin_hash,
         )
         user.record_event(
             UserRegistered(
@@ -256,6 +264,14 @@ class User(EventRecorder):
                 new_msisdn=msisdn.value,
             )
         )
+
+    # -------------------------------------------------------------- code secret
+    def verify_pin(self, pin: Pin, hasher: PinHasher) -> bool:
+        return hasher.verify(pin, self.pin_hash)
+
+    def change_pin(self, new_pin: Pin, hasher: PinHasher, now: datetime) -> None:
+        self.pin_hash = hasher.hash(new_pin)
+        self.record_event(PinChanged(occurred_at=now, aggregate_id=str(self.id)))
 
     # ----------------------------------------------------------------- KYC
     def change_kyc_tier(self, new_tier: KycTier, now: datetime) -> None:

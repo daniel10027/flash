@@ -30,6 +30,111 @@
           }
         }
       }
+    },
+    "/v1/auth/register": {
+      "post": {
+        "summary": "Créer un compte (en attente d'activation par OTP)",
+        "tags": [
+          "auth"
+        ],
+        "responses": {
+          "201": {
+            "description": "Succès",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "user_id": {
+                      "type": "string"
+                    },
+                    "wallet_id": {
+                      "type": "string"
+                    },
+                    "currency": {
+                      "type": "string"
+                    },
+                    "phone_number_masked": {
+                      "type": "string"
+                    },
+                    "activation_required": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "phone_number": {
+                    "examples": [
+                      "+2250700000000"
+                    ],
+                    "maxLength": 24,
+                    "minLength": 6,
+                    "title": "Phone Number",
+                    "type": "string"
+                  },
+                  "pin": {
+                    "examples": [
+                      "1397"
+                    ],
+                    "maxLength": 6,
+                    "minLength": 4,
+                    "title": "Pin",
+                    "type": "string"
+                  },
+                  "country": {
+                    "examples": [
+                      "CI"
+                    ],
+                    "maxLength": 2,
+                    "minLength": 2,
+                    "title": "Country",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "phone_number",
+                  "pin",
+                  "country"
+                ],
+                "title": "RegisterRequest",
+                "type": "object"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 255
+            }
+          }
+        ]
+      }
     }
   },
   "components": {

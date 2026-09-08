@@ -49,6 +49,7 @@ def user_to_domain(model: UserModel) -> User:
         kyc_tier=KycTier(model.kyc_tier),
         phone_numbers=phones,
         created_at=model.created_at,
+        pin_hash=model.pin_hash,
     )
 
 
@@ -58,6 +59,7 @@ def user_to_model(user: User) -> UserModel:
         country=user.country.value,
         status=user.status.value,
         kyc_tier=int(user.kyc_tier),
+        pin_hash=user.pin_hash,
         created_at=user.created_at,
         phone_numbers=[
             PhoneNumberModel(

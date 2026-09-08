@@ -16,7 +16,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from flash.domain.shared.errors import DuplicateOperation
-from flash.domain.shared.identifiers import EntityId, IdempotencyKey
+from flash.domain.shared.identifiers import IdempotencyKey
 from flash.domain.shared.ports import IdempotencyStore
 
 DEFAULT_TTL_SECONDS = 24 * 3600
@@ -37,12 +37,12 @@ class IdempotencyGuard:
         self,
         *,
         key: IdempotencyKey,
-        user_id: EntityId,
+        subject: str,
         route: str,
         produce: Callable[[], tuple[R, dict[str, Any]]],
         rebuild: Callable[[dict[str, Any]], R],
     ) -> IdempotencyOutcome[R]:
-        scoped = key.scoped(user_id=str(user_id), route=route)
+        scoped = key.scoped(user_id=subject, route=route)
 
         cached = self._store.get_result(scoped)
         if cached is not None:
@@ -54,7 +54,12 @@ class IdempotencyGuard:
                 return IdempotencyOutcome(rebuild(cached), replayed=True)
             raise DuplicateOperation()
 
-        result, payload = produce()
+        try:
+            result, payload = produce()
+        except Exception:
+            # L'opération a échoué : on libère la clé pour permettre un nouvel essai.
+            self._store.forget(scoped)
+            raise
         self._store.save_result(scoped, payload, ttl_seconds=self._ttl)
         return IdempotencyOutcome(result, replayed=False)
 

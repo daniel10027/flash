@@ -30,8 +30,17 @@ def _msisdn(last: str) -> Msisdn:
     return Msisdn(f"+22507000000{last}")
 
 
+PIN_HASH = "hashed:1397"
+
+
 def make_user(n: int = 1) -> User:
-    return User.register(user_id=EntityId(UUID(int=n)), country=CI, msisdn=_msisdn("01"), now=T0)
+    return User.register(
+        user_id=EntityId(UUID(int=n)),
+        country=CI,
+        msisdn=_msisdn("01"),
+        pin_hash=PIN_HASH,
+        now=T0,
+    )
 
 
 def active_user() -> User:
@@ -220,6 +229,26 @@ class TestLifecycleAndKyc:
         with pytest.raises(InvalidAccountState):
             make_user().ensure_can_transact()
 
+    def test_verify_and_change_pin(self) -> None:
+        from flash.domain.identity.pin import Pin
+        from tests.support.fakes import FakePinHasher
+
+        hasher = FakePinHasher()
+        user = User.register(
+            user_id=EntityId(UUID(int=1)),
+            country=CI,
+            msisdn=_msisdn("01"),
+            pin_hash=hasher.hash(Pin("1397")),
+            now=T0,
+        )
+        assert user.verify_pin(Pin("1397"), hasher) is True
+        assert user.verify_pin(Pin("2468"), hasher) is False
+
+        user.pull_events()
+        user.change_pin(Pin("2468"), hasher, T0)
+        assert user.verify_pin(Pin("2468"), hasher) is True
+        assert [e.name for e in user.pull_events()] == ["PinChanged"]
+
     def test_change_kyc_tier_emits_event_once(self) -> None:
         user = active_user()
         user.change_kyc_tier(KycTier.TIER_1, T0)
@@ -240,6 +269,19 @@ class TestInvariantsOnReconstruction:
                 kyc_tier=KycTier.TIER_0,
                 phone_numbers=[],
                 created_at=T0,
+                pin_hash=PIN_HASH,
+            )
+
+    def test_rejects_empty_pin_hash(self) -> None:
+        with pytest.raises(InvalidAccountState, match="code secret"):
+            User(
+                id=EntityId(UUID(int=1)),
+                country=CI,
+                status=UserStatus.ACTIVE,
+                kyc_tier=KycTier.TIER_0,
+                phone_numbers=[PhoneNumber(msisdn=_msisdn("01"), linked_at=T0, is_primary=True)],
+                created_at=T0,
+                pin_hash="",
             )
 
     def _phone(self, last: str, *, primary: bool = False, verified: bool = True) -> PhoneNumber:
@@ -258,6 +300,7 @@ class TestInvariantsOnReconstruction:
             kyc_tier=KycTier.TIER_0,
             phone_numbers=phones,
             created_at=T0,
+            pin_hash=PIN_HASH,
         )
 
     def test_rejects_more_than_five_numbers(self) -> None:

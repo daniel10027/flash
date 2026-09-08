@@ -32,6 +32,7 @@ def _new_user(msisdn: str = "+2250700000001") -> User:
         user_id=EntityId(str(uuid7())),
         country=CountryCode("CI"),
         msisdn=Msisdn(msisdn),
+        pin_hash="hashed:1397",
         now=T0,
     )
     user.activate(T0)

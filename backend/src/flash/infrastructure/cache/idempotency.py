@@ -30,5 +30,8 @@ class RedisIdempotencyStore:
     def save_result(self, key: str, result: dict[str, Any], *, ttl_seconds: int) -> None:
         self._redis.set(f"{key}:result", json.dumps(result, separators=(",", ":")), ex=ttl_seconds)
 
+    def forget(self, key: str) -> None:
+        self._redis.delete(key, f"{key}:result")
+
 
 __all__ = ["RedisIdempotencyStore"]

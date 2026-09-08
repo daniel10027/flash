@@ -24,7 +24,7 @@ class LoggingEventPublisher:
 
     def publish(self, events: list[DomainEvent]) -> None:
         for event in events:
-            _log.info("domain_event", event=event.name, aggregate_id=event.aggregate_id)
+            _log.info("domain_event", event_name=event.name, aggregate_id=event.aggregate_id)
 
 
 class CompositeEventPublisher:
@@ -41,7 +41,7 @@ class CompositeEventPublisher:
                 except Exception:
                     _log.exception(
                         "event_handler_failed",
-                        event=event.name,
+                        event_name=event.name,
                         handler=getattr(handler, "__name__", repr(handler)),
                     )
 

@@ -58,6 +58,10 @@ class InMemoryIdempotencyStore:
     def save_result(self, key: str, result: dict[str, Any], *, ttl_seconds: int) -> None:
         self._results[key] = result
 
+    def forget(self, key: str) -> None:
+        self._seen.discard(key)
+        self._results.pop(key, None)
+
 
 class RecordingEventPublisher:
     """Conserve les événements publiés pour que le test puisse les inspecter."""
@@ -72,7 +76,23 @@ class RecordingEventPublisher:
         return [e.name for e in self.published]
 
 
+class FakePinHasher:
+    """Hachage réversible et déterministe — pour les tests uniquement."""
+
+    _PREFIX = "hashed:"
+
+    def hash(self, pin: object) -> str:
+        return f"{self._PREFIX}{getattr(pin, 'value', pin)}"
+
+    def verify(self, pin: object, hashed: str) -> bool:
+        return hashed == self.hash(pin)
+
+    def needs_rehash(self, hashed: str) -> bool:
+        return not hashed.startswith(self._PREFIX)
+
+
 __all__ = [
+    "FakePinHasher",
     "FixedClock",
     "InMemoryIdempotencyStore",
     "RecordingEventPublisher",

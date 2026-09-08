@@ -39,6 +39,7 @@ class UserModel(Base):
     country: Mapped[str] = mapped_column(_COUNTRY, nullable=False)
     status: Mapped[str] = mapped_column(String(24), nullable=False)
     kyc_tier: Mapped[int] = mapped_column(SmallInteger, nullable=False, default=0)
+    pin_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     created_at: Mapped[datetime] = mapped_column(TZDateTime, nullable=False)
 
     phone_numbers: Mapped[list[PhoneNumberModel]] = relationship(

@@ -12,11 +12,14 @@ from typing import Any
 
 import structlog
 from flask import Flask, Response, g, jsonify, request
+from pydantic import ValidationError
 from werkzeug.exceptions import HTTPException
 
 from flash.domain.shared.errors import DomainError
 from flash.infrastructure.config import Settings, get_settings
+from flash.interface.container import Deps, build_deps, register_deps
 from flash.interface.errors import status_for, to_payload
+from flash.interface.http import auth as auth_routes
 from flash.interface.logging import configure_logging
 from flash.interface.openapi import register_docs
 from flash.interface.security.auth import Unauthenticated
@@ -26,7 +29,10 @@ _log = structlog.get_logger("flash.http")
 
 
 def create_app(
-    settings: Settings | None = None, *, security_bundle: SecurityBundle | None = None
+    settings: Settings | None = None,
+    *,
+    security_bundle: SecurityBundle | None = None,
+    deps: Deps | None = None,
 ) -> Flask:
     settings = settings or get_settings()
     configure_logging(settings.log_level, json_output=settings.is_production)
@@ -42,11 +48,13 @@ def create_app(
     )
     app.extensions["flash_settings"] = settings
     register_security(app, security_bundle or build_security(settings))
+    register_deps(app, deps or build_deps(settings))
 
     _register_request_context(app, settings)
     _register_error_handlers(app)
     _register_health(app)
     register_docs(app)
+    app.register_blueprint(auth_routes.bp)
     return app
 
 
@@ -90,6 +98,19 @@ def _register_error_handlers(app: Flask) -> None:
     @app.errorhandler(Unauthenticated)
     def _handle_unauthenticated(error: Unauthenticated) -> tuple[Response, int]:
         return jsonify({"code": "UNAUTHENTICATED", "message": error.message, "details": {}}), 401
+
+    @app.errorhandler(ValidationError)
+    def _handle_validation_error(error: ValidationError) -> tuple[Response, int]:
+        fields = [
+            {"field": ".".join(str(p) for p in e["loc"]), "error": e["msg"]} for e in error.errors()
+        ]
+        return jsonify(
+            {
+                "code": "VALIDATION_ERROR",
+                "message": "Requête invalide.",
+                "details": {"fields": fields},
+            }
+        ), 422
 
     @app.errorhandler(HTTPException)
     def _handle_http_exception(error: HTTPException) -> tuple[Response, int]:

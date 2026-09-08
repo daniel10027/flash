@@ -67,7 +67,7 @@ Chaque tâche livrée : code complet + tests + doc, **zéro `TODO`**.
 
 ## Phase 2 — Cas d'usage cœur (BE-025 → BE-046)
 
-- [ ] **BE-025** · `RegisterUser` : msisdn + pin + pays → crée `User` (KYC tier 0),
+- [x] **BE-025** · `RegisterUser` : msisdn + pin + pays → crée `User` (KYC tier 0),
   wallet devise du pays, `LedgerAccount` client. OTP d'activation. Idempotent.
 - [ ] **BE-026** · `VerifyOtp` / `ResendOtp` (port `OtpChannel`, store Redis TTL, essais
   limités, anti‑bruteforce).
