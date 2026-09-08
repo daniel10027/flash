@@ -53,6 +53,7 @@ class Wallet(EventRecorder):
         currency: Currency,
         available: Money,
         reserved: Money,
+        created_at: datetime,
         status: WalletStatus = WalletStatus.ACTIVE,
     ) -> None:
         super().__init__()
@@ -66,6 +67,7 @@ class Wallet(EventRecorder):
         self.currency = currency
         self.available = available
         self.reserved = reserved
+        self.created_at = created_at
         self.status = status
 
     # ---------------------------------------------------------------- fabrique
@@ -79,6 +81,7 @@ class Wallet(EventRecorder):
             currency=currency,
             available=Money.zero(currency),
             reserved=Money.zero(currency),
+            created_at=now,
         )
         wallet.record_event(
             WalletOpened(

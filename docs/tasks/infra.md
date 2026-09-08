@@ -6,10 +6,10 @@ Cible : dev local en Docker (API + Web + Postgres + Redis + Mailhog), production
 
 ## Local (INFRA-001 → INFRA-006)
 
-- [ ] **INFRA-001** · `infra/docker-compose.yml` (dev) : services `api` (Flask + reload),
+- [x] **INFRA-001** · `infra/docker-compose.yml` (dev) : services `api` (Flask + reload),
   `web` (Vite + reload), `db` (postgres:16), `redis`, `mailhog`. Réseaux, volumes,
   `depends_on` avec healthchecks. `.env.example` complet + `.env` git‑ignoré.
-- [ ] **INFRA-002** · `backend/Dockerfile` multi‑stage (base deps → runtime gunicorn),
+- [x] **INFRA-002** · `backend/Dockerfile` multi‑stage (base deps → runtime gunicorn),
   utilisateur non‑root, `HEALTHCHECK`, image finale slim.
 - [ ] **INFRA-003** · `web/Dockerfile` multi‑stage (build Vite → serveur statique Caddy),
   config runtime injectée (`window.__FLASH_CONFIG__`).

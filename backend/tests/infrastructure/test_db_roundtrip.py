@@ -1,0 +1,190 @@
+"""Tests d'intégration du socle DB : mappers, dépôts, Unit of Work (BE-017 → BE-020).
+
+Nécessite un PostgreSQL réel (``FLASH_TEST_DATABASE_URL``).
+"""
+
+from __future__ import annotations
+
+from datetime import UTC, datetime
+
+import pytest
+from sqlalchemy import func, select
+from sqlalchemy.orm import Session, sessionmaker
+
+from flash.domain.identity.user import User, UserStatus
+from flash.domain.ledger.chart import AccountType
+from flash.domain.ledger.transaction import LedgerTransaction
+from flash.domain.shared.identifiers import CountryCode, EntityId, Msisdn
+from flash.domain.shared.money import XOF, Money
+from flash.domain.wallet.wallet import Wallet
+from flash.infrastructure.db.models import OutboxModel
+from flash.infrastructure.db.uow import SqlAlchemyUnitOfWork
+from flash.infrastructure.ids import uuid7
+from tests.support.fakes import FixedClock
+
+pytestmark = pytest.mark.integration
+
+T0 = datetime(2026, 1, 1, tzinfo=UTC)
+
+
+def _new_user(msisdn: str = "+2250700000001") -> User:
+    user = User.register(
+        user_id=EntityId(str(uuid7())),
+        country=CountryCode("CI"),
+        msisdn=Msisdn(msisdn),
+        now=T0,
+    )
+    user.activate(T0)
+    return user
+
+
+class TestUserRepositoryRoundtrip:
+    def test_add_get_and_save_user(self, session_factory: sessionmaker[Session]) -> None:
+        clock = FixedClock(T0)
+        user = _new_user()
+        user_id = user.id
+
+        with SqlAlchemyUnitOfWork(session_factory, clock) as uow:
+            uow.users.add(user)
+            uow.commit()
+
+        with SqlAlchemyUnitOfWork(session_factory, clock) as uow:
+            loaded = uow.users.get(user_id)
+            assert loaded is not None
+            assert loaded.status is UserStatus.ACTIVE
+            assert loaded.primary_phone_number.msisdn == Msisdn("+2250700000001")
+
+            loaded.add_phone_number(Msisdn("+2250700000002"), T0)
+            uow.users.save(loaded)
+            uow.commit()
+
+        with SqlAlchemyUnitOfWork(session_factory, clock) as uow:
+            again = uow.users.get(user_id)
+            assert again is not None
+            assert {p.msisdn.value for p in again.phone_numbers} == {
+                "+2250700000001",
+                "+2250700000002",
+            }
+
+    def test_global_msisdn_uniqueness_enforced(
+        self, session_factory: sessionmaker[Session]
+    ) -> None:
+        from flash.domain.shared.errors import PhoneNumberAlreadyLinked
+
+        clock = FixedClock(T0)
+        with SqlAlchemyUnitOfWork(session_factory, clock) as uow:
+            uow.users.add(_new_user("+2250700000001"))
+            uow.commit()
+
+        clash = _new_user("+2250700000001")
+        with (
+            SqlAlchemyUnitOfWork(session_factory, clock) as uow,
+            pytest.raises(PhoneNumberAlreadyLinked),
+        ):
+            uow.users.add(clash)
+
+
+class TestLedgerAndWalletRoundtrip:
+    def test_transfer_persists_balanced_transaction_and_updates_wallets(
+        self, session_factory: sessionmaker[Session]
+    ) -> None:
+        clock = FixedClock(T0)
+        sender = _new_user("+2250700000001")
+        recipient = _new_user("+2250700000002")
+        sender_wallet = Wallet.open(
+            wallet_id=EntityId(str(uuid7())), user_id=sender.id, currency=XOF, now=T0
+        )
+        recipient_wallet = Wallet.open(
+            wallet_id=EntityId(str(uuid7())), user_id=recipient.id, currency=XOF, now=T0
+        )
+        sender_wallet.credit(Money(100_000, XOF), T0)
+
+        with SqlAlchemyUnitOfWork(session_factory, clock) as uow:
+            uow.users.add(sender)
+            uow.users.add(recipient)
+            uow.wallets.add(sender_wallet)
+            uow.wallets.add(recipient_wallet)
+
+            sender_acct = uow.ledger.ensure_account(
+                account_type=AccountType.CLIENT_LIABILITY, currency=XOF, owner_ref=str(sender.id)
+            )
+            recipient_acct = uow.ledger.ensure_account(
+                account_type=AccountType.CLIENT_LIABILITY,
+                currency=XOF,
+                owner_ref=str(recipient.id),
+            )
+            fee_acct = uow.ledger.ensure_account(
+                account_type=AccountType.FLASH_FEE_INCOME, currency=XOF
+            )
+
+            amount, fee = Money(10_000, XOF), Money(80, XOF)
+            txn = LedgerTransaction.transfer(
+                id=EntityId(str(uuid7())),
+                occurred_at=T0,
+                reference="TRX-INT-1",
+                sender_account_id=sender_acct,
+                sender_wallet_id=sender_wallet.id,
+                recipient_account_id=recipient_acct,
+                recipient_wallet_id=recipient_wallet.id,
+                fee_income_account_id=fee_acct,
+                amount=amount,
+                fee=fee,
+            )
+            uow.ledger.add(txn)
+            sender_wallet.debit(amount + fee, T0)
+            recipient_wallet.credit(amount, T0)
+            uow.wallets.save(sender_wallet)
+            uow.wallets.save(recipient_wallet)
+            uow.commit()
+
+        with SqlAlchemyUnitOfWork(session_factory, clock) as uow:
+            s = uow.wallets.get_for_user(sender.id, XOF)
+            r = uow.wallets.get_for_user(recipient.id, XOF)
+            assert s is not None and r is not None
+            assert s.available == Money(89_920, XOF)
+            assert r.available == Money(10_000, XOF)
+
+            stored = uow.ledger.get_by_reference("TRX-INT-1")
+            assert len(stored) == 1
+            assert stored[0].is_balanced
+            history = uow.ledger.list_for_wallet(sender_wallet.id)
+            assert [t.reference for t in history] == ["TRX-INT-1"]
+
+    def test_ensure_account_is_idempotent(self, session_factory: sessionmaker[Session]) -> None:
+        clock = FixedClock(T0)
+        with SqlAlchemyUnitOfWork(session_factory, clock) as uow:
+            a = uow.ledger.ensure_account(account_type=AccountType.ROUNDING, currency=XOF)
+            b = uow.ledger.ensure_account(account_type=AccountType.ROUNDING, currency=XOF)
+            assert a == b
+            uow.commit()
+
+
+class TestUnitOfWork:
+    def test_commit_writes_domain_events_to_outbox(
+        self, session_factory: sessionmaker[Session], db_session: Session
+    ) -> None:
+        clock = FixedClock(T0)
+        with SqlAlchemyUnitOfWork(session_factory, clock) as uow:
+            uow.users.add(_new_user("+2250700000009"))
+            uow.commit()
+            collected = uow.collect_new_events()
+
+        assert {e.name for e in collected} >= {"UserRegistered", "PhoneNumberVerified"}
+        names = db_session.scalars(select(OutboxModel.event_name)).all()
+        assert "UserRegistered" in names
+        assert db_session.scalar(select(func.count()).select_from(OutboxModel)) == len(collected)
+
+    def test_exception_in_block_rolls_back(
+        self, session_factory: sessionmaker[Session], db_session: Session
+    ) -> None:
+        clock = FixedClock(T0)
+        with (
+            pytest.raises(RuntimeError, match="boom"),
+            SqlAlchemyUnitOfWork(session_factory, clock) as uow,
+        ):
+            uow.users.add(_new_user("+2250700000010"))
+            raise RuntimeError("boom")
+
+        from flash.infrastructure.db.models import UserModel
+
+        assert db_session.scalar(select(func.count()).select_from(UserModel)) == 0

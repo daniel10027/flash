@@ -45,6 +45,9 @@ packages = ["src/flash"]
 testpaths = ["tests"]
 pythonpath = ["src"]
 addopts = "-q --strict-markers"
+markers = [
+    "integration: nécessite des services externes (PostgreSQL via FLASH_TEST_DATABASE_URL)",
+]
 
 [tool.coverage.run]
 source = ["flash.domain", "flash.application"]

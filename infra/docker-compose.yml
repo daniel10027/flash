@@ -1,0 +1,99 @@
+# Flash — pile de développement local.
+#
+#   docker compose -f infra/docker-compose.yml up --build
+#
+# Services démarrés par défaut : db, redis, mailhog, api.
+# Le service `web` est derrière le profil `web` tant que `web/` n'est pas échafaudé
+# (tâche WEB-001) :  docker compose -f infra/docker-compose.yml --profile web up
+#
+# Ports exposés côté hôte (choisis pour ne pas entrer en conflit avec d'autres piles) :
+#   API      -> http://localhost:8000
+#   Web      -> http://localhost:5173
+#   Postgres -> localhost:5433
+#   Redis    -> localhost:6380
+#   Mailhog  -> http://localhost:8025  (SMTP interne : mailhog:1025)
+
+name: flash
+
+x-env: &env
+  env_file:
+    - ../.env
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-flash}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-flash}
+      POSTGRES_DB: ${POSTGRES_DB:-flash}
+    ports:
+      - "5433:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-flash} -d ${POSTGRES_DB:-flash}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--save", "60", "1", "--loglevel", "warning"]
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  mailhog:
+    image: mailhog/mailhog:v1.0.1
+    ports:
+      - "8025:8025"   # interface web
+    # SMTP écoute sur 1025 à l'intérieur du réseau compose (SMTP_HOST=mailhog, SMTP_PORT=1025)
+
+  api:
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile
+      target: dev
+    <<: *env
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-flash}:${POSTGRES_PASSWORD:-flash}@db:5432/${POSTGRES_DB:-flash}
+      REDIS_URL: redis://redis:6379/0
+      FLASH_ENV: development
+    command: ["/app/scripts/dev-entrypoint.sh"]
+    volumes:
+      - ../backend/src:/app/src
+      - ../backend/alembic:/app/alembic
+      - ../backend/alembic.ini:/app/alembic.ini
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  web:
+    profiles: ["web"]
+    build:
+      context: ../web
+      dockerfile: Dockerfile
+      target: dev
+    environment:
+      VITE_API_BASE_URL: http://localhost:8000
+    volumes:
+      - ../web:/app
+      - /app/node_modules
+    ports:
+      - "5173:5173"
+    depends_on:
+      - api
+
+volumes:
+  db_data:
+  redis_data:

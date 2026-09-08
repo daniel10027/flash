@@ -49,11 +49,30 @@ class TestOpen:
                 currency=XOF,
                 available=Money(0, Currency.of("EUR")),
                 reserved=xof(0),
+                created_at=T0,
             )
 
     def test_reconstruction_rejects_negative(self) -> None:
         with pytest.raises(ValueError, match="négatif"):
-            Wallet(id=WID, user_id=UID, currency=XOF, available=xof(-1), reserved=xof(0))
+            Wallet(
+                id=WID,
+                user_id=UID,
+                currency=XOF,
+                available=xof(-1),
+                reserved=xof(0),
+                created_at=T0,
+            )
+
+    def test_reconstruction_preserves_created_at(self) -> None:
+        w = Wallet(
+            id=WID,
+            user_id=UID,
+            currency=XOF,
+            available=xof(500),
+            reserved=xof(0),
+            created_at=T0,
+        )
+        assert w.created_at == T0
 
 
 class TestCreditDebit:

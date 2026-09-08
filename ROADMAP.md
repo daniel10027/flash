@@ -1,14 +1,18 @@
 # Flash — Map de développement
 
 > **Dernière mise à jour : 2026-09-08**
-> **Session courante :** Backend BE-001 → BE-016 faits. Domaine complet côté règles :
-> `shared` (Money, identifiants, erreurs, événements, opérations, ports) + `identity`
-> (User ≤ 5 numéros, Pin, KycTier) + `wallet` + `ledger` (partie double, 10 fabriques) +
-> `pricing` (PricingService, frais 0,8 % paramétrable) + `limits` (LimitPolicy, KycPolicy).
-> Couche `application` : Command/UseCase, execute_in_uow, IdempotencyGuard + fakes de test
-> (UoW & repos en mémoire). 262 tests verts, couverture 100 %, ruff + mypy stricts OK.
-> Prochaine : BE-017 (infrastructure DB : modèles SQLAlchemy + mappers) — nécessite le
-> socle Docker/Postgres, à enchaîner avec INFRA-001/002.
+> **Session courante :** Backend BE-001 → BE-021 + INFRA-001/002 faits. Domaine complet
+> (identity, wallet, ledger partie double, pricing 0,8 %, limits) + couche application
+> (UseCase, UoW, idempotence). Infrastructure : config (env), modèles SQLAlchemy +
+> mappers ORM↔domaine, `SqlAlchemyUnitOfWork` + dépôts concrets (outbox d'événements),
+> Alembic + migration initiale, adapters (SystemClock, Uuid7Generator, Argon2PinHasher,
+> RedisIdempotencyStore, publishers). Flask : app factory, `/health` + `/health/ready`,
+> gestion d'erreurs `DomainError`→HTTP, request-id, logs JSON, CORS. CLI `flash db …`.
+> Docker : `infra/docker-compose.yml` (db/redis/mailhog/api) + `backend/Dockerfile`
+> multi-stage — **stack vérifiée : `docker compose up` → migrations auto → `/health` 200**.
+> 280 tests (dont 6 d'intégration sur Postgres réel), couverture 100 %, ruff + mypy OK.
+> Prochaine : BE-022 (sécurité JWT + rate-limit), BE-023 (test d'architecture),
+> BE-024 (OpenAPI), puis Phase 2 (BE-025 : inscription).
 
 Ce fichier est la vue d'ensemble. Le détail (une ligne = une tâche cochable) est dans
 `docs/tasks/`. On avance **dans l'ordre des identifiants** à l'intérieur de chaque lot,
@@ -26,10 +30,10 @@ mais les lots Backend / Infra avancent en priorité car Web et Mobile en dépend
 | Lot | Fichier détaillé | Fait / Total |
 |-----|------------------|--------------|
 | Fondations & docs | ce fichier | 6 / 6 |
-| Backend (BE) | [docs/tasks/backend.md](docs/tasks/backend.md) | 16 / 78 |
+| Backend (BE) | [docs/tasks/backend.md](docs/tasks/backend.md) | 21 / 78 |
 | Web (WEB) | [docs/tasks/frontend-web.md](docs/tasks/frontend-web.md) | 0 / 46 |
 | Mobile (MOB) | [docs/tasks/mobile.md](docs/tasks/mobile.md) | 0 / 44 |
-| Infra & CI/CD (INFRA) | [docs/tasks/infra.md](docs/tasks/infra.md) | 0 / 24 |
+| Infra & CI/CD (INFRA) | [docs/tasks/infra.md](docs/tasks/infra.md) | 2 / 24 |
 | Design & marque (DSN) | [docs/tasks/design.md](docs/tasks/design.md) | 0 / 10 |
 
 ---
@@ -94,8 +98,8 @@ charge, revue sécurité (OWASP ASVS, secrets, rate‑limit), doc API publiée, 
 
 ## Prochaine action
 
-Enchaîner **INFRA-001/002** (docker-compose dev + Dockerfile backend) puis **BE-017 →
-BE-020** (modèles SQLAlchemy + mappers ORM↔domaine, `SqlAlchemyUnitOfWork` + repos
-concrets, migration Alembic initiale, adapters `SystemClock`/`Uuid7Generator`/
-`Argon2PinHasher`/`RedisIdempotencyStore`/`OutboxEventPublisher`). Ensuite BE-021 → BE-024
-(app factory Flask, sécurité JWT, test d'architecture, OpenAPI).
+`BE-022` — sécurité : émission/vérif JWT (access 15 min + refresh rotatif lié au
+`device_id`), dépendance `current_user`, révocation via Redis `jti`, rate-limit (token
+bucket Redis) décorable par route. Puis `BE-023` (test d'architecture : `domain/` sans
+import interdit), `BE-024` (génération OpenAPI + `/docs`). Ensuite Phase 2 : `BE-025`
+(`RegisterUser`) et les premiers blueprints REST.

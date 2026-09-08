@@ -44,16 +44,16 @@ Chaque tâche livrée : code complet + tests + doc, **zéro `TODO`**.
 - [x] **BE-016** · Fakes de test : `InMemoryUnitOfWork`, repos en mémoire, `FixedClock`,
   `SeqIdGenerator`, `InMemoryIdempotencyStore`, `RecordingEventPublisher` dans
   `tests/support/`.
-- [ ] **BE-017** · `infrastructure/db/` : `Base`, `engine`, session ; modèles SQLAlchemy
+- [x] **BE-017** · `infrastructure/db/` : `Base`, `engine`, session ; modèles SQLAlchemy
   pour user, phone_number, wallet, wallet_balances, ledger_account, ledger_transaction,
   ledger_posting, idempotency_key, outbox. Mapping ORM ↔ domaine explicite (mappers).
-- [ ] **BE-018** · `infrastructure/db/uow.py` : `SqlAlchemyUnitOfWork` (transaction,
+- [x] **BE-018** · `infrastructure/db/uow.py` : `SqlAlchemyUnitOfWork` (transaction,
   repos concrets, `collect_new_events`). Repos concrets user/wallet/ledger.
-- [ ] **BE-019** · Alembic : config + **migration initiale** couvrant BE-017. Script
+- [x] **BE-019** · Alembic : config + **migration initiale** couvrant BE-017. Script
   `flask flash db-upgrade`. Test : migration up/down sur base éphémère.
-- [ ] **BE-020** · `infrastructure/` divers : `SystemClock`, `Uuid7Generator`,
+- [x] **BE-020** · `infrastructure/` divers : `SystemClock`, `Uuid7Generator`,
   `Argon2PinHasher`, `RedisIdempotencyStore`, `OutboxEventPublisher`.
-- [ ] **BE-021** · `interface/app.py` : `create_app(config)` ; enregistrement blueprints ;
+- [x] **BE-021** · `interface/app.py` : `create_app(config)` ; enregistrement blueprints ;
   handler d'erreurs (`DomainError` → JSON `{code,message,details}` + HTTP) ; `request_id`
   middleware ; logs structlog JSON ; CORS configurable ; `/health` `/health/ready`.
 - [ ] **BE-022** · `interface/security/` : émission/vérif JWT (access 15 min, refresh
