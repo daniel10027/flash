@@ -172,6 +172,14 @@ class SendP2PTransfer(UseCase[SendP2PTransferCommand, TransferReceipt]):
                 account_type=AccountType.FLASH_FEE_INCOME, currency=currency
             )
 
+            metadata: dict[str, Any] = {
+                "fee_minor": fee.amount_minor,
+                "sender_masked": sender.primary_phone_number.msisdn.masked(),
+                "recipient_masked": recipient_msisdn.masked(),
+            }
+            if command.note:
+                metadata["note"] = command.note
+
             txn = LedgerTransaction.transfer(
                 id=txn_id,
                 occurred_at=now,
@@ -183,7 +191,7 @@ class SendP2PTransfer(UseCase[SendP2PTransferCommand, TransferReceipt]):
                 fee_income_account_id=fee_account,
                 amount=amount,
                 fee=fee,
-                metadata={"note": command.note} if command.note else {},
+                metadata=metadata,
             )
             uow.ledger.add(txn)
 

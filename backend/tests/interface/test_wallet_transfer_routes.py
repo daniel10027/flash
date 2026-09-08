@@ -186,6 +186,56 @@ class TestTransferEndpoint:
         assert "/v1/wallets" in paths
         assert "/v1/wallets/{wallet_id}" in paths
         assert "/v1/transfers" in paths
+        assert "/v1/statement" in paths
         transfer_op = paths["/v1/transfers"]["post"]
         assert transfer_op["parameters"][0]["name"] == "Idempotency-Key"
         assert "security" in transfer_op
+
+
+class TestStatementEndpoint:
+    def test_requires_auth(self, client: FlaskClient) -> None:
+        assert client.get("/v1/statement").status_code == 401
+
+    def test_shows_transfer_from_both_sides(
+        self, client: FlaskClient, uow: InMemoryUnitOfWork
+    ) -> None:
+        sender = _onboard(client, "+2250700000001", "st-key-s-longenough")
+        recipient = _onboard(client, "+2250700000002", "st-key-r-longenough")
+        _fund(uow, sender.wallet_id, 100_000)
+        client.post(
+            "/v1/transfers",
+            json={"recipient_phone_number": "+2250700000002", "amount_minor": 30_000, "note": "x"},
+            headers={**sender.headers, "Idempotency-Key": "st-trx-0001"},
+        )
+
+        out = client.get("/v1/statement", headers=sender.headers).get_json()
+        assert out["next_cursor"] is None
+        assert len(out["lines"]) == 1
+        assert out["lines"][0]["direction"] == "out"
+        assert out["lines"][0]["amount_minor"] == 30_000
+        assert out["lines"][0]["fee_minor"] == 240  # 0,8 %
+        assert out["lines"][0]["note"] == "x"
+
+        inc = client.get("/v1/statement", headers=recipient.headers).get_json()
+        assert inc["lines"][0]["direction"] == "in"
+        assert inc["lines"][0]["amount_minor"] == 30_000
+        assert inc["lines"][0]["fee_minor"] == 0
+
+    def test_pagination_via_query_params(
+        self, client: FlaskClient, uow: InMemoryUnitOfWork
+    ) -> None:
+        sender = _onboard(client, "+2250700000001", "st-pg-s-longenough")
+        _onboard(client, "+2250700000002", "st-pg-r-longenough")
+        _fund(uow, sender.wallet_id, 1_000_000)
+        for i in range(3):
+            client.post(
+                "/v1/transfers",
+                json={"recipient_phone_number": "+2250700000002", "amount_minor": 1_000},
+                headers={**sender.headers, "Idempotency-Key": f"st-pg-trx-{i}"},
+            )
+        first = client.get("/v1/statement?limit=2", headers=sender.headers).get_json()
+        assert len(first["lines"]) == 2 and first["next_cursor"]
+        rest = client.get(
+            f"/v1/statement?limit=2&cursor={first['next_cursor']}", headers=sender.headers
+        ).get_json()
+        assert len(rest["lines"]) == 1 and rest["next_cursor"] is None

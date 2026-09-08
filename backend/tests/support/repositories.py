@@ -127,9 +127,20 @@ class InMemoryLedgerRepository:
     def list_for_wallet(
         self, wallet_id: EntityId, *, limit: int = 50, before: EntityId | None = None
     ) -> Iterable[LedgerTransaction]:
+        return self.list_for_wallets([wallet_id], limit=limit, before=before)
+
+    def list_for_wallets(
+        self, wallet_ids: list[EntityId], *, limit: int = 50, before: EntityId | None = None
+    ) -> list[LedgerTransaction]:
+        wanted = {str(w) for w in wallet_ids}
         matched = [
-            t for t in self._by_id.values() if any(p.wallet_id == wallet_id for p in t.postings)
+            t
+            for t in self._by_id.values()
+            if any(p.wallet_id is not None and str(p.wallet_id) in wanted for p in t.postings)
         ]
+        matched.sort(key=lambda t: str(t.id), reverse=True)
+        if before is not None:
+            matched = [t for t in matched if str(t.id) < str(before)]
         return matched[:limit]
 
     def ensure_account(

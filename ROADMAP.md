@@ -1,22 +1,26 @@
 # Flash — Map de développement
 
 > **Dernière mise à jour : 2026-09-08**
-> **Phase 1 backend terminée + Phase 2 : BE-025 → BE-031 (auth, numéros, wallets, transfert P2P).**
+> **Phase 1 terminée + Phase 2 : BE-025 → BE-031 + BE-038 (auth, numéros, wallets, transfert, relevé).**
 > Domaine complet (identity + PIN Argon2, wallet, ledger partie double, pricing 0,8 %,
 > limits, référentiel pays). Application : `RegisterUser`, auth (`Login`/`VerifyOtp`/
 > `ResendOtp` + `TokenService`), gestion des numéros, `GetWallet`/`ListWallets`,
 > **`SendP2PTransfer`** (flux §3 archi, frais 0,8 %, ledger équilibré, idempotent,
 > `TransferCompleted`). Port `WorkUnitOfWork` (UoW typée) + `add_event` pour les
 > événements transverses. Infra : grilles tarifaire/plafonds statiques (UEMOA).
-> **14 routes** : `auth` (6), `phones` (5), `wallets` (2), `transfers` (1) + `/health*`,
-> `/openapi.json`, `/docs`, `/redoc`.
+> **15 routes** : `auth` (6), `phones` (5), `wallets` (2), `transfers` (1), `statement` (1)
+> + `/health*`, `/openapi.json`, `/docs`, `/redoc`.
 > **Transfert vérifié end-to-end via docker compose** : `POST /v1/transfers` → 201 (reçu
 > avec frais 0,8 %), soldes émetteur/destinataire mis à jour, **ledger équilibré
 > (débits = crédits = 25 200)**, `TransferCompleted` en outbox, rejeu idempotent OK.
-> 393 tests unit + 6 d'intégration (Postgres réel), couverture 100 % domain+application,
+> **`GET /v1/statement`** (BE-038) : relevé paginé par curseur, projeté du point de vue du
+> client (sens in/out, montant, frais, contrepartie masquée, note) — lu directement du
+> ledger. Vérifié end-to-end : émetteur voit `out 25000 / fee 200 / +225…0002`,
+> destinataire voit `in 25000 / fee 0`.
+> 402 tests unit + 6 d'intégration (Postgres réel), couverture 100 % domain+application,
 > ruff + mypy stricts.
 > **Prochaine : BE-029 (KYC par paliers), BE-032 (RequestMoney), BE-033 (paiement marchand
-> QR), BE-034/035/036 (dépôt & retrait cash agent), BE-038 (historique / relevé).**
+> QR), BE-034/035/036 (dépôt & retrait cash agent).**
 
 Ce fichier est la vue d'ensemble. Le détail (une ligne = une tâche cochable) est dans
 `docs/tasks/`. On avance **dans l'ordre des identifiants** à l'intérieur de chaque lot,
@@ -34,7 +38,7 @@ mais les lots Backend / Infra avancent en priorité car Web et Mobile en dépend
 | Lot | Fichier détaillé | Fait / Total |
 |-----|------------------|--------------|
 | Fondations & docs | ce fichier | 6 / 6 |
-| Backend (BE) | [docs/tasks/backend.md](docs/tasks/backend.md) | 30 / 78 |
+| Backend (BE) | [docs/tasks/backend.md](docs/tasks/backend.md) | 31 / 78 |
 | Web (WEB) | [docs/tasks/frontend-web.md](docs/tasks/frontend-web.md) | 0 / 46 |
 | Mobile (MOB) | [docs/tasks/mobile.md](docs/tasks/mobile.md) | 0 / 44 |
 | Infra & CI/CD (INFRA) | [docs/tasks/infra.md](docs/tasks/infra.md) | 2 / 24 |
@@ -58,7 +62,7 @@ Domaine partagé (Money, Currency, Country), identité (User, PhoneNumber ≤ 5)
 auth (téléphone + PIN + OTP, JWT), erreurs & idempotence, tests unitaires du domaine.
 → `BE-001` à `BE-024`.
 
-## Phase 2 — Cas d'usage cœur (en cours : 6 / 22)
+## Phase 2 — Cas d'usage cœur (en cours : 7 / 22)
 
 Ouverture de compte, KYC par paliers, transfert P2P (frais 0,8 %), paiement marchand par
 QR, dépôt cash agent, retrait cash agent (code de retrait), annulation / remboursement,
@@ -105,4 +109,4 @@ charge, revue sécurité (OWASP ASVS, secrets, rate‑limit), doc API publiée, 
 `BE-029` — `SubmitKyc` (palier 1 : pièce d'identité + selfie via port `DocumentStore`) et
 `ReviewKyc` (back‑office) → change `KycTier` et recharge les limites. Puis `BE-032`
 (`RequestMoney`), `BE-033` (paiement marchand QR), `BE-034` → `BE-036` (dépôt & retrait
-cash en agence avec code de retrait), `BE-038` (relevé / historique paginé).
+cash en agence avec code de retrait), `BE-039` (reçu détaillé).

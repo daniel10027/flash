@@ -145,8 +145,13 @@ class SqlAlchemyLedgerRepository:
     def list_for_wallet(
         self, wallet_id: EntityId, *, limit: int = 50, before: EntityId | None = None
     ) -> list[LedgerTransaction]:
+        return self.list_for_wallets([wallet_id], limit=limit, before=before)
+
+    def list_for_wallets(
+        self, wallet_ids: list[EntityId], *, limit: int = 50, before: EntityId | None = None
+    ) -> list[LedgerTransaction]:
         transaction_ids = select(LedgerPostingModel.transaction_id).where(
-            LedgerPostingModel.wallet_id == str(wallet_id)
+            LedgerPostingModel.wallet_id.in_([str(w) for w in wallet_ids])
         )
         stmt = select(LedgerTransactionModel).where(LedgerTransactionModel.id.in_(transaction_ids))
         if before is not None:

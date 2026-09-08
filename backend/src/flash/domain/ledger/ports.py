@@ -29,6 +29,15 @@ class LedgerRepository(Protocol):
         self, wallet_id: EntityId, *, limit: int = 50, before: EntityId | None = None
     ) -> Iterable[LedgerTransaction]: ...
 
+    def list_for_wallets(
+        self, wallet_ids: list[EntityId], *, limit: int = 50, before: EntityId | None = None
+    ) -> list[LedgerTransaction]:
+        """Transactions touchant l'un des portefeuilles, les plus récentes d'abord.
+
+        ``before`` (id UUIDv7) pagine : renvoie ce qui est strictement antérieur.
+        """
+        ...
+
     def ensure_account(
         self,
         *,

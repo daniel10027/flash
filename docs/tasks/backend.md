@@ -95,7 +95,7 @@ Chaque tâche livrée : code complet + tests + doc, **zéro `TODO`**.
   agent. Idempotent. Expiration → `CancelCashWithdrawal` (rend la réserve).
 - [ ] **BE-037** · `CancelTransfer` / `RefundMerchantPayment` : `LedgerTransaction.reversal`
   (jamais de suppression), fenêtre et règles d'autorisation.
-- [ ] **BE-038** · `ListStatement` : historique paginé (curseur), filtres (type, période,
+- [x] **BE-038** · `ListStatement` : historique paginé (curseur), filtres (type, période,
   contrepartie, statut), projection `statement_entries` alimentée par les événements.
 - [ ] **BE-039** · `GetReceipt` : reçu détaillé d'une opération (montant, frais, réf,
   parties masquées, QR de vérification).
