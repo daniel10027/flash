@@ -89,9 +89,13 @@ Chaque tâche livrée : code complet + tests + doc, **zéro `TODO`**.
   débit ; échoue proprement si fonds insuffisants, demande reste PENDING),
   `DeclinePaymentRequest`, `CancelPaymentRequest`, `ListPaymentRequests` (incoming /
   outgoing). Blueprint `/v1/payment-requests`, table `payment_requests`.
-- [ ] **BE-033** · `PresentMerchantQr` / `PayMerchant` : QR statique (id marchand) ou
-  dynamique (montant, référence, expiration). Frais marchand selon `pricing_rules`.
-  Règlement marchand différé via compte `bank_settlement`.
+- [x] **BE-033** · Paiement marchand par QR : agrégats `Merchant` (enrôlement + CLI
+  `flash merchant enroll`, `fee_bps`), `MerchantCharge` (QR **dynamique** : montant +
+  référence + expiration, PENDING → PAID / CANCELLED / EXPIRED), `MerchantPayment`.
+  `PayMerchant` (gratuit pour le client ; le marchand paie `fee_bps`, net sur
+  `MERCHANT_PAYABLE`, `fee` sur `FLASH_FEE_INCOME`) via `LedgerTransaction.merchant_payment`,
+  idempotent. QR **statique** (`flash://pay?m=<id>`, montant saisi). Routes `/v1/merchant/*`
+  + `/v1/merchant-payments`. Règlement différé marchand = BE-063.
 - [x] **BE-034** · `CreateCashDeposit` (agent) : agent encaisse le cash → débit
   `agent_float`, crédit wallet client ; commission agent (`agent_commission_expense`).
   Vérifie plafond float agent, KYC client, limites. Agrégats `Agent` + `CashOrder`,

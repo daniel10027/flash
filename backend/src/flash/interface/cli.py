@@ -116,5 +116,50 @@ def agent_enroll(
     click.echo(f"Agent {view.agent_id} — float {view.float_available_minor}/{view.float_cap_minor}")
 
 
+@main.group()
+def merchant() -> None:
+    """Gestion des marchands."""
+
+
+@merchant.command("enroll")
+@click.argument("phone_number")
+@click.option("--country", default="CI")
+@click.option("--name", "display_name", required=True, help="Nom commercial affiché.")
+@click.option("--category", default="GENERAL")
+@click.option("--fee-bps", "fee_bps", type=int, default=100, help="Commission marchand (bps).")
+def merchant_enroll(
+    phone_number: str,
+    country: str,
+    display_name: str,
+    category: str,
+    fee_bps: int,
+) -> None:
+    """Fait d'un compte existant un marchand."""
+    from flash.application.merchants.operations import EnrollMerchant, EnrollMerchantCommand
+    from flash.domain.shared.identifiers import CountryCode, Msisdn
+    from flash.infrastructure.config import get_settings
+    from flash.interface.container import build_app_services
+
+    settings = get_settings()
+    services = build_app_services(settings)
+    msisdn = Msisdn.parse(phone_number, default_country=CountryCode(country.upper()))
+    with services.uow() as uow:
+        user = uow.users.get_by_msisdn(msisdn)
+        if user is None:
+            raise click.ClickException(f"Aucun compte pour {msisdn.masked()}.")
+        user_id = str(user.id)
+
+    view = EnrollMerchant(services=services).execute(
+        EnrollMerchantCommand(
+            user_id=user_id,
+            display_name=display_name,
+            category=category,
+            fee_bps=fee_bps,
+        )
+    )
+    click.echo(f"Marchand {view.merchant_id} — {view.display_name} (fee {view.fee_bps} bps)")
+    click.echo(f"QR statique : {view.static_qr_payload}")
+
+
 if __name__ == "__main__":
     main()

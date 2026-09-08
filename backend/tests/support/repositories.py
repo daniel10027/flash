@@ -15,6 +15,9 @@ from flash.domain.identity.kyc_case import KycCase, KycCaseStatus
 from flash.domain.identity.user import User
 from flash.domain.ledger.chart import AccountType
 from flash.domain.ledger.transaction import LedgerTransaction
+from flash.domain.merchants.charge import MerchantCharge
+from flash.domain.merchants.merchant import Merchant
+from flash.domain.merchants.payment import MerchantPayment
 from flash.domain.payments.request import PaymentRequest
 from flash.domain.shared.errors import PhoneNumberAlreadyLinked
 from flash.domain.shared.events import DomainEvent, EventRecorder
@@ -296,6 +299,101 @@ class InMemoryPaymentRequestRepository(_Tracking):
         self._track(request)
 
 
+class InMemoryMerchantRepository(_Tracking):
+    def __init__(self) -> None:
+        super().__init__()
+        self._by_id: dict[str, Merchant] = {}
+
+    def get(self, merchant_id: EntityId) -> Merchant | None:
+        merchant = self._by_id.get(str(merchant_id))
+        if merchant is not None:
+            self._track(merchant)
+        return merchant
+
+    def get_by_user_id(self, user_id: EntityId) -> Merchant | None:
+        for merchant in self._by_id.values():
+            if merchant.user_id == user_id:
+                self._track(merchant)
+                return merchant
+        return None
+
+    def add(self, merchant: Merchant) -> None:
+        self._by_id[str(merchant.id)] = merchant
+        self._track(merchant)
+
+    def save(self, merchant: Merchant) -> None:
+        self._by_id[str(merchant.id)] = merchant
+        self._track(merchant)
+
+
+class InMemoryMerchantChargeRepository(_Tracking):
+    def __init__(self) -> None:
+        super().__init__()
+        self._by_id: dict[str, MerchantCharge] = {}
+
+    def get(self, charge_id: EntityId) -> MerchantCharge | None:
+        charge = self._by_id.get(str(charge_id))
+        if charge is not None:
+            self._track(charge)
+        return charge
+
+    def get_for_update(self, charge_id: EntityId) -> MerchantCharge:
+        charge = self._by_id.get(str(charge_id))
+        if charge is None:
+            raise KeyError(charge_id)
+        self._track(charge)
+        return charge
+
+    def list_for_merchant(self, merchant_id: EntityId) -> list[MerchantCharge]:
+        rows = [c for c in self._by_id.values() if c.merchant_id == merchant_id]
+        rows.sort(key=lambda c: c.created_at, reverse=True)
+        for c in rows:
+            self._track(c)
+        return rows
+
+    def add(self, charge: MerchantCharge) -> None:
+        self._by_id[str(charge.id)] = charge
+        self._track(charge)
+
+    def save(self, charge: MerchantCharge) -> None:
+        self._by_id[str(charge.id)] = charge
+        self._track(charge)
+
+
+class InMemoryMerchantPaymentRepository(_Tracking):
+    def __init__(self) -> None:
+        super().__init__()
+        self._by_id: dict[str, MerchantPayment] = {}
+
+    def get(self, payment_id: EntityId) -> MerchantPayment | None:
+        payment = self._by_id.get(str(payment_id))
+        if payment is not None:
+            self._track(payment)
+        return payment
+
+    def get_by_ledger_transaction_id(self, txn_id: EntityId) -> MerchantPayment | None:
+        for payment in self._by_id.values():
+            if payment.ledger_transaction_id == txn_id:
+                self._track(payment)
+                return payment
+        return None
+
+    def list_for_merchant(self, merchant_id: EntityId) -> list[MerchantPayment]:
+        rows = [p for p in self._by_id.values() if p.merchant_id == merchant_id]
+        rows.sort(key=lambda p: p.created_at, reverse=True)
+        for p in rows:
+            self._track(p)
+        return rows
+
+    def add(self, payment: MerchantPayment) -> None:
+        self._by_id[str(payment.id)] = payment
+        self._track(payment)
+
+    def save(self, payment: MerchantPayment) -> None:
+        self._by_id[str(payment.id)] = payment
+        self._track(payment)
+
+
 class InMemoryUnitOfWork:
     """Frontière transactionnelle en mémoire."""
 
@@ -309,6 +407,9 @@ class InMemoryUnitOfWork:
         cash_orders: InMemoryCashOrderRepository | None = None,
         kyc_cases: InMemoryKycCaseRepository | None = None,
         payment_requests: InMemoryPaymentRequestRepository | None = None,
+        merchants: InMemoryMerchantRepository | None = None,
+        merchant_charges: InMemoryMerchantChargeRepository | None = None,
+        merchant_payments: InMemoryMerchantPaymentRepository | None = None,
     ) -> None:
         self.users = users or InMemoryUserRepository()
         self.wallets = wallets or InMemoryWalletRepository()
@@ -317,6 +418,9 @@ class InMemoryUnitOfWork:
         self.cash_orders = cash_orders or InMemoryCashOrderRepository()
         self.kyc_cases = kyc_cases or InMemoryKycCaseRepository()
         self.payment_requests = payment_requests or InMemoryPaymentRequestRepository()
+        self.merchants = merchants or InMemoryMerchantRepository()
+        self.merchant_charges = merchant_charges or InMemoryMerchantChargeRepository()
+        self.merchant_payments = merchant_payments or InMemoryMerchantPaymentRepository()
         self.committed = False
         self.rolled_back = False
         self._extra_events: list[DomainEvent] = []
@@ -348,6 +452,9 @@ class InMemoryUnitOfWork:
             *self.cash_orders.seen,
             *self.kyc_cases.seen,
             *self.payment_requests.seen,
+            *self.merchants.seen,
+            *self.merchant_charges.seen,
+            *self.merchant_payments.seen,
         ):
             events.extend(aggregate.pull_events())
         events.extend(self._extra_events)
@@ -360,6 +467,9 @@ __all__ = [
     "InMemoryCashOrderRepository",
     "InMemoryKycCaseRepository",
     "InMemoryLedgerRepository",
+    "InMemoryMerchantChargeRepository",
+    "InMemoryMerchantPaymentRepository",
+    "InMemoryMerchantRepository",
     "InMemoryPaymentRequestRepository",
     "InMemoryUnitOfWork",
     "InMemoryUserRepository",

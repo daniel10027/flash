@@ -25,6 +25,9 @@ from flash.infrastructure.db.repositories import (
     SqlAlchemyCashOrderRepository,
     SqlAlchemyKycCaseRepository,
     SqlAlchemyLedgerRepository,
+    SqlAlchemyMerchantChargeRepository,
+    SqlAlchemyMerchantPaymentRepository,
+    SqlAlchemyMerchantRepository,
     SqlAlchemyPaymentRequestRepository,
     SqlAlchemyUserRepository,
     SqlAlchemyWalletRepository,
@@ -54,6 +57,9 @@ class SqlAlchemyUnitOfWork:
         self.cash_orders = SqlAlchemyCashOrderRepository(self._session, self)
         self.kyc_cases = SqlAlchemyKycCaseRepository(self._session, self)
         self.payment_requests = SqlAlchemyPaymentRequestRepository(self._session, self)
+        self.merchants = SqlAlchemyMerchantRepository(self._session, self)
+        self.merchant_charges = SqlAlchemyMerchantChargeRepository(self._session, self)
+        self.merchant_payments = SqlAlchemyMerchantPaymentRepository(self._session, self)
         return self
 
     def __exit__(self, exc_type: object, exc: object, tb: object) -> None:

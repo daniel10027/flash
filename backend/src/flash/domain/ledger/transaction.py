@@ -41,6 +41,7 @@ class TransactionKind(StrEnum):
     CARD_REFUND = "CARD_REFUND"
     OPERATOR_PAYOUT = "OPERATOR_PAYOUT"
     OPERATOR_COLLECT = "OPERATOR_COLLECT"
+    MERCHANT_PAYMENT = "MERCHANT_PAYMENT"
     MERCHANT_SETTLEMENT = "MERCHANT_SETTLEMENT"
     AGENT_FLOAT_TOPUP = "AGENT_FLOAT_TOPUP"
     AGENT_COMMISSION_PAYOUT = "AGENT_COMMISSION_PAYOUT"
@@ -397,6 +398,40 @@ class LedgerTransaction:
             occurred_at=occurred_at,
             reference=reference,
             reason="Approvisionnement du float agent",
+            metadata=metadata or {},
+        )
+
+    @staticmethod
+    def merchant_payment(
+        *,
+        id: EntityId,
+        occurred_at: datetime,
+        reference: str,
+        payer_account_id: EntityId,
+        payer_wallet_id: EntityId,
+        merchant_payable_account_id: EntityId,
+        fee_income_account_id: EntityId,
+        amount: Money,
+        merchant_fee: Money,
+        metadata: Mapping[str, Any] | None = None,
+    ) -> LedgerTransaction:
+        """Paiement marchand : le client paie ``amount`` (gratuit pour lui), le marchand
+        est crédité ``amount - merchant_fee`` (dette Flash → marchand, soldée plus tard
+        par un ``MERCHANT_SETTLEMENT``), Flash encaisse ``merchant_fee``."""
+        net = amount - merchant_fee
+        postings = [
+            _debit(payer_account_id, amount, wallet_id=payer_wallet_id),
+            _credit(merchant_payable_account_id, net),
+        ]
+        if merchant_fee.is_positive:
+            postings.append(_credit(fee_income_account_id, merchant_fee))
+        return LedgerTransaction(
+            id=id,
+            kind=TransactionKind.MERCHANT_PAYMENT,
+            postings=tuple(postings),
+            occurred_at=occurred_at,
+            reference=reference,
+            reason="Paiement marchand par QR",
             metadata=metadata or {},
         )
 

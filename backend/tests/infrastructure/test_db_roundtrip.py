@@ -341,6 +341,83 @@ class TestPaymentRequestRoundtrip:
             assert reloaded.resulting_transfer_id is not None
 
 
+class TestMerchantRoundtrip:
+    def test_merchant_charge_and_payment_persist(
+        self, session_factory: sessionmaker[Session]
+    ) -> None:
+        from datetime import timedelta
+
+        from flash.domain.merchants.charge import MerchantCharge, MerchantChargeStatus
+        from flash.domain.merchants.merchant import Merchant
+        from flash.domain.merchants.payment import MerchantPayment
+
+        clock = FixedClock(T0)
+        owner = _new_user("+2250700000051")
+        payer = _new_user("+2250700000052")
+        merchant = Merchant.enroll(
+            merchant_id=EntityId(str(uuid7())),
+            user_id=owner.id,
+            display_name="Chez Awa",
+            category="RESTAURANT",
+            currency=XOF,
+            fee_bps=100,
+            now=T0,
+        )
+        charge = MerchantCharge.open(
+            charge_id=EntityId(str(uuid7())),
+            merchant_id=merchant.id,
+            amount=Money(25_000, XOF),
+            reference="Table 4",
+            now=T0,
+            expires_at=T0 + timedelta(minutes=60),
+        )
+
+        with SqlAlchemyUnitOfWork(session_factory, clock) as uow:
+            uow.users.add(owner)
+            uow.users.add(payer)
+            uow.commit()
+
+        with SqlAlchemyUnitOfWork(session_factory, clock) as uow:
+            uow.merchants.add(merchant)
+            uow.commit()
+
+        with SqlAlchemyUnitOfWork(session_factory, clock) as uow:
+            uow.merchant_charges.add(charge)
+            uow.commit()
+
+        txn_id = EntityId(str(uuid7()))
+        with SqlAlchemyUnitOfWork(session_factory, clock) as uow:
+            reloaded = uow.merchants.get_by_user_id(owner.id)
+            assert reloaded is not None
+            assert reloaded.fee_for(Money(25_000, XOF)) == Money(250, XOF)
+
+            locked = uow.merchant_charges.get_for_update(charge.id)
+            locked.ensure_payable(T0)
+            locked.mark_paid(payer_id=payer.id, ledger_transaction_id=txn_id)
+            uow.merchant_charges.save(locked)
+
+            payment = MerchantPayment.record(
+                payment_id=EntityId(str(uuid7())),
+                payer_id=payer.id,
+                merchant_id=merchant.id,
+                amount=Money(25_000, XOF),
+                fee=Money(250, XOF),
+                reference="Table 4",
+                ledger_transaction_id=txn_id,
+                now=T0,
+                charge_id=charge.id,
+            )
+            uow.merchant_payments.add(payment)
+            uow.commit()
+
+        with SqlAlchemyUnitOfWork(session_factory, clock) as uow:
+            again = uow.merchant_charges.get(charge.id)
+            assert again is not None and again.status is MerchantChargeStatus.PAID
+            [p] = uow.merchant_payments.list_for_merchant(merchant.id)
+            assert p.net_to_merchant == Money(24_750, XOF)
+            assert uow.merchant_payments.get_by_ledger_transaction_id(txn_id) is not None
+
+
 class TestUnitOfWork:
     def test_commit_writes_domain_events_to_outbox(
         self, session_factory: sessionmaker[Session], db_session: Session

@@ -23,6 +23,7 @@ from flash.interface.errors import status_for, to_payload
 from flash.interface.http import auth as auth_routes
 from flash.interface.http import cash as cash_routes
 from flash.interface.http import kyc as kyc_routes
+from flash.interface.http import merchants as merchant_routes
 from flash.interface.http import payment_requests as payment_request_routes
 from flash.interface.http import phones as phones_routes
 from flash.interface.http import statement as statement_routes
@@ -73,6 +74,8 @@ def create_app(
     app.register_blueprint(cash_routes.agent_bp)
     app.register_blueprint(kyc_routes.bp)
     app.register_blueprint(kyc_routes.admin_bp)
+    app.register_blueprint(merchant_routes.merchant_bp)
+    app.register_blueprint(merchant_routes.merchant_payments_bp)
     return app
 
 

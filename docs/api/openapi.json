@@ -1830,6 +1830,225 @@
           }
         }
       }
+    },
+    "/v1/merchant/qr": {
+      "get": {
+        "summary": "QR statique du marchand (montant saisi par le client)",
+        "tags": [
+          "merchants"
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès"
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/v1/merchant/charges": {
+      "post": {
+        "summary": "Créer un QR dynamique (montant + référence + expiration)",
+        "tags": [
+          "merchants"
+        ],
+        "responses": {
+          "201": {
+            "description": "Succès"
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "amount_minor": {
+                    "examples": [
+                      25000
+                    ],
+                    "exclusiveMinimum": 0,
+                    "title": "Amount Minor",
+                    "type": "integer"
+                  },
+                  "reference": {
+                    "examples": [
+                      "Table 4"
+                    ],
+                    "maxLength": 80,
+                    "minLength": 1,
+                    "title": "Reference",
+                    "type": "string"
+                  },
+                  "ttl_minutes": {
+                    "default": 60,
+                    "maximum": 1440,
+                    "minimum": 1,
+                    "title": "Ttl Minutes",
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "amount_minor",
+                  "reference"
+                ],
+                "title": "CreateChargeRequest",
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/merchant/payments": {
+      "get": {
+        "summary": "Encaissements du marchand",
+        "tags": [
+          "merchants"
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès"
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/v1/merchant-payments": {
+      "post": {
+        "summary": "Payer un marchand (QR statique avec montant, ou QR dynamique)",
+        "tags": [
+          "merchants"
+        ],
+        "responses": {
+          "201": {
+            "description": "Succès"
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "merchant_id": {
+                    "maxLength": 64,
+                    "minLength": 8,
+                    "title": "Merchant Id",
+                    "type": "string"
+                  },
+                  "amount_minor": {
+                    "anyOf": [
+                      {
+                        "exclusiveMinimum": 0,
+                        "type": "integer"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "examples": [
+                      25000
+                    ],
+                    "title": "Amount Minor"
+                  },
+                  "charge_id": {
+                    "anyOf": [
+                      {
+                        "maxLength": 64,
+                        "minLength": 8,
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "title": "Charge Id"
+                  }
+                },
+                "required": [
+                  "merchant_id"
+                ],
+                "title": "PayMerchantRequest",
+                "type": "object"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 255
+            }
+          }
+        ]
+      }
     }
   },
   "components": {

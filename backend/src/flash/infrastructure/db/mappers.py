@@ -21,6 +21,9 @@ from flash.domain.identity.kyc_case import (
 from flash.domain.identity.user import PhoneNumber, User, UserStatus
 from flash.domain.ledger.chart import Direction
 from flash.domain.ledger.transaction import LedgerTransaction, Posting, TransactionKind
+from flash.domain.merchants.charge import MerchantCharge, MerchantChargeStatus
+from flash.domain.merchants.merchant import Merchant, MerchantStatus
+from flash.domain.merchants.payment import MerchantPayment, MerchantPaymentStatus
 from flash.domain.payments.request import PaymentRequest, PaymentRequestStatus
 from flash.domain.shared.identifiers import CountryCode, EntityId, Msisdn
 from flash.domain.shared.money import Currency, Money
@@ -32,6 +35,9 @@ from flash.infrastructure.db.models import (
     KycDocumentModel,
     LedgerPostingModel,
     LedgerTransactionModel,
+    MerchantChargeModel,
+    MerchantModel,
+    MerchantPaymentModel,
     PaymentRequestModel,
     PhoneNumberModel,
     UserModel,
@@ -295,6 +301,100 @@ def kyc_case_to_model(case: KycCase) -> KycCaseModel:
     )
 
 
+def merchant_to_domain(model: MerchantModel) -> Merchant:
+    return Merchant(
+        id=EntityId(model.id),
+        user_id=EntityId(model.user_id),
+        display_name=model.display_name,
+        category=model.category,
+        currency=Currency.of(model.currency),
+        fee_bps=model.fee_bps,
+        created_at=model.created_at,
+        status=MerchantStatus(model.status),
+    )
+
+
+def merchant_to_model(merchant: Merchant) -> MerchantModel:
+    return MerchantModel(
+        id=str(merchant.id),
+        user_id=str(merchant.user_id),
+        display_name=merchant.display_name,
+        category=merchant.category,
+        currency=merchant.currency.code,
+        fee_bps=merchant.fee_bps,
+        status=merchant.status.value,
+        created_at=merchant.created_at,
+    )
+
+
+def merchant_charge_to_domain(model: MerchantChargeModel) -> MerchantCharge:
+    currency = Currency.of(model.currency)
+    return MerchantCharge(
+        id=EntityId(model.id),
+        merchant_id=EntityId(model.merchant_id),
+        amount=Money(model.amount_minor, currency),
+        currency_code=model.currency,
+        reference=model.reference,
+        status=MerchantChargeStatus(model.status),
+        created_at=model.created_at,
+        expires_at=model.expires_at,
+        paid_by=EntityId(model.paid_by) if model.paid_by else None,
+        ledger_transaction_id=(
+            EntityId(model.ledger_transaction_id) if model.ledger_transaction_id else None
+        ),
+    )
+
+
+def merchant_charge_to_model(charge: MerchantCharge) -> MerchantChargeModel:
+    return MerchantChargeModel(
+        id=str(charge.id),
+        merchant_id=str(charge.merchant_id),
+        amount_minor=charge.amount.amount_minor,
+        currency=charge.currency_code,
+        reference=charge.reference,
+        status=charge.status.value,
+        created_at=charge.created_at,
+        expires_at=charge.expires_at,
+        paid_by=str(charge.paid_by) if charge.paid_by else None,
+        ledger_transaction_id=(
+            str(charge.ledger_transaction_id) if charge.ledger_transaction_id else None
+        ),
+    )
+
+
+def merchant_payment_to_domain(model: MerchantPaymentModel) -> MerchantPayment:
+    currency = Currency.of(model.currency)
+    return MerchantPayment(
+        id=EntityId(model.id),
+        payer_id=EntityId(model.payer_id),
+        merchant_id=EntityId(model.merchant_id),
+        amount=Money(model.amount_minor, currency),
+        fee=Money(model.fee_minor, currency),
+        currency_code=model.currency,
+        reference=model.reference,
+        status=MerchantPaymentStatus(model.status),
+        ledger_transaction_id=EntityId(model.ledger_transaction_id),
+        created_at=model.created_at,
+        charge_id=EntityId(model.charge_id) if model.charge_id else None,
+    )
+
+
+def merchant_payment_to_model(payment: MerchantPayment) -> MerchantPaymentModel:
+    return MerchantPaymentModel(
+        id=str(payment.id),
+        payer_id=str(payment.payer_id),
+        merchant_id=str(payment.merchant_id),
+        charge_id=str(payment.charge_id) if payment.charge_id else None,
+        amount_minor=payment.amount.amount_minor,
+        fee_minor=payment.fee.amount_minor,
+        currency=payment.currency_code,
+        reference=payment.reference,
+        status=payment.status.value,
+        ledger_transaction_id=str(payment.ledger_transaction_id),
+        created_at=payment.created_at,
+    )
+
+
 def payment_request_to_domain(model: PaymentRequestModel) -> PaymentRequest:
     currency = Currency.of(model.currency)
     return PaymentRequest(
@@ -339,6 +439,12 @@ __all__ = [
     "kyc_case_to_model",
     "ledger_transaction_to_domain",
     "ledger_transaction_to_model",
+    "merchant_charge_to_domain",
+    "merchant_charge_to_model",
+    "merchant_payment_to_domain",
+    "merchant_payment_to_model",
+    "merchant_to_domain",
+    "merchant_to_model",
     "payment_request_to_domain",
     "payment_request_to_model",
     "user_to_domain",

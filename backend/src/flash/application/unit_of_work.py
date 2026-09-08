@@ -13,6 +13,11 @@ from flash.domain.agent.ports import AgentRepository
 from flash.domain.cash.ports import CashOrderRepository
 from flash.domain.identity.ports import KycCaseRepository, UserRepository
 from flash.domain.ledger.ports import LedgerRepository
+from flash.domain.merchants.ports import (
+    MerchantChargeRepository,
+    MerchantPaymentRepository,
+    MerchantRepository,
+)
 from flash.domain.payments.ports import PaymentRequestRepository
 from flash.domain.shared.events import DomainEvent
 from flash.domain.wallet.ports import WalletRepository
@@ -42,6 +47,15 @@ class WorkUnitOfWork(Protocol):
 
     @property
     def payment_requests(self) -> PaymentRequestRepository: ...
+
+    @property
+    def merchants(self) -> MerchantRepository: ...
+
+    @property
+    def merchant_charges(self) -> MerchantChargeRepository: ...
+
+    @property
+    def merchant_payments(self) -> MerchantPaymentRepository: ...
 
     def __enter__(self) -> WorkUnitOfWork: ...
 

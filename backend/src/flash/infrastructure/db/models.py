@@ -219,6 +219,70 @@ class CashOrderModel(Base):
     )
 
 
+class MerchantModel(Base):
+    __tablename__ = "merchants"
+
+    id: Mapped[str] = mapped_column(_UUID, primary_key=True)
+    user_id: Mapped[str] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
+    )
+    display_name: Mapped[str] = mapped_column(String(120), nullable=False)
+    category: Mapped[str] = mapped_column(String(48), nullable=False, default="GENERAL")
+    currency: Mapped[str] = mapped_column(_CCY, nullable=False)
+    fee_bps: Mapped[int] = mapped_column(SmallInteger, nullable=False, default=0)
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="ACTIVE")
+    created_at: Mapped[datetime] = mapped_column(TZDateTime, nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("user_id"),
+        CheckConstraint("fee_bps >= 0 AND fee_bps <= 1000", name="fee_bps_bounds"),
+    )
+
+
+class MerchantChargeModel(Base):
+    __tablename__ = "merchant_charges"
+
+    id: Mapped[str] = mapped_column(_UUID, primary_key=True)
+    merchant_id: Mapped[str] = mapped_column(
+        ForeignKey("merchants.id", ondelete="RESTRICT"), nullable=False
+    )
+    amount_minor: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    currency: Mapped[str] = mapped_column(_CCY, nullable=False)
+    reference: Mapped[str] = mapped_column(String(80), nullable=False)
+    status: Mapped[str] = mapped_column(String(12), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(TZDateTime, nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(TZDateTime, nullable=False)
+    paid_by: Mapped[str | None] = mapped_column(_UUID, nullable=True)
+    ledger_transaction_id: Mapped[str | None] = mapped_column(_UUID, nullable=True)
+
+    __table_args__ = (
+        CheckConstraint("amount_minor > 0", name="amount_positive"),
+        Index("ix_merchant_charges_merchant_id", "merchant_id"),
+    )
+
+
+class MerchantPaymentModel(Base):
+    __tablename__ = "merchant_payments"
+
+    id: Mapped[str] = mapped_column(_UUID, primary_key=True)
+    payer_id: Mapped[str] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
+    )
+    merchant_id: Mapped[str] = mapped_column(
+        ForeignKey("merchants.id", ondelete="RESTRICT"), nullable=False
+    )
+    charge_id: Mapped[str | None] = mapped_column(_UUID, nullable=True)
+    amount_minor: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    fee_minor: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
+    currency: Mapped[str] = mapped_column(_CCY, nullable=False)
+    reference: Mapped[str] = mapped_column(String(80), nullable=False)
+    status: Mapped[str] = mapped_column(String(12), nullable=False)
+    ledger_transaction_id: Mapped[str] = mapped_column(_UUID, nullable=False, unique=True)
+    created_at: Mapped[datetime] = mapped_column(TZDateTime, nullable=False)
+
+    __table_args__ = (Index("ix_merchant_payments_merchant_id", "merchant_id"),)
+
+
 class PaymentRequestModel(Base):
     __tablename__ = "payment_requests"
 
@@ -324,6 +388,9 @@ __all__ = [
     "LedgerAccountModel",
     "LedgerPostingModel",
     "LedgerTransactionModel",
+    "MerchantChargeModel",
+    "MerchantModel",
+    "MerchantPaymentModel",
     "OutboxModel",
     "PaymentRequestModel",
     "PhoneNumberModel",

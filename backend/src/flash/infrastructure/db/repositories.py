@@ -18,6 +18,9 @@ from flash.domain.identity.kyc_case import KycCase
 from flash.domain.identity.user import User
 from flash.domain.ledger.chart import AccountType
 from flash.domain.ledger.transaction import LedgerTransaction
+from flash.domain.merchants.charge import MerchantCharge
+from flash.domain.merchants.merchant import Merchant
+from flash.domain.merchants.payment import MerchantPayment
 from flash.domain.payments.request import PaymentRequest
 from flash.domain.shared.errors import PhoneNumberAlreadyLinked
 from flash.domain.shared.events import EventRecorder
@@ -32,6 +35,9 @@ from flash.infrastructure.db.models import (
     LedgerAccountModel,
     LedgerPostingModel,
     LedgerTransactionModel,
+    MerchantChargeModel,
+    MerchantModel,
+    MerchantPaymentModel,
     PaymentRequestModel,
     PhoneNumberModel,
     UserModel,
@@ -350,6 +356,117 @@ class SqlAlchemyPaymentRequestRepository:
         self._tracker.track(request)
 
 
+class SqlAlchemyMerchantRepository:
+    def __init__(self, session: Session, tracker: _AggregateTracker) -> None:
+        self._session = session
+        self._tracker = tracker
+
+    def _load(self, model: MerchantModel | None) -> Merchant | None:
+        if model is None:
+            return None
+        merchant = mappers.merchant_to_domain(model)
+        self._tracker.track(merchant)
+        return merchant
+
+    def get(self, merchant_id: EntityId) -> Merchant | None:
+        return self._load(self._session.get(MerchantModel, str(merchant_id)))
+
+    def get_by_user_id(self, user_id: EntityId) -> Merchant | None:
+        stmt = select(MerchantModel).where(MerchantModel.user_id == str(user_id))
+        return self._load(self._session.scalars(stmt).first())
+
+    def add(self, merchant: Merchant) -> None:
+        self._session.add(mappers.merchant_to_model(merchant))
+        self._tracker.track(merchant)
+
+    def save(self, merchant: Merchant) -> None:
+        self._session.merge(mappers.merchant_to_model(merchant))
+        self._tracker.track(merchant)
+
+
+class SqlAlchemyMerchantChargeRepository:
+    def __init__(self, session: Session, tracker: _AggregateTracker) -> None:
+        self._session = session
+        self._tracker = tracker
+
+    def _load(self, model: MerchantChargeModel | None) -> MerchantCharge | None:
+        if model is None:
+            return None
+        charge = mappers.merchant_charge_to_domain(model)
+        self._tracker.track(charge)
+        return charge
+
+    def get(self, charge_id: EntityId) -> MerchantCharge | None:
+        return self._load(self._session.get(MerchantChargeModel, str(charge_id)))
+
+    def get_for_update(self, charge_id: EntityId) -> MerchantCharge:
+        stmt = (
+            select(MerchantChargeModel)
+            .where(MerchantChargeModel.id == str(charge_id))
+            .with_for_update()
+        )
+        model = self._session.scalars(stmt).first()
+        if model is None:
+            raise KeyError(charge_id)
+        loaded = self._load(model)
+        assert loaded is not None
+        return loaded
+
+    def list_for_merchant(self, merchant_id: EntityId) -> list[MerchantCharge]:
+        stmt = (
+            select(MerchantChargeModel)
+            .where(MerchantChargeModel.merchant_id == str(merchant_id))
+            .order_by(MerchantChargeModel.created_at.desc())
+        )
+        return [c for c in (self._load(m) for m in self._session.scalars(stmt)) if c is not None]
+
+    def add(self, charge: MerchantCharge) -> None:
+        self._session.add(mappers.merchant_charge_to_model(charge))
+        self._tracker.track(charge)
+
+    def save(self, charge: MerchantCharge) -> None:
+        self._session.merge(mappers.merchant_charge_to_model(charge))
+        self._tracker.track(charge)
+
+
+class SqlAlchemyMerchantPaymentRepository:
+    def __init__(self, session: Session, tracker: _AggregateTracker) -> None:
+        self._session = session
+        self._tracker = tracker
+
+    def _load(self, model: MerchantPaymentModel | None) -> MerchantPayment | None:
+        if model is None:
+            return None
+        payment = mappers.merchant_payment_to_domain(model)
+        self._tracker.track(payment)
+        return payment
+
+    def get(self, payment_id: EntityId) -> MerchantPayment | None:
+        return self._load(self._session.get(MerchantPaymentModel, str(payment_id)))
+
+    def get_by_ledger_transaction_id(self, txn_id: EntityId) -> MerchantPayment | None:
+        stmt = select(MerchantPaymentModel).where(
+            MerchantPaymentModel.ledger_transaction_id == str(txn_id)
+        )
+        return self._load(self._session.scalars(stmt).first())
+
+    def list_for_merchant(self, merchant_id: EntityId) -> list[MerchantPayment]:
+        stmt = (
+            select(MerchantPaymentModel)
+            .where(MerchantPaymentModel.merchant_id == str(merchant_id))
+            .order_by(MerchantPaymentModel.created_at.desc())
+        )
+        return [p for p in (self._load(m) for m in self._session.scalars(stmt)) if p is not None]
+
+    def add(self, payment: MerchantPayment) -> None:
+        self._session.add(mappers.merchant_payment_to_model(payment))
+        self._tracker.track(payment)
+
+    def save(self, payment: MerchantPayment) -> None:
+        self._session.merge(mappers.merchant_payment_to_model(payment))
+        self._tracker.track(payment)
+
+
 def _new_account_id() -> EntityId:
     return EntityId(str(uuid7()))
 
@@ -359,6 +476,9 @@ __all__ = [
     "SqlAlchemyCashOrderRepository",
     "SqlAlchemyKycCaseRepository",
     "SqlAlchemyLedgerRepository",
+    "SqlAlchemyMerchantChargeRepository",
+    "SqlAlchemyMerchantPaymentRepository",
+    "SqlAlchemyMerchantRepository",
     "SqlAlchemyPaymentRequestRepository",
     "SqlAlchemyUserRepository",
     "SqlAlchemyWalletRepository",

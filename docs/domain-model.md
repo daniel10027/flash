@@ -147,11 +147,20 @@ Invariants :
 Événements : `PaymentRequestCreated`, `PaymentRequestAccepted`, `PaymentRequestDeclined`,
 `PaymentRequestCancelled`, `PaymentRequestExpired`.
 
-### MerchantPayment
-`id`, `payer_id`, `merchant_id`, `till_id?`, `amount`, `fee` (grille marchand),
-`reference`, `status` (`COMPLETED | REFUNDED`), `ledger_transaction_id`.
-Le crédit va sur `MERCHANT_PAYABLE` (dette Flash → marchand), soldé par
-`MerchantSettlement`.
+### MerchantCharge  *(racine — QR dynamique)*
+Le marchand fixe `amount` + `reference` + `expires_at` ; le client paie exactement ce
+montant. Champs : `id`, `merchant_id`, `amount`, `reference`, `status`
+(`PENDING → PAID | CANCELLED | EXPIRED`), `created_at`, `expires_at`, `paid_by?`,
+`ledger_transaction_id?`. Payload : `flash://pay?m=<merchant>&c=<charge>`.
+Événements : `MerchantChargeOpened`, `MerchantChargeCancelled`, `MerchantChargeExpired`.
+
+### MerchantPayment  *(racine)*
+`id`, `payer_id`, `merchant_id`, `charge_id?`, `amount`, `fee` (= `merchant.fee_bps` sur
+`amount`, arrondi plancher), `reference`, `status` (`COMPLETED | REFUNDED`),
+`ledger_transaction_id`, `created_at`.
+**Gratuit pour le client** : il paie `amount`. Le net (`amount - fee`) va sur
+`MERCHANT_PAYABLE` (dette Flash → marchand, soldée par un règlement — `BE-063`), `fee`
+va sur `FLASH_FEE_INCOME`. `REFUNDED` = contre-passation (`BE-037`).
 Événements : `MerchantPaymentCompleted`, `MerchantPaymentRefunded`.
 
 ### CashOrder  *(dépôt ou retrait)*
@@ -215,10 +224,13 @@ Invariants : opérations refusées si `status != ACTIVE`, hors plafonds, ou cana
 Événements : `AgentEnrolled`, `AgentFloatDisbursed`, `AgentFloatCollected`,
 `AgentCommissionAccrued`, `AgentSuspended`.
 
-### Merchant
-`id`, `user_id`, `category`, `pricing` (grille propre), `settlement_account`,
-`tills: Till[]`, `api_keys`, `status`, `kyb_status`.
-Événements : `MerchantOnboarded`, `MerchantSettled`.
+### Merchant  *(racine)*
+Version BE-033 : `id`, `user_id`, `display_name`, `category`, `currency`, `fee_bps`
+(≤ 1000), `status` (`ACTIVE | SUSPENDED`), `created_at`. QR statique :
+`flash://pay?m=<id>`. Enrôlé par CLI `flash merchant enroll` en attendant le back-office
+marchands (`BE-063` : `tills`, `api_keys`, `settlement_account`, `kyb_status`, grille
+tarifaire éditable, règlements).
+Événements : `MerchantEnrolled`, `MerchantSuspended`.
 
 ### Country  *(référentiel, quasi‑statique)*
 `code`, `currency`, `timezone`, `rounding_rule` (`UP_TO_UNIT | HALF_UP | …`),
