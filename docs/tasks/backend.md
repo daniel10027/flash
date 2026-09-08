@@ -19,16 +19,16 @@ Chaque tâche livrée : code complet + tests + doc, **zéro `TODO`**.
   stable (SCREAMING_SNAKE) et message FR. Table des codes dans `docs/api/errors.md`.
 - [x] **BE-006** · `domain/shared/ports.py` : `Clock`, `IdGenerator`, `UnitOfWork`,
   `EventPublisher`, `IdempotencyStore` (interfaces + docstrings de contrat).
-- [ ] **BE-007** · `domain/identity/user.py` : agrégat `User` (statut, `KycTier`,
+- [x] **BE-007** · `domain/identity/user.py` : agrégat `User` (statut, `KycTier`,
   liste `PhoneNumber` ≤ 5, un principal, ajout/suppression/promotion, invariants).
   `DomainError.PhoneNumberLimitReached`, `PhoneNumberAlreadyLinked`. Tests.
-- [ ] **BE-008** · `domain/identity/pin.py` : VO `Pin` (4–6 chiffres, refuse suites
+- [x] **BE-008** · `domain/identity/pin.py` : VO `Pin` (4–6 chiffres, refuse suites
   triviales), port `PinHasher`. Tests.
-- [ ] **BE-009** · `domain/wallet/wallet.py` : agrégat `Wallet` (user, currency, statut,
+- [x] **BE-009** · `domain/wallet/wallet.py` : agrégat `Wallet` (user, currency, statut,
   `available`/`reserved`, opérations de réservation). Tests.
-- [ ] **BE-010** · `domain/ledger/account.py` : `LedgerAccount` (type, propriétaire,
+- [x] **BE-010** · `domain/ledger/account.py` : `LedgerAccount` (type, propriétaire,
   devise, `normal_balance`). Plan de comptes en `domain/ledger/chart.py`.
-- [ ] **BE-011** · `domain/ledger/transaction.py` : `Posting` + `LedgerTransaction`
+- [x] **BE-011** · `domain/ledger/transaction.py` : `Posting` + `LedgerTransaction`
   (immuable ; invariant somme des postings = 0 par devise ; horodatée ; `reason`,
   `reference`, `metadata`). Fabriques : `transfer`, `fee`, `cash_in`, `cash_out`,
   `vault_move`, `savings_deposit`, `interest`, `reversal`. Tests d'équilibre.

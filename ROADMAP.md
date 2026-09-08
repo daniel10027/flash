@@ -1,9 +1,12 @@
 # Flash — Map de développement
 
 > **Dernière mise à jour : 2026-09-08**
-> **Session courante :** Phase 0 terminée. Backend BE-001 → BE-006 faits (socle du domaine
-> partagé : Money/Currency, identifiants, erreurs, événements, ports). 108 tests verts,
-> couverture 100 %, ruff + mypy stricts OK. Prochaine : BE-007 (agrégat User).
+> **Session courante :** Phase 0 + Backend BE-001 → BE-011 faits. Domaine `shared`
+> (Money, identifiants, erreurs, événements, ports) + `identity` (User ≤ 5 numéros, Pin,
+> KycTier) + `wallet` (Wallet disponible/réservé) + `ledger` (partie double : chart,
+> LedgerAccount, Posting, LedgerTransaction + 10 fabriques équilibrées, reversal).
+> 208 tests verts, couverture 100 %, ruff + mypy stricts OK.
+> Prochaine : BE-012 (PricingService, frais 0,8 %).
 
 Ce fichier est la vue d'ensemble. Le détail (une ligne = une tâche cochable) est dans
 `docs/tasks/`. On avance **dans l'ordre des identifiants** à l'intérieur de chaque lot,
@@ -21,7 +24,7 @@ mais les lots Backend / Infra avancent en priorité car Web et Mobile en dépend
 | Lot | Fichier détaillé | Fait / Total |
 |-----|------------------|--------------|
 | Fondations & docs | ce fichier | 6 / 6 |
-| Backend (BE) | [docs/tasks/backend.md](docs/tasks/backend.md) | 6 / 78 |
+| Backend (BE) | [docs/tasks/backend.md](docs/tasks/backend.md) | 11 / 78 |
 | Web (WEB) | [docs/tasks/frontend-web.md](docs/tasks/frontend-web.md) | 0 / 46 |
 | Mobile (MOB) | [docs/tasks/mobile.md](docs/tasks/mobile.md) | 0 / 44 |
 | Infra & CI/CD (INFRA) | [docs/tasks/infra.md](docs/tasks/infra.md) | 0 / 24 |
@@ -89,6 +92,7 @@ charge, revue sécurité (OWASP ASVS, secrets, rate‑limit), doc API publiée, 
 
 ## Prochaine action
 
-`BE-007` — agrégat `User` (`domain/identity/user.py`) : statut, KycTier, 1 à 5
-`PhoneNumber` avec un principal, ajout/suppression/promotion, invariants + tests.
-Puis `BE-008` (Pin), `BE-009` (Wallet), `BE-010`/`BE-011` (ledger).
+`BE-012` — `domain/pricing/pricing.py` : `PricingRule` (bps, min, max, fixed) + `Fee`
+(ventilation) + `PricingService.fee_for(country, operation, amount)` avec règle d'arrondi
+par pays (transfert CI = 80 bps = 0,8 %). Puis `BE-013` (LimitPolicy / KycPolicy),
+`BE-014` (ports de repos métier).

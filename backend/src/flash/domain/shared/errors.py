@@ -81,6 +81,11 @@ class CannotRemoveLastPhoneNumber(DomainError):
     message = "Impossible de retirer le dernier numéro du compte."
 
 
+class CannotRemovePrimaryPhoneNumber(DomainError):
+    code = "CANNOT_REMOVE_PRIMARY_PHONE_NUMBER"
+    message = "Définissez un autre numéro comme principal avant de retirer celui-ci."
+
+
 class PhoneNumberNotFound(DomainError):
     code = "PHONE_NUMBER_NOT_FOUND"
     message = "Numéro introuvable sur ce compte."
@@ -97,6 +102,16 @@ class UserFrozen(DomainError):
     message = "Ce compte est gelé."
 
 
+class AccountClosed(DomainError):
+    code = "ACCOUNT_CLOSED"
+    message = "Ce compte est clôturé."
+
+
+class InvalidAccountState(DomainError):
+    code = "INVALID_ACCOUNT_STATE"
+    message = "L'opération n'est pas permise dans l'état actuel du compte."
+
+
 class WalletFrozen(DomainError):
     code = "WALLET_FROZEN"
     message = "Ce portefeuille est gelé."
@@ -105,6 +120,11 @@ class WalletFrozen(DomainError):
 class SelfTransfer(DomainError):
     code = "SELF_TRANSFER"
     message = "Impossible de s'envoyer de l'argent à soi-même."
+
+
+class InvalidReservation(DomainError):
+    code = "INVALID_RESERVATION"
+    message = "Montant de réservation incohérent avec les fonds réservés."
 
 
 # ------------------------------------------------------------------------- cash
