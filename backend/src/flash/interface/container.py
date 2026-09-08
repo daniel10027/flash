@@ -7,6 +7,7 @@ n'en savent rien. En test, on passe un ``Deps`` déjà assemblé avec des fakes.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import timedelta
 
 from flask import Flask, current_app
 
@@ -50,6 +51,7 @@ class Deps:
     codes: WithdrawalCodes
     documents: DocumentStore
     admin_api_key: str
+    reversal_window: timedelta
 
 
 def build_app_services(settings: Settings) -> AppServices:
@@ -86,6 +88,7 @@ def build_deps(settings: Settings, *, tokens: TokenService) -> Deps:
         codes=PepperedWithdrawalCodes(settings.secret_key),
         documents=LocalFilesystemDocumentStore(settings.kyc_document_dir),
         admin_api_key=settings.admin_api_key,
+        reversal_window=timedelta(seconds=settings.reversal_window_seconds),
     )
 
 

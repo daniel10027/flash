@@ -127,6 +127,41 @@ class TestMerchantEndpoints:
         assert resp.status_code == 201
         assert resp.get_json()["amount_minor"] == 30_000
 
+    def test_refund_credits_payer_back(
+        self, app_and_uow: tuple[Flask, InMemoryUnitOfWork, Any]
+    ) -> None:
+        app, uow, deps = app_and_uow
+        client = app.test_client()
+        merchant_auth = _login(client, MERCHANT_PHONE, "m-setup-rf")
+        payer_auth = _login(client, PAYER_PHONE, "p-setup-rf")
+
+        payer_wallet = uow.wallets.list_for_user(
+            uow.users.get_by_msisdn(Msisdn(PAYER_PHONE)).id  # type: ignore[union-attr]
+        )[0]
+        payer_wallet.credit(Money(100_000, XOF), FixedClock().now())
+        payer_wallet.pull_events()
+
+        merchant_user = uow.users.get_by_msisdn(Msisdn(MERCHANT_PHONE))
+        assert merchant_user is not None
+        merchant_view = EnrollMerchant(services=deps.services).execute(
+            EnrollMerchantCommand(user_id=str(merchant_user.id), display_name="Chez Awa")
+        )
+        payment = client.post(
+            "/v1/merchant-payments",
+            headers={**payer_auth, "Idempotency-Key": "pay-rf-0001"},
+            json={"merchant_id": merchant_view.merchant_id, "amount_minor": 25_000},
+        ).get_json()
+
+        resp = client.post(
+            f"/v1/merchant/payments/{payment['payment_id']}/refund",
+            headers={**merchant_auth, "Idempotency-Key": "refund-rf-0001"},
+        )
+        assert resp.status_code == 200
+        assert resp.get_json()["status"] == "REFUNDED"
+
+        bal = client.get("/v1/wallets", headers=payer_auth).get_json()["wallets"][0]
+        assert bal["balance_minor"] == 100_000
+
     def test_qr_for_non_merchant_is_404(
         self, app_and_uow: tuple[Flask, InMemoryUnitOfWork, Any]
     ) -> None:

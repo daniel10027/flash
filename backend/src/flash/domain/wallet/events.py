@@ -65,11 +65,26 @@ class TransferCompleted(DomainEvent):
     reference: str
 
 
+@dataclass(frozen=True, slots=True, kw_only=True)
+class TransferReversed(DomainEvent):
+    """Un transfert P2P a été annulé (contre-passation). ``aggregate_id`` = id du
+    ``REVERSAL``."""
+
+    original_transfer_id: str
+    sender_id: str
+    recipient_id: str
+    amount_minor: int
+    fee_minor: int
+    currency: str
+    reference: str
+
+
 __all__ = [
     "FundsReleased",
     "FundsReserved",
     "ReservationSettled",
     "TransferCompleted",
+    "TransferReversed",
     "WalletCredited",
     "WalletDebited",
     "WalletFrozen",

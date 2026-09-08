@@ -6,6 +6,7 @@ from flask import Blueprint, Response, jsonify, request
 from pydantic import Field
 from werkzeug.exceptions import BadRequest
 
+from flash.application.transfers.reverse import CancelTransfer, CancelTransferCommand
 from flash.application.transfers.send_p2p import SendP2PTransfer, SendP2PTransferCommand
 from flash.interface.container import deps
 from flash.interface.http.schemas import ApiModel
@@ -71,6 +72,29 @@ def send_transfer() -> tuple[Response, int]:
         )
     )
     return jsonify(receipt.to_dict()), 201
+
+
+@bp.post("/<transfer_id>/cancel")
+@require_auth
+@rate_limit(name="transfer-cancel", limit=10, per_seconds=600, subject="user")
+@document(
+    summary="Annuler un transfert récent (contre-passation)",
+    tags=["transfers"],
+    idempotent=True,
+    status_code=200,
+)
+def cancel_transfer(transfer_id: str) -> tuple[Response, int]:
+    key = request.headers.get("Idempotency-Key", "").strip()
+    if not key:
+        raise BadRequest("En-tête Idempotency-Key requis pour cette opération.")
+    receipt = CancelTransfer(services=deps().services, window=deps().reversal_window).execute(
+        CancelTransferCommand(
+            actor_user_id=str(current_principal().user_id),
+            transfer_id=transfer_id,
+            idempotency_key=key,
+        )
+    )
+    return jsonify(receipt.to_dict()), 200
 
 
 __all__ = ["bp"]

@@ -107,8 +107,14 @@ Chaque tâche livrée : code complet + tests + doc, **zéro `TODO`**.
   débit wallet client, crédit `agent_float`, frais → `flash_fee_income`, commission
   agent. Idempotent. `POST /v1/agent/withdrawals/confirm`. Annulation →
   `CancelCashWithdrawal` (`POST /v1/withdrawals/<id>/cancel`, rend la réserve).
-- [ ] **BE-037** · `CancelTransfer` / `RefundMerchantPayment` : `LedgerTransaction.reversal`
-  (jamais de suppression), fenêtre et règles d'autorisation.
+- [x] **BE-037** · `CancelTransfer` / `RefundMerchantPayment` : contre-passation via
+  `LedgerTransaction.reversal` (jamais de suppression). Fenêtre `reversal_window`
+  (config, 1 h) → `ReversalWindowClosed` ; une seule fois → `DuplicateOperation` ;
+  `CancelTransfer` réservé à l'émetteur et refusé si le destinataire a déjà dépensé →
+  `RefundNotPossible` ; `RefundMerchantPayment` réservé au marchand, `MerchantPayment`
+  passe `REFUNDED`. Routes `POST /v1/transfers/<id>/cancel`,
+  `POST /v1/merchant/payments/<id>/refund`. Événements `TransferReversed`,
+  `MerchantPaymentRefunded`.
 - [x] **BE-038** · `ListStatement` : historique paginé (curseur), filtres (type, période,
   contrepartie, statut), projection `statement_entries` alimentée par les événements.
 - [ ] **BE-039** · `GetReceipt` : reçu détaillé d'une opération (montant, frais, réf,

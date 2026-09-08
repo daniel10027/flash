@@ -181,11 +181,51 @@ class TestTransferEndpoint:
         assert replay.status_code == 201
         assert replay.get_json()["transfer_id"] == receipt["transfer_id"]
 
+    def test_cancel_transfer_reverses_and_restores_balances(
+        self, client: FlaskClient, uow: InMemoryUnitOfWork
+    ) -> None:
+        sender = _onboard(client, "+2250700000001", "tc-key-s-longenough")
+        recipient = _onboard(client, "+2250700000002", "tc-key-r-longenough")
+        _fund(uow, sender.wallet_id, 100_000)
+        transfer_id = client.post(
+            "/v1/transfers",
+            json={"recipient_phone_number": "+2250700000002", "amount_minor": 25_000},
+            headers={**sender.headers, "Idempotency-Key": "tc-trx-0001"},
+        ).get_json()["transfer_id"]
+
+        resp = client.post(
+            f"/v1/transfers/{transfer_id}/cancel",
+            headers={**sender.headers, "Idempotency-Key": "tc-rev-0001"},
+        )
+        assert resp.status_code == 200
+        assert resp.get_json()["sender_balance_after_minor"] == 100_000
+
+        s = client.get("/v1/wallets", headers=sender.headers).get_json()["wallets"][0]
+        r = client.get("/v1/wallets", headers=recipient.headers).get_json()["wallets"][0]
+        assert s["balance_minor"] == 100_000
+        assert r["balance_minor"] == 0
+
+    def test_cancel_by_recipient_is_422(self, client: FlaskClient, uow: InMemoryUnitOfWork) -> None:
+        sender = _onboard(client, "+2250700000001", "tc2-key-s-longenough")
+        recipient = _onboard(client, "+2250700000002", "tc2-key-r-longenough")
+        _fund(uow, sender.wallet_id, 100_000)
+        transfer_id = client.post(
+            "/v1/transfers",
+            json={"recipient_phone_number": "+2250700000002", "amount_minor": 10_000},
+            headers={**sender.headers, "Idempotency-Key": "tc2-trx-0001"},
+        ).get_json()["transfer_id"]
+        resp = client.post(
+            f"/v1/transfers/{transfer_id}/cancel",
+            headers={**recipient.headers, "Idempotency-Key": "tc2-rev-0001"},
+        )
+        assert resp.status_code == 422
+
     def test_routes_in_openapi(self, client: FlaskClient) -> None:
         paths = client.get("/openapi.json").get_json()["paths"]
         assert "/v1/wallets" in paths
         assert "/v1/wallets/{wallet_id}" in paths
         assert "/v1/transfers" in paths
+        assert "/v1/transfers/{transfer_id}/cancel" in paths
         assert "/v1/statement" in paths
         transfer_op = paths["/v1/transfers"]["post"]
         assert transfer_op["parameters"][0]["name"] == "Idempotency-Key"

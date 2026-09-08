@@ -53,6 +53,9 @@ class Settings(BaseSettings):
     kyc_document_dir: str = Field(default="/tmp/flash-kyc", alias="KYC_DOCUMENT_DIR")
     admin_api_key: str = Field(default="", alias="ADMIN_API_KEY")
 
+    # --- annulation / remboursement
+    reversal_window_seconds: int = Field(default=3_600, alias="REVERSAL_WINDOW_SECONDS")
+
     # --- pays par défaut
     default_country: str = Field(default="CI", alias="DEFAULT_COUNTRY")
     default_currency: str = Field(default="XOF", alias="DEFAULT_CURRENCY")

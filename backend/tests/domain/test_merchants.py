@@ -216,6 +216,19 @@ class TestMerchantPayment:
     def test_repr(self) -> None:
         assert "status=COMPLETED" in repr(_payment())
 
+    def test_refund_transitions_and_records_event(self) -> None:
+        payment = _payment()
+        payment.pull_events()
+        payment.refund(reversal_transaction_id=TXN, now=T0)
+        assert payment.status is MerchantPaymentStatus.REFUNDED
+        assert [e.name for e in payment.pull_events()] == ["MerchantPaymentRefunded"]
+
+    def test_refund_twice_rejected(self) -> None:
+        payment = _payment()
+        payment.refund(reversal_transaction_id=TXN, now=T0)
+        with pytest.raises(InvalidAccountState, match="ne peut pas être remboursé"):
+            payment.refund(reversal_transaction_id=TXN, now=T0)
+
 
 def _payment(*, amount: Money | None = None, fee: Money | None = None) -> MerchantPayment:
     return MerchantPayment(

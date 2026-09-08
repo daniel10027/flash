@@ -1,9 +1,10 @@
 # Flash — Map de développement
 
 > **Dernière mise à jour : 2026-09-08**
-> **Phase 1 terminée + Phase 2 : BE-025 → BE-034/035/036, BE-038**
-> (auth, numéros, wallets, transfert, **demandes de paiement**, **paiement marchand QR**,
-> **dépôt & retrait cash agent**, relevé, **KYC**).
+> **Phase 1 terminée + Phase 2 : BE-025 → BE-038 (sauf BE-039)**
+> (auth, numéros, wallets, transfert + **annulation**, **demandes de paiement**,
+> **paiement marchand QR** + **remboursement**, **dépôt & retrait cash agent**, relevé,
+> **KYC**).
 > Domaine complet (identity + PIN Argon2, wallet, ledger partie double, pricing 0,8 %,
 > limits, référentiel pays, **agent + ordre cash**). Application : `RegisterUser`, auth
 > (`Login`/`VerifyOtp`/`ResendOtp` + `TokenService`), gestion des numéros,
@@ -27,19 +28,24 @@
 > `PayMerchant` — gratuit pour le client, le marchand paie `fee_bps` (net → `MERCHANT_PAYABLE`,
 > frais → `FLASH_FEE_INCOME`) via `LedgerTransaction.merchant_payment`, idempotent. QR
 > statique `flash://pay?m=<id>` (montant saisi).
-> **31 chemins** : `auth` (6), `phones` (5), `wallets` (2), `transfers` (1),
-> `payment-requests` (4), `merchant` (3), `merchant-payments` (1), `statement` (1),
+> **Annulation & remboursement (BE-037)** : `CancelTransfer` (émetteur seul, fenêtre
+> `reversal_window` 1 h, refus si le destinataire a dépensé → `RefundNotPossible`),
+> `RefundMerchantPayment` (marchand, `MerchantPayment` → REFUNDED). Contre-passation
+> `LedgerTransaction.reversal` (jamais de suppression), événements `TransferReversed` /
+> `MerchantPaymentRefunded`.
+> **33 chemins** : `auth` (6), `phones` (5), `wallets` (2), `transfers` (2),
+> `payment-requests` (4), `merchant` (4), `merchant-payments` (1), `statement` (1),
 > `withdrawals` (2), `agent` (2), `kyc` (4), `admin/kyc` (1) + `/health*`,
 > `/openapi.json`, `/docs`, `/redoc`.
-> **Tout vérifié end-to-end via docker compose** : dépôt agent 200 000 ; retrait 50 000 →
-> float 852 500, ledger équilibré ; KYC tier 1 → `KycTier` 0 → 1 ; demande 20 000 →
-> acceptation (payeur −20 160 frais 0,8 %), ré-acceptation sans double débit ; paiement
-> marchand statique 25 000 (frais 250, net 24 750) puis QR dynamique 40 000 (frais 400,
-> net 39 600), rejeu du QR payé → 422, ledger équilibré.
-> 580 tests unit + 10 d'intégration (Postgres réel), couverture 100 % domain+application,
+> **Tout vérifié end-to-end via docker compose** : cash, KYC, demandes de paiement,
+> paiement marchand statique/dynamique ; **annulation** d'un transfert de 25 000 →
+> émetteur et destinataire remis à zéro, annulation par le destinataire → 422 ;
+> **remboursement** marchand de 30 000 → payeur re-crédité, rejeu → 409 ; tous les
+> `REVERSAL` équilibrés, `TransferReversed` / `MerchantPaymentRefunded` en outbox.
+> 601 tests unit + 10 d'intégration (Postgres réel), couverture 100 % domain+application,
 > ruff + mypy stricts.
-> **Prochaine : BE-037 (annulation / remboursement), BE-039 (reçu détaillé),
-> BE-041/042 (notifications SSE), BE-044/045 (jobs d'expiration & réconciliation).**
+> **Prochaine : BE-039 (reçu détaillé), BE-041/042 (notifications SSE),
+> BE-044/045 (jobs d'expiration & réconciliation), BE-046 (seed).**
 
 Ce fichier est la vue d'ensemble. Le détail (une ligne = une tâche cochable) est dans
 `docs/tasks/`. On avance **dans l'ordre des identifiants** à l'intérieur de chaque lot,
@@ -57,7 +63,7 @@ mais les lots Backend / Infra avancent en priorité car Web et Mobile en dépend
 | Lot | Fichier détaillé | Fait / Total |
 |-----|------------------|--------------|
 | Fondations & docs | ce fichier | 6 / 6 |
-| Backend (BE) | [docs/tasks/backend.md](docs/tasks/backend.md) | 37 / 78 |
+| Backend (BE) | [docs/tasks/backend.md](docs/tasks/backend.md) | 38 / 78 |
 | Web (WEB) | [docs/tasks/frontend-web.md](docs/tasks/frontend-web.md) | 0 / 46 |
 | Mobile (MOB) | [docs/tasks/mobile.md](docs/tasks/mobile.md) | 0 / 44 |
 | Infra & CI/CD (INFRA) | [docs/tasks/infra.md](docs/tasks/infra.md) | 2 / 24 |
@@ -81,7 +87,7 @@ Domaine partagé (Money, Currency, Country), identité (User, PhoneNumber ≤ 5)
 auth (téléphone + PIN + OTP, JWT), erreurs & idempotence, tests unitaires du domaine.
 → `BE-001` à `BE-024`.
 
-## Phase 2 — Cas d'usage cœur (en cours : 13 / 22)
+## Phase 2 — Cas d'usage cœur (en cours : 14 / 22)
 
 Ouverture de compte, KYC par paliers, transfert P2P (frais 0,8 %), paiement marchand par
 QR, dépôt cash agent, retrait cash agent (code de retrait), annulation / remboursement,
@@ -125,10 +131,11 @@ charge, revue sécurité (OWASP ASVS, secrets, rate‑limit), doc API publiée, 
 
 ## Prochaine action
 
-`BE-037` — `CancelTransfer` / `RefundMerchantPayment` : contre-passation via
-`LedgerTransaction.reversal` (jamais de suppression), fenêtre temporelle et règles
-d'autorisation, refus si les fonds ne sont plus disponibles (`RefundNotPossible`). Puis
-`BE-039` (reçu détaillé), `BE-041/042` (notifications SSE in-app), `BE-044/045` (jobs :
-expiration des codes / demandes, réconciliation des soldes). ✅ Livrés : `BE-029` (KYC),
+`BE-039` — `GetReceipt` : reçu détaillé d'une opération (montant, frais, référence,
+contreparties masquées, statut, horodatage, éventuelle contre-passation) à partir du
+ledger, pour n'importe quelle opération visible par l'appelant. Puis `BE-041/042`
+(notifications SSE in-app), `BE-044/045` (jobs : expiration des codes de retrait /
+demandes de paiement / QR, réconciliation des soldes), `BE-046` (seed de démo).
+✅ Livrés : `BE-029` (KYC), `BE-037` (annulation / remboursement),
 `BE-032` (demandes de paiement), `BE-033` (paiement marchand QR), `BE-034` → `BE-036`
 (cash agent).

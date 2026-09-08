@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import timedelta
+
 from flash.application.services import AppServices
 from flash.domain.country.directory import StaticCountryDirectory
 from flash.domain.limits.limits import KycPolicy, LimitPolicy
@@ -51,6 +53,7 @@ def build_test_deps(
         codes=PepperedWithdrawalCodes("test-pepper-0123456789"),
         documents=InMemoryDocumentStore(),
         admin_api_key="test-admin-key",
+        reversal_window=timedelta(hours=1),
     )
 
 

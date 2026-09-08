@@ -1055,6 +1055,46 @@
         ]
       }
     },
+    "/v1/transfers/{transfer_id}/cancel": {
+      "post": {
+        "summary": "Annuler un transfert récent (contre-passation)",
+        "tags": [
+          "transfers"
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès"
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 255
+            }
+          }
+        ]
+      }
+    },
     "/v1/payment-requests": {
       "post": {
         "summary": "Réclamer un paiement à un autre compte Flash",
@@ -1953,6 +1993,46 @@
         "security": [
           {
             "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/v1/merchant/payments/{payment_id}/refund": {
+      "post": {
+        "summary": "Rembourser un paiement encaissé (contre-passation)",
+        "tags": [
+          "merchants"
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès"
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 255
+            }
           }
         ]
       }

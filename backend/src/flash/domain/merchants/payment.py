@@ -8,7 +8,8 @@ from __future__ import annotations
 from datetime import datetime
 from enum import StrEnum
 
-from flash.domain.merchants.events import MerchantPaymentCompleted
+from flash.domain.merchants.events import MerchantPaymentCompleted, MerchantPaymentRefunded
+from flash.domain.shared.errors import InvalidAccountState
 from flash.domain.shared.events import EventRecorder
 from flash.domain.shared.identifiers import EntityId
 from flash.domain.shared.money import Money
@@ -94,6 +95,26 @@ class MerchantPayment(EventRecorder):
             )
         )
         return payment
+
+    def refund(self, *, reversal_transaction_id: EntityId, now: datetime) -> None:
+        if self.status is not MerchantPaymentStatus.COMPLETED:
+            raise InvalidAccountState(
+                "Ce paiement marchand ne peut pas être remboursé.", status=self.status.value
+            )
+        self.status = MerchantPaymentStatus.REFUNDED
+        self.record_event(
+            MerchantPaymentRefunded(
+                occurred_at=now,
+                aggregate_id=str(self.id),
+                payer_id=str(self.payer_id),
+                merchant_id=str(self.merchant_id),
+                amount_minor=self.amount.amount_minor,
+                fee_minor=self.fee.amount_minor,
+                currency=self.currency_code,
+                reference=self.reference,
+                reversal_transaction_id=str(reversal_transaction_id),
+            )
+        )
 
     @property
     def net_to_merchant(self) -> Money:

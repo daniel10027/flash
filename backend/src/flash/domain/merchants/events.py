@@ -47,11 +47,23 @@ class MerchantPaymentCompleted(DomainEvent):
     reference: str
 
 
+@dataclass(frozen=True, slots=True, kw_only=True)
+class MerchantPaymentRefunded(DomainEvent):
+    payer_id: str
+    merchant_id: str
+    amount_minor: int
+    fee_minor: int
+    currency: str
+    reference: str
+    reversal_transaction_id: str
+
+
 __all__ = [
     "MerchantChargeCancelled",
     "MerchantChargeExpired",
     "MerchantChargeOpened",
     "MerchantEnrolled",
     "MerchantPaymentCompleted",
+    "MerchantPaymentRefunded",
     "MerchantSuspended",
 ]

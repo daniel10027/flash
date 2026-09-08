@@ -17,6 +17,10 @@ from flash.application.merchants.operations import (
     PayMerchant,
     PayMerchantCommand,
 )
+from flash.application.merchants.refund import (
+    RefundMerchantPayment,
+    RefundMerchantPaymentCommand,
+)
 from flash.interface.container import deps
 from flash.interface.http.schemas import ApiModel
 from flash.interface.openapi import document
@@ -85,6 +89,28 @@ def merchant_payments() -> tuple[Response, int]:
         ListMerchantPaymentsCommand(merchant_user_id=str(current_principal().user_id))
     )
     return jsonify({"payments": [line.to_dict() for line in lines]}), 200
+
+
+@merchant_bp.post("/payments/<payment_id>/refund")
+@require_auth
+@rate_limit(name="merchant-refund", limit=30, per_seconds=60, subject="user")
+@document(
+    summary="Rembourser un paiement encaissé (contre-passation)",
+    tags=["merchants"],
+    idempotent=True,
+    status_code=200,
+)
+def refund_merchant_payment(payment_id: str) -> tuple[Response, int]:
+    receipt = RefundMerchantPayment(
+        services=deps().services, window=deps().reversal_window
+    ).execute(
+        RefundMerchantPaymentCommand(
+            merchant_user_id=str(current_principal().user_id),
+            payment_id=payment_id,
+            idempotency_key=_idem_key(),
+        )
+    )
+    return jsonify(receipt.to_dict()), 200
 
 
 # ------------------------------------------------------------------ payeur
