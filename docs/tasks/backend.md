@@ -32,16 +32,16 @@ Chaque tâche livrée : code complet + tests + doc, **zéro `TODO`**.
   (immuable ; invariant somme des postings = 0 par devise ; horodatée ; `reason`,
   `reference`, `metadata`). Fabriques : `transfer`, `fee`, `cash_in`, `cash_out`,
   `vault_move`, `savings_deposit`, `interest`, `reversal`. Tests d'équilibre.
-- [ ] **BE-012** · `domain/pricing/pricing.py` : `PricingRule` (bps, min, max, fixed),
+- [x] **BE-012** · `domain/pricing/pricing.py` : `PricingRule` (bps, min, max, fixed),
   `PricingService.fee_for(country, operation, amount) -> Fee` avec règle d'arrondi.
   Transfert CI = 80 bps. Tests (montants limites, arrondis).
-- [ ] **BE-013** · `domain/limits/limits.py` : `LimitRule` par (pays, KYC), `LimitPolicy`
+- [x] **BE-013** · `domain/limits/limits.py` : `LimitRule` par (pays, KYC), `LimitPolicy`
   (par opération, cumul jour/mois via port `LimitCounter`), `KycPolicy`. Tests.
-- [ ] **BE-014** · Ports métier : `UserRepository`, `WalletRepository`,
+- [x] **BE-014** · Ports métier : `UserRepository`, `WalletRepository`,
   `LedgerRepository`, `PricingRepository`, `LimitRepository` dans chaque sous‑paquet.
-- [ ] **BE-015** · `application/` : `Command`/`Result` de base, `UseCase` abstrait,
+- [x] **BE-015** · `application/` : `Command`/`Result` de base, `UseCase` abstrait,
   décorateur/mixin d'idempotence, helper d'ouverture d'UoW.
-- [ ] **BE-016** · Fakes de test : `InMemoryUnitOfWork`, repos en mémoire, `FixedClock`,
+- [x] **BE-016** · Fakes de test : `InMemoryUnitOfWork`, repos en mémoire, `FixedClock`,
   `SeqIdGenerator`, `InMemoryIdempotencyStore`, `RecordingEventPublisher` dans
   `tests/support/`.
 - [ ] **BE-017** · `infrastructure/db/` : `Base`, `engine`, session ; modèles SQLAlchemy

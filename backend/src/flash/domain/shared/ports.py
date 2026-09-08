@@ -7,7 +7,7 @@ définies avec ``typing.Protocol`` : le domaine n'impose aucune héritage aux ad
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Protocol, runtime_checkable
+from typing import Any, Protocol, Self, runtime_checkable
 
 from flash.domain.shared.events import DomainEvent
 from flash.domain.shared.identifiers import EntityId
@@ -66,7 +66,7 @@ class UnitOfWork(Protocol):
       garder ce port générique ; chaque sous-domaine définit son propre port de repo.
     """
 
-    def __enter__(self) -> UnitOfWork: ...
+    def __enter__(self) -> Self: ...
 
     def __exit__(self, exc_type: object, exc: object, tb: object) -> None: ...
 
