@@ -4,13 +4,16 @@ from __future__ import annotations
 
 from datetime import timedelta
 
+from flash.application.notifications.dispatcher import NotificationDispatcher
 from flash.application.services import AppServices
 from flash.domain.country.directory import StaticCountryDirectory
 from flash.domain.limits.limits import KycPolicy, LimitPolicy
 from flash.domain.pricing.pricing import PricingService
 from flash.infrastructure.codes import PepperedWithdrawalCodes
 from flash.infrastructure.documents import InMemoryDocumentStore
+from flash.infrastructure.events import NotifyingEventPublisher
 from flash.infrastructure.limits import NullLimitCounter, build_limit_repository
+from flash.infrastructure.notifications import FanOutNotifier, InAppChannel
 from flash.infrastructure.pricing import build_pricing_repository
 from flash.interface.container import Deps
 from flash.interface.security.wiring import SecurityBundle
@@ -21,6 +24,7 @@ from tests.support.fakes import (
     RecordingEventPublisher,
     SeqIdGenerator,
 )
+from tests.support.notifications import InMemoryNotificationRepository
 from tests.support.otp import RecordingOtpService
 from tests.support.repositories import InMemoryUnitOfWork
 from tests.support.security import build_test_security
@@ -34,11 +38,17 @@ def build_test_deps(
     clock: FixedClock | None = None,
 ) -> Deps:
     bundle = bundle or build_test_security()
+    the_clock = clock or FixedClock()
+    ids = SeqIdGenerator()
+    notifications = InMemoryNotificationRepository()
+    dispatcher = NotificationDispatcher(
+        notifier=FanOutNotifier([InAppChannel(notifications)]), clock=the_clock, ids=ids
+    )
     services = AppServices(
         uow=lambda: uow,
-        clock=clock or FixedClock(),
-        ids=SeqIdGenerator(),
-        events=RecordingEventPublisher(),
+        clock=the_clock,
+        ids=ids,
+        events=NotifyingEventPublisher(RecordingEventPublisher(), dispatcher),
         idempotency=InMemoryIdempotencyStore(),
     )
     return Deps(
@@ -54,6 +64,7 @@ def build_test_deps(
         documents=InMemoryDocumentStore(),
         admin_api_key="test-admin-key",
         reversal_window=timedelta(hours=1),
+        notifications=notifications,
     )
 
 

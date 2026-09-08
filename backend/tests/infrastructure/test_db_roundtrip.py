@@ -418,6 +418,46 @@ class TestMerchantRoundtrip:
             assert uow.merchant_payments.get_by_ledger_transaction_id(txn_id) is not None
 
 
+class TestNotificationRepository:
+    def test_add_list_count_and_mark_read(self, session_factory: sessionmaker[Session]) -> None:
+        from flash.application.notifications.model import Notification, NotificationKind
+        from flash.infrastructure.db.notification_repository import (
+            SqlAlchemyNotificationRepository,
+        )
+
+        clock = FixedClock(T0)
+        user = _new_user("+2250700000061")
+        with SqlAlchemyUnitOfWork(session_factory, clock) as uow:
+            uow.users.add(user)
+            uow.commit()
+
+        repo = SqlAlchemyNotificationRepository(session_factory)
+        for i in range(3):
+            repo.add(
+                Notification(
+                    id=str(uuid7()),
+                    user_id=str(user.id),
+                    kind=NotificationKind.MONEY_IN,
+                    title=f"n{i}",
+                    body="Vous avez reçu de l'argent.",
+                    created_at=T0,
+                    data={"reference": f"TRX-{i}"},
+                )
+            )
+        listed = repo.list_for_user(str(user.id), limit=2)
+        assert len(listed) == 2
+        assert listed[0].data["reference"].startswith("TRX-")
+        assert repo.count_unread(str(user.id)) == 3
+
+        assert repo.mark_read(str(user.id), listed[0].id) is True
+        assert repo.mark_read(str(user.id), listed[0].id) is False  # déjà lue
+        assert repo.count_unread(str(user.id)) == 2
+
+        assert repo.mark_all_read(str(user.id)) == 2
+        assert repo.count_unread(str(user.id)) == 0
+        assert repo.list_for_user(str(user.id), unread_only=True) == []
+
+
 class TestUnitOfWork:
     def test_commit_writes_domain_events_to_outbox(
         self, session_factory: sessionmaker[Session], db_session: Session

@@ -123,12 +123,20 @@ Chaque tâche livrée : code complet + tests + doc, **zéro `TODO`**.
   contrepartie masquée, note, statut `COMPLETED` / `REVERSED` (+ `reversed_at`).
   Réservé aux parties prenantes (un portefeuille touché) → sinon 404. Route
   `GET /v1/receipts/<reference>`. Projection factorisée avec `ListStatement`.
-- [ ] **BE-040** · Notifications — port `Notifier` ; handlers d'événements → push (FCM),
-  in‑app (table + SSE), email (SMTP) pour : réception d'argent, débit, dépôt/retrait
-  agent, KYC, sécurité (nouvel appareil).
-- [ ] **BE-041** · `interface` blueprints : `auth`, `users`, `phones`, `wallets`,
-  `transfers`, `requests`, `merchant-payments`, `cash`, `statement`, `notifications`.
-  Schémas in/out + exemples OpenAPI.
+- [x] **BE-040** · Notifications — port `Notifier` + canaux `InAppChannel` (table
+  `notifications`), `SmtpEmailChannel` (SMTP, actif dès qu'une adresse est jointe),
+  `FcmPushChannel` (stub jusqu'à la collecte des jetons, BE-042),
+  `LoggingNotificationChannel`. `NotificationDispatcher` mappe les événements de l'outbox
+  (`TransferCompleted/Reversed`, `CashDeposit/WithdrawalConfirmed`,
+  `MerchantPayment(Completed|Refunded)`, `KycCase(Approved|Rejected)`) → notifications,
+  branché en aval de l'`EventPublisher` via `NotifyingEventPublisher` (best-effort,
+  post-commit). Blueprint `/v1/notifications` (liste paginée + curseur + `unread`,
+  `/<id>/read`, `/read-all`). Le flux SSE reste BE-042.
+- [x] **BE-041** · `interface` blueprints livrés au fil des lots : `auth`, `phones`,
+  `wallets`, `transfers` (+ `cancel`), `payment-requests`, `merchant` / `merchant-payments`,
+  `withdrawals` / `agent` (cash), `kyc` / `admin/kyc`, `statement`, `receipts`,
+  `notifications`. Schémas pydantic in/out + OpenAPI 3.1 (`/docs`, `/redoc`,
+  `docs/api/openapi.json`, 37 chemins).
 - [ ] **BE-042** · SSE `/v1/notifications/stream` (auth, keep‑alive, reprise par
   `Last-Event-ID`, backend Redis pub/sub).
 - [ ] **BE-043** · Verrous & concurrence : verrou pessimiste par wallet dans l'UoW,

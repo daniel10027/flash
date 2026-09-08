@@ -359,6 +359,28 @@ class KycDocumentModel(Base):
     __table_args__ = (UniqueConstraint("case_id", "kind"),)
 
 
+class NotificationModel(Base):
+    __tablename__ = "notifications"
+
+    id: Mapped[str] = mapped_column(_UUID, primary_key=True)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    kind: Mapped[str] = mapped_column(String(24), nullable=False)
+    title: Mapped[str] = mapped_column(String(140), nullable=False)
+    body: Mapped[str] = mapped_column(Text, nullable=False)
+    data: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
+    created_at: Mapped[datetime] = mapped_column(TZDateTime, nullable=False)
+    read_at: Mapped[datetime | None] = mapped_column(TZDateTime, nullable=True)
+
+    __table_args__ = (
+        Index("ix_notifications_user_recent", "user_id", "id"),
+        Index(
+            "ix_notifications_user_unread",
+            "user_id",
+            postgresql_where=text("read_at IS NULL"),
+        ),
+    )
+
+
 class OutboxModel(Base):
     __tablename__ = "outbox"
 
@@ -391,6 +413,7 @@ __all__ = [
     "MerchantChargeModel",
     "MerchantModel",
     "MerchantPaymentModel",
+    "NotificationModel",
     "OutboxModel",
     "PaymentRequestModel",
     "PhoneNumberModel",

@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from datetime import UTC, datetime
 
 from flash.domain.identity.events import UserRegistered
+from flash.domain.shared.events import DomainEvent
 from flash.infrastructure.events import (
     CompositeEventPublisher,
     LoggingEventPublisher,
+    NotifyingEventPublisher,
     NullEventPublisher,
 )
 
@@ -40,3 +43,35 @@ def test_composite_isolates_handler_errors() -> None:
 
     CompositeEventPublisher([boom, ok]).publish([_EVENT])
     assert seen == ["ok"]  # l'erreur de `boom` n'empêche pas `ok`
+
+
+class _RecordingInner:
+    def __init__(self) -> None:
+        self.published: list[list[DomainEvent]] = []
+
+    def publish(self, events: list[DomainEvent]) -> None:
+        self.published.append(events)
+
+
+def test_notifying_publisher_calls_inner_then_sink() -> None:
+    inner = _RecordingInner()
+    handled: list[list[DomainEvent]] = []
+
+    class _Sink:
+        def handle(self, events: Iterable[DomainEvent]) -> None:
+            handled.append(list(events))
+
+    NotifyingEventPublisher(inner, _Sink()).publish([_EVENT])
+    assert inner.published == [[_EVENT]]
+    assert handled == [[_EVENT]]
+
+
+def test_notifying_publisher_swallows_sink_errors() -> None:
+    inner = _RecordingInner()
+
+    class _BoomSink:
+        def handle(self, events: Iterable[DomainEvent]) -> None:
+            raise RuntimeError("sink cassé")
+
+    NotifyingEventPublisher(inner, _BoomSink()).publish([_EVENT])  # ne lève pas
+    assert inner.published == [[_EVENT]]
