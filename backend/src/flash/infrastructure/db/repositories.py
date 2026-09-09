@@ -34,6 +34,7 @@ from flash.domain.shared.errors import PhoneNumberAlreadyLinked
 from flash.domain.shared.events import EventRecorder
 from flash.domain.shared.identifiers import EntityId, Msisdn
 from flash.domain.shared.money import Currency, Money
+from flash.domain.support.ticket import SupportNote, SupportTicket
 from flash.domain.vault.vault import Vault
 from flash.domain.wallet.wallet import Wallet
 from flash.infrastructure.db import mappers
@@ -56,6 +57,8 @@ from flash.infrastructure.db.models import (
     PaymentRequestModel,
     PhoneNumberModel,
     SavingsPlanModel,
+    SupportNoteModel,
+    SupportTicketModel,
     UserModel,
     VaultPocketModel,
     WalletModel,
@@ -1012,6 +1015,60 @@ class SqlAlchemyOperatorTransferRepository:
         self._tracker.track(transfer)
 
 
+class SqlAlchemySupportNoteRepository:
+    def __init__(self, session: Session, tracker: _AggregateTracker) -> None:
+        self._session = session
+        self._tracker = tracker
+
+    def list_for_user(self, user_id: EntityId, *, limit: int = 100) -> list[SupportNote]:
+        stmt = (
+            select(SupportNoteModel)
+            .where(SupportNoteModel.subject_user_id == str(user_id))
+            .order_by(SupportNoteModel.created_at.desc())
+            .limit(limit)
+        )
+        return [mappers.support_note_to_domain(m) for m in self._session.scalars(stmt)]
+
+    def add(self, note: SupportNote) -> None:
+        self._session.add(mappers.support_note_to_model(note))
+
+
+class SqlAlchemySupportTicketRepository:
+    def __init__(self, session: Session, tracker: _AggregateTracker) -> None:
+        self._session = session
+        self._tracker = tracker
+
+    def get(self, ticket_id: EntityId) -> SupportTicket | None:
+        model = self._session.get(SupportTicketModel, str(ticket_id))
+        return mappers.support_ticket_to_domain(model) if model is not None else None
+
+    def list_recent(
+        self, *, status: str | None = None, limit: int = 100
+    ) -> list[SupportTicket]:
+        stmt = select(SupportTicketModel).order_by(SupportTicketModel.updated_at.desc())
+        if status is not None:
+            stmt = stmt.where(SupportTicketModel.status == status)
+        stmt = stmt.limit(limit)
+        return [mappers.support_ticket_to_domain(m) for m in self._session.scalars(stmt)]
+
+    def list_for_user(
+        self, user_id: EntityId, *, limit: int = 100
+    ) -> list[SupportTicket]:
+        stmt = (
+            select(SupportTicketModel)
+            .where(SupportTicketModel.subject_user_id == str(user_id))
+            .order_by(SupportTicketModel.updated_at.desc())
+            .limit(limit)
+        )
+        return [mappers.support_ticket_to_domain(m) for m in self._session.scalars(stmt)]
+
+    def add(self, ticket: SupportTicket) -> None:
+        self._session.add(mappers.support_ticket_to_model(ticket))
+
+    def save(self, ticket: SupportTicket) -> None:
+        self._session.merge(mappers.support_ticket_to_model(ticket))
+
+
 def _new_account_id() -> EntityId:
     return EntityId(str(uuid7()))
 
@@ -1032,6 +1089,8 @@ __all__ = [
     "SqlAlchemyOperatorTransferRepository",
     "SqlAlchemyPaymentRequestRepository",
     "SqlAlchemySavingsPlanRepository",
+    "SqlAlchemySupportNoteRepository",
+    "SqlAlchemySupportTicketRepository",
     "SqlAlchemyUserRepository",
     "SqlAlchemyVaultRepository",
     "SqlAlchemyWalletRepository",

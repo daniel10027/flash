@@ -36,6 +36,8 @@ from flash.infrastructure.db.repositories import (
     SqlAlchemyOperatorTransferRepository,
     SqlAlchemyPaymentRequestRepository,
     SqlAlchemySavingsPlanRepository,
+    SqlAlchemySupportNoteRepository,
+    SqlAlchemySupportTicketRepository,
     SqlAlchemyUserRepository,
     SqlAlchemyVaultRepository,
     SqlAlchemyWalletRepository,
@@ -78,6 +80,8 @@ class SqlAlchemyUnitOfWork:
         self.cards = SqlAlchemyCardRepository(self._session, self)
         self.card_authorizations = SqlAlchemyCardAuthorizationRepository(self._session, self)
         self.operator_transfers = SqlAlchemyOperatorTransferRepository(self._session, self)
+        self.support_notes = SqlAlchemySupportNoteRepository(self._session, self)
+        self.support_tickets = SqlAlchemySupportTicketRepository(self._session, self)
         return self
 
     def __exit__(self, exc_type: object, exc: object, tb: object) -> None:

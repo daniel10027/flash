@@ -595,6 +595,40 @@ class MerchantWebhookDeliveryModel(Base):
     )
 
 
+class SupportNoteModel(Base):
+    __tablename__ = "support_notes"
+
+    id: Mapped[str] = mapped_column(_UUID, primary_key=True)
+    subject_user_id: Mapped[str] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
+    )
+    author: Mapped[str] = mapped_column(String(80), nullable=False)
+    body: Mapped[str] = mapped_column(String(2000), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(TZDateTime, nullable=False)
+
+    __table_args__ = (Index("ix_support_notes_subject_user_id", "subject_user_id"),)
+
+
+class SupportTicketModel(Base):
+    __tablename__ = "support_tickets"
+
+    id: Mapped[str] = mapped_column(_UUID, primary_key=True)
+    subject_user_id: Mapped[str] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
+    )
+    opened_by: Mapped[str] = mapped_column(String(80), nullable=False)
+    subject: Mapped[str] = mapped_column(String(160), nullable=False)
+    status: Mapped[str] = mapped_column(String(12), nullable=False, default="OPEN")
+    last_actor: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(TZDateTime, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(TZDateTime, nullable=False)
+
+    __table_args__ = (
+        Index("ix_support_tickets_subject_user_id", "subject_user_id"),
+        Index("ix_support_tickets_status", "status"),
+    )
+
+
 class PaymentRequestModel(Base):
     __tablename__ = "payment_requests"
 
@@ -739,6 +773,8 @@ __all__ = [
     "PaymentRequestModel",
     "PhoneNumberModel",
     "SavingsPlanModel",
+    "SupportNoteModel",
+    "SupportTicketModel",
     "UserModel",
     "VaultPocketModel",
     "WalletModel",

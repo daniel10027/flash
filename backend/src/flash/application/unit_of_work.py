@@ -26,6 +26,7 @@ from flash.domain.operators.ports import OperatorTransferRepository
 from flash.domain.payments.ports import PaymentRequestRepository
 from flash.domain.savings.ports import SavingsPlanRepository
 from flash.domain.shared.events import DomainEvent
+from flash.domain.support.ports import SupportNoteRepository, SupportTicketRepository
 from flash.domain.vault.ports import VaultRepository
 from flash.domain.wallet.ports import WalletRepository
 
@@ -87,6 +88,12 @@ class WorkUnitOfWork(Protocol):
 
     @property
     def operator_transfers(self) -> OperatorTransferRepository: ...
+
+    @property
+    def support_notes(self) -> SupportNoteRepository: ...
+
+    @property
+    def support_tickets(self) -> SupportTicketRepository: ...
 
     def __enter__(self) -> WorkUnitOfWork: ...
 

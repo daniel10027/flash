@@ -325,9 +325,20 @@ Chaque tâche livrée : code complet + tests + doc, **zéro `TODO`**.
   `POST /float/withdraw`, `POST /commission/payout`, `GET /customers?msisdn=`
   (`LookupCustomer` — données minimales : id, msisdn masqué, statut, palier KYC).
   Migration `f2a9c1e83b47` (colonnes `parent_agent_id` / `commission_*` sur `agents`).
-- [ ] **BE-075** · Back‑office API : recherche utilisateur, détail compte, gel/dégel,
-  liste des transactions, forcer reversal, notes, tickets de support. RBAC
-  (`support`, `compliance`, `finance`, `admin`) + audit de chaque action.
+- [x] **BE-075** · Back‑office comptes & support (`application/backoffice/`) :
+  `SearchAccount` (`GET /v1/admin/accounts?q=` — id ou msisdn), `GetAccountDetail`
+  (wallets + compteurs notes/tickets), `ListAccountTransactions` (ledger signé côté
+  compte), `SetAccountFrozen` (`POST …/freeze`, motif requis pour geler),
+  `ForceTransferReversal` (`POST /v1/admin/transactions/force-reversal` — contre-passe
+  un `TRANSFER` hors fenêtre ; `InsufficientFunds` si le bénéficiaire a dépensé ;
+  `DuplicateOperation` si déjà contre-passé). Notes `SupportNote`
+  (`POST|GET …/notes`), tickets `SupportTicket` (OPEN→PENDING→RESOLVED/CLOSED,
+  `POST|GET /v1/admin/tickets`, `POST …/<id>/status`). **Chaque action écrit une entrée
+  d'audit chaîné** via `AuditLog` (`account.freeze`, `transaction.force_reversal`,
+  `account.note`, `ticket.open`, `ticket.status`). RBAC : lectures + notes + tickets =
+  `support`/`compliance`/`finance`/`admin` ; contre-passation = `finance`/`admin`.
+  Tables `support_notes` / `support_tickets`, migration `a3c7e91d5f28`. `NOT_AN_AGENT`
+  → 404.
 - [ ] **BE-076** · Conformité : détection de seuils (structuration, vélocité), file
   d'alertes AML, blocage préventif, export STR/CTR (format CSV paramétrable).
 - [ ] **BE-077** · Exports réglementaires & compta : balance des comptes du ledger à une

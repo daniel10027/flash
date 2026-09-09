@@ -584,6 +584,53 @@ class TestMerchantRoundtrip:
             assert uow.merchant_webhooks.list_due(T0) == []
 
 
+class TestBackofficeRoundtrip:
+    def test_support_notes_and_tickets_persist(
+        self, session_factory: sessionmaker[Session]
+    ) -> None:
+        from flash.domain.support.ticket import SupportNote, SupportTicket, TicketStatus
+
+        clock = FixedClock(T0)
+        user = _new_user("+2250700000071")
+        note = SupportNote(
+            id=EntityId(str(uuid7())),
+            subject_user_id=user.id,
+            author="key:support",
+            body="Client rappelé",
+            created_at=T0,
+        )
+        ticket = SupportTicket.open(
+            ticket_id=EntityId(str(uuid7())),
+            subject_user_id=user.id,
+            opened_by="key:support",
+            subject="Retrait bloqué",
+            now=T0,
+        )
+        with SqlAlchemyUnitOfWork(session_factory, clock) as uow:
+            uow.users.add(user)
+            uow.support_notes.add(note)
+            uow.support_tickets.add(ticket)
+            uow.commit()
+
+        with SqlAlchemyUnitOfWork(session_factory, clock) as uow:
+            [loaded_note] = uow.support_notes.list_for_user(user.id)
+            assert loaded_note.body == "Client rappelé"
+            loaded_ticket = uow.support_tickets.get(ticket.id)
+            assert loaded_ticket is not None
+            loaded_ticket.transition_to(
+                TicketStatus.RESOLVED, actor="key:compliance", now=T0
+            )
+            uow.support_tickets.save(loaded_ticket)
+            uow.commit()
+
+        with SqlAlchemyUnitOfWork(session_factory, clock) as uow:
+            [resolved] = uow.support_tickets.list_recent(status="RESOLVED")
+            assert resolved.id == ticket.id
+            assert resolved.last_actor == "key:compliance"
+            assert uow.support_tickets.list_recent(status="OPEN") == []
+            assert [t.id for t in uow.support_tickets.list_for_user(user.id)] == [ticket.id]
+
+
 class TestNotificationRepository:
     def test_add_list_count_and_mark_read(self, session_factory: sessionmaker[Session]) -> None:
         from flash.application.notifications.model import Notification, NotificationKind

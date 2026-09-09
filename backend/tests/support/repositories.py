@@ -31,6 +31,7 @@ from flash.domain.shared.errors import PhoneNumberAlreadyLinked
 from flash.domain.shared.events import DomainEvent, EventRecorder
 from flash.domain.shared.identifiers import EntityId, Msisdn
 from flash.domain.shared.money import Currency, Money
+from flash.domain.support.ticket import SupportNote, SupportTicket
 from flash.domain.vault.vault import Vault
 from flash.domain.wallet.wallet import Wallet
 
@@ -836,6 +837,49 @@ class InMemoryOperatorTransferRepository(_Tracking):
         self._track(transfer)
 
 
+class InMemorySupportNoteRepository:
+    def __init__(self) -> None:
+        self._items: list[SupportNote] = []
+
+    def list_for_user(self, user_id: EntityId, *, limit: int = 100) -> list[SupportNote]:
+        rows = [n for n in self._items if n.subject_user_id == user_id]
+        rows.sort(key=lambda n: n.created_at, reverse=True)
+        return rows[:limit]
+
+    def add(self, note: SupportNote) -> None:
+        self._items.append(note)
+
+
+class InMemorySupportTicketRepository:
+    def __init__(self) -> None:
+        self._by_id: dict[str, SupportTicket] = {}
+
+    def get(self, ticket_id: EntityId) -> SupportTicket | None:
+        return self._by_id.get(str(ticket_id))
+
+    def list_recent(
+        self, *, status: str | None = None, limit: int = 100
+    ) -> list[SupportTicket]:
+        rows = [
+            t for t in self._by_id.values() if status is None or t.status.value == status
+        ]
+        rows.sort(key=lambda t: t.updated_at, reverse=True)
+        return rows[:limit]
+
+    def list_for_user(
+        self, user_id: EntityId, *, limit: int = 100
+    ) -> list[SupportTicket]:
+        rows = [t for t in self._by_id.values() if t.subject_user_id == user_id]
+        rows.sort(key=lambda t: t.updated_at, reverse=True)
+        return rows[:limit]
+
+    def add(self, ticket: SupportTicket) -> None:
+        self._by_id[str(ticket.id)] = ticket
+
+    def save(self, ticket: SupportTicket) -> None:
+        self._by_id[str(ticket.id)] = ticket
+
+
 class InMemoryUnitOfWork:
     """Frontière transactionnelle en mémoire."""
 
@@ -860,6 +904,8 @@ class InMemoryUnitOfWork:
         cards: InMemoryCardRepository | None = None,
         card_authorizations: InMemoryCardAuthorizationRepository | None = None,
         operator_transfers: InMemoryOperatorTransferRepository | None = None,
+        support_notes: InMemorySupportNoteRepository | None = None,
+        support_tickets: InMemorySupportTicketRepository | None = None,
     ) -> None:
         self.users = users or InMemoryUserRepository()
         self.wallets = wallets or InMemoryWalletRepository()
@@ -887,6 +933,8 @@ class InMemoryUnitOfWork:
         self.operator_transfers = (
             operator_transfers or InMemoryOperatorTransferRepository()
         )
+        self.support_notes = support_notes or InMemorySupportNoteRepository()
+        self.support_tickets = support_tickets or InMemorySupportTicketRepository()
         self.committed = False
         self.rolled_back = False
         self._extra_events: list[DomainEvent] = []
@@ -951,6 +999,8 @@ __all__ = [
     "InMemoryOperatorTransferRepository",
     "InMemoryPaymentRequestRepository",
     "InMemorySavingsPlanRepository",
+    "InMemorySupportNoteRepository",
+    "InMemorySupportTicketRepository",
     "InMemoryUnitOfWork",
     "InMemoryUserRepository",
     "InMemoryVaultRepository",

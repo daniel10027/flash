@@ -48,6 +48,7 @@ from flash.domain.payments.request import PaymentRequest, PaymentRequestStatus
 from flash.domain.savings.plan import SavingsFrequency, SavingsPlan, SavingsPlanStatus
 from flash.domain.shared.identifiers import CountryCode, EntityId, Msisdn
 from flash.domain.shared.money import Currency, Money
+from flash.domain.support.ticket import SupportNote, SupportTicket, TicketStatus
 from flash.domain.vault.vault import Vault, VaultPocket
 from flash.domain.wallet.wallet import Wallet, WalletStatus
 from flash.infrastructure.db.models import (
@@ -71,6 +72,8 @@ from flash.infrastructure.db.models import (
     PaymentRequestModel,
     PhoneNumberModel,
     SavingsPlanModel,
+    SupportNoteModel,
+    SupportTicketModel,
     UserModel,
     VaultPocketModel,
     WalletModel,
@@ -896,6 +899,55 @@ def payment_request_to_model(request: PaymentRequest) -> PaymentRequestModel:
     )
 
 
+# ------------------------------------------------------------------- back-office
+
+
+def support_note_to_domain(model: SupportNoteModel) -> SupportNote:
+    return SupportNote(
+        id=EntityId(model.id),
+        subject_user_id=EntityId(model.subject_user_id),
+        author=model.author,
+        body=model.body,
+        created_at=model.created_at,
+    )
+
+
+def support_note_to_model(note: SupportNote) -> SupportNoteModel:
+    return SupportNoteModel(
+        id=str(note.id),
+        subject_user_id=str(note.subject_user_id),
+        author=note.author,
+        body=note.body,
+        created_at=note.created_at,
+    )
+
+
+def support_ticket_to_domain(model: SupportTicketModel) -> SupportTicket:
+    return SupportTicket(
+        id=EntityId(model.id),
+        subject_user_id=EntityId(model.subject_user_id),
+        opened_by=model.opened_by,
+        subject=model.subject,
+        status=TicketStatus(model.status),
+        created_at=model.created_at,
+        updated_at=model.updated_at,
+        last_actor=model.last_actor,
+    )
+
+
+def support_ticket_to_model(ticket: SupportTicket) -> SupportTicketModel:
+    return SupportTicketModel(
+        id=str(ticket.id),
+        subject_user_id=str(ticket.subject_user_id),
+        opened_by=ticket.opened_by,
+        subject=ticket.subject,
+        status=ticket.status.value,
+        last_actor=ticket.last_actor,
+        created_at=ticket.created_at,
+        updated_at=ticket.updated_at,
+    )
+
+
 __all__ = [
     "agent_to_domain",
     "agent_to_model",
@@ -930,6 +982,10 @@ __all__ = [
     "payment_request_to_model",
     "savings_plan_to_domain",
     "savings_plan_to_model",
+    "support_note_to_domain",
+    "support_note_to_model",
+    "support_ticket_to_domain",
+    "support_ticket_to_model",
     "user_to_domain",
     "user_to_model",
     "vault_pockets_to_models",
