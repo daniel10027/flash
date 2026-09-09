@@ -148,7 +148,8 @@ class _FadeThroughTransitions extends PageTransitionsBuilder {
         position: Tween<Offset>(
           begin: const Offset(0, 0.02),
           end: Offset.zero,
-        ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic)),
+        ).animate(
+            CurvedAnimation(parent: animation, curve: Curves.easeOutCubic)),
         child: child,
       ),
     );

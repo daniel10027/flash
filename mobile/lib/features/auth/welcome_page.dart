@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/network/api_client.dart';
 import '../../l10n/generated/app_localizations.dart';
@@ -113,9 +114,8 @@ class _WelcomePageState extends ConsumerState<WelcomePage> {
               PrimaryButton(
                 label: L10n.of(context).authSignIn,
                 loading: _busy,
-                onPressed: _pin.length == 4 && _phone.text.isNotEmpty
-                    ? _signIn
-                    : null,
+                onPressed:
+                    _pin.length == 4 && _phone.text.isNotEmpty ? _signIn : null,
               ),
               const SizedBox(height: 8),
             ],
@@ -166,7 +166,7 @@ class _WelcomePageState extends ConsumerState<WelcomePage> {
                       ),
                       const SizedBox(height: 10),
                       TextButton(
-                        onPressed: () => AppSnack.info(context, l.comingSoon),
+                        onPressed: () => context.push('/register'),
                         child: Text(l.authCreateAccount),
                       ),
                     ],

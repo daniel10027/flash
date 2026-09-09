@@ -19,6 +19,21 @@ final localeProvider = StateProvider<Locale?>((ref) {
   return ref.watch(prefsProvider).locale;
 });
 
+/// Masquer les soldes (œil dans l'app bar / Paramètres). Persiste à chaque bascule.
+class HideBalances extends StateNotifier<bool> {
+  HideBalances(this._prefs) : super(_prefs.hideBalances);
+  final Prefs _prefs;
+
+  void toggle() {
+    state = !state;
+    _prefs.setHideBalances(state);
+  }
+}
+
+final hideBalancesProvider = StateNotifierProvider<HideBalances, bool>((ref) {
+  return HideBalances(ref.watch(prefsProvider));
+});
+
 class FlashApp extends ConsumerStatefulWidget {
   const FlashApp({super.key});
 

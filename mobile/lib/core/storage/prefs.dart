@@ -8,12 +8,16 @@ class Prefs {
   final SharedPreferences _sp;
 
   static const _kOnboarded = 'flash.onboarded';
+  static const _kHomeTutorial = 'flash.homeTutorial';
   static const _kThemeMode = 'flash.themeMode';
   static const _kLocale = 'flash.locale';
   static const _kHideBalances = 'flash.hideBalances';
 
   bool get onboarded => _sp.getBool(_kOnboarded) ?? false;
   Future<void> setOnboarded(bool v) => _sp.setBool(_kOnboarded, v);
+
+  bool get homeTutorialSeen => _sp.getBool(_kHomeTutorial) ?? false;
+  Future<void> setHomeTutorialSeen(bool v) => _sp.setBool(_kHomeTutorial, v);
 
   ThemeMode get themeMode => switch (_sp.getString(_kThemeMode)) {
         'light' => ThemeMode.light,

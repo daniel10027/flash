@@ -4,7 +4,9 @@ import 'package:go_router/go_router.dart';
 
 import '../../features/auth/auth_controller.dart';
 import '../../features/auth/pin_lock_page.dart';
+import '../../features/auth/register_page.dart';
 import '../../features/auth/welcome_page.dart';
+import '../../features/home/home_page.dart';
 import '../../features/home/home_shell.dart';
 import '../../features/home/placeholder_page.dart';
 import '../../features/onboarding/onboarding_page.dart';
@@ -27,10 +29,12 @@ final routerProvider = Provider<GoRouter>((ref) {
       }
       if (auth == AuthStatus.unknown) return null;
 
-      final atGate = loc == '/onboarding' || loc == '/welcome' || loc == '/lock';
+      const publicRoutes = {'/onboarding', '/welcome', '/lock', '/register'};
+      final atGate = publicRoutes.contains(loc);
 
       return switch (auth) {
-        AuthStatus.signedOut => atGate && loc != '/onboarding' ? null : '/welcome',
+        AuthStatus.signedOut =>
+          atGate && loc != '/onboarding' ? null : '/welcome',
         AuthStatus.locked => loc == '/lock' ? null : '/lock',
         AuthStatus.signedIn => atGate ? '/' : null,
         AuthStatus.unknown => null,
@@ -42,15 +46,18 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, __) => const OnboardingPage(),
       ),
       GoRoute(path: '/welcome', builder: (_, __) => const WelcomePage()),
+      GoRoute(path: '/register', builder: (_, __) => const RegisterPage()),
       GoRoute(path: '/lock', builder: (_, __) => const PinLockPage()),
       ShellRoute(
         builder: (_, __, child) => HomeShell(child: child),
         routes: [
-          GoRoute(path: '/', builder: (_, __) => const _Tab('navHome')),
-          GoRoute(path: '/history', builder: (_, __) => const _Tab('navHistory')),
+          GoRoute(path: '/', builder: (_, __) => const HomePage()),
+          GoRoute(
+              path: '/history', builder: (_, __) => const _Tab('navHistory')),
           GoRoute(path: '/scan', builder: (_, __) => const _Tab('navScan')),
           GoRoute(path: '/card', builder: (_, __) => const _Tab('navCard')),
-          GoRoute(path: '/profile', builder: (_, __) => const _Tab('navProfile')),
+          GoRoute(
+              path: '/profile', builder: (_, __) => const _Tab('navProfile')),
         ],
       ),
     ],

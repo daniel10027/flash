@@ -5,7 +5,9 @@ import 'package:intl/intl.dart';
 const _zeroDecimal = {'XOF', 'XAF', 'JPY', 'KRW'};
 
 double minorToMajor(int amountMinor, String currency) =>
-    _zeroDecimal.contains(currency) ? amountMinor.toDouble() : amountMinor / 100;
+    _zeroDecimal.contains(currency)
+        ? amountMinor.toDouble()
+        : amountMinor / 100;
 
 String formatMoney(
   int amountMinor,

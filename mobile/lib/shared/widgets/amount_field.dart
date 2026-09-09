@@ -41,16 +41,15 @@ class AmountField extends StatelessWidget {
           autofocus: autofocus,
           controller: TextEditingController(text: text)
             ..selection = TextSelection.collapsed(offset: text.length),
-          keyboardType:
-              TextInputType.numberWithOptions(decimal: !_zeroDecimal),
+          keyboardType: TextInputType.numberWithOptions(decimal: !_zeroDecimal),
           inputFormatters: [
             FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
           ],
           textAlign: TextAlign.center,
           style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                fontWeight: FontWeight.w700,
-                fontFeatures: const [FontFeature.tabularFigures()],
-              ),
+            fontWeight: FontWeight.w700,
+            fontFeatures: const [FontFeature.tabularFigures()],
+          ),
           decoration: InputDecoration(
             hintText: '0',
             suffixText: currency,
@@ -80,7 +79,8 @@ class AmountField extends StatelessWidget {
 }
 
 class _FeeRow extends StatelessWidget {
-  const _FeeRow({required this.label, required this.value, this.strong = false});
+  const _FeeRow(
+      {required this.label, required this.value, this.strong = false});
   final String label;
   final String value;
   final bool strong;

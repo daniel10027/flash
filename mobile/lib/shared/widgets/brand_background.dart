@@ -50,7 +50,8 @@ class _BrandBackgroundState extends State<BrandBackground>
 }
 
 class _AuroraPainter extends CustomPainter {
-  _AuroraPainter({required this.t, required this.dark, required this.intensity});
+  _AuroraPainter(
+      {required this.t, required this.dark, required this.intensity});
 
   final double t;
   final bool dark;

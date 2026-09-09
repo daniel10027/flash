@@ -144,7 +144,8 @@ class ApiClient {
     String path, {
     Map<String, dynamic>? query,
   }) async {
-    final r = await _dio.get<Map<String, dynamic>>(path, queryParameters: query);
+    final r =
+        await _dio.get<Map<String, dynamic>>(path, queryParameters: query);
     return r.data ?? const {};
   }
 

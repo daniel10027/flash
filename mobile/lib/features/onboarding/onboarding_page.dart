@@ -38,7 +38,8 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
         children: [
           LiquidSwipe(
             liquidController: _controller,
-            slideIconWidget: const Icon(Icons.chevron_right, color: Colors.white),
+            slideIconWidget:
+                const Icon(Icons.chevron_right, color: Colors.white),
             positionSlideIcon: 0.7,
             onPageChangeCallback: (i) => setState(() => _page = i),
             pages: [
@@ -152,7 +153,8 @@ class _Slide extends StatelessWidget {
               Center(child: SparkIllustration(icon: slide.icon))
                   .animate()
                   .fadeIn(duration: 500.ms)
-                  .scale(begin: const Offset(0.85, 0.85), curve: Curves.easeOut),
+                  .scale(
+                      begin: const Offset(0.85, 0.85), curve: Curves.easeOut),
               const SizedBox(height: 48),
               Text(
                 title,

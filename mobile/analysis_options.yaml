@@ -12,10 +12,8 @@ analyzer:
 linter:
   rules:
     prefer_single_quotes: true
-    require_trailing_commas: true
     directives_ordering: true
     unawaited_futures: true
-    avoid_redundant_argument_values: true
     prefer_const_constructors: true
     sort_child_properties_last: true
     use_super_parameters: true

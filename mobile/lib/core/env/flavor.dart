@@ -5,7 +5,8 @@
 enum Flavor { dev, staging, prod }
 
 abstract final class Env {
-  static const _rawFlavor = String.fromEnvironment('FLAVOR', defaultValue: 'dev');
+  static const _rawFlavor =
+      String.fromEnvironment('FLAVOR', defaultValue: 'dev');
 
   static Flavor get flavor => switch (_rawFlavor) {
         'prod' => Flavor.prod,

@@ -34,7 +34,8 @@ class _PinLockPageState extends ConsumerState<PinLockPage> {
 
   Future<void> _checkBiometrics() async {
     try {
-      final can = await _auth.canCheckBiometrics && await _auth.isDeviceSupported();
+      final can =
+          await _auth.canCheckBiometrics && await _auth.isDeviceSupported();
       if (mounted) setState(() => _hasBiometrics = can);
       if (can) unawaited(_biometrics());
     } catch (_) {/* ignore */}
