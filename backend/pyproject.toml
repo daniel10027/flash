@@ -23,7 +23,7 @@ dependencies = [
     "qrcode[pil]>=7.4",
     "click>=8.1",
     "uuid7>=0.1.0",
-    "prometheus-client>=0.20",
+    "prometheus-client>=0.26.0",
 ]
 
 [project.optional-dependencies]
