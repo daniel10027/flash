@@ -265,7 +265,7 @@ mais les lots Backend / Infra avancent en priorité car Web et Mobile en dépend
 | Backend (BE) | [docs/tasks/backend.md](docs/tasks/backend.md) | 70 / 78 + transverses BE-T1→T6 |
 | Web (WEB) | [docs/tasks/frontend-web.md](docs/tasks/frontend-web.md) | 49 / 49 ✅ (socle, client, agent, back-office, transverse) |
 | Mobile (MOB) | [docs/tasks/mobile.md](docs/tasks/mobile.md) | 0 / 44 |
-| Infra & CI/CD (INFRA) | [docs/tasks/infra.md](docs/tasks/infra.md) | 4 / 24 |
+| Infra & CI/CD (INFRA) | [docs/tasks/infra.md](docs/tasks/infra.md) | 24 / 24 ✅ |
 | Design & marque (DSN) | [docs/tasks/design.md](docs/tasks/design.md) | 0 / 10 |
 
 ---
@@ -424,7 +424,22 @@ agent → transfert → retrait → paiement marchand avec banque simulée en m�
 runtime). `.github/workflows/web-ci.yml` (INFRA-008) : gen:api diff, lint, typecheck,
 `test:cov`, build, Playwright (cache navigateurs), Lighthouse.
 
-Prochaine : `MOB-*` (app Flutter), `INFRA` (CD/VPS), `DSN-*` (identité visuelle).
+**Phase 7 infra TERMINÉE (`INFRA-001` → `INFRA-024`, 24/24).** Local : `Makefile`
+racine, `wait-for-db.sh`, `docker-compose.override.yml.example` (debugpy). CI :
+workflows `web-ci`, `mobile-ci` (dormant), `openapi-check` (diff + schemathesis),
+`images` (GHCR `flash-api`/`flash-web`, SBOM + provenance + Trivy bloquant),
+`.pre-commit-config.yaml` + `.secrets.baseline`, `CODEOWNERS` +
+`branch-protection.json`. CD/VPS : `infra/deploy/` — `docker-compose.prod.yml`
+(caddy seul exposé, api en réplicas `read_only`, db/redis internes, service one-shot
+`migrate`, `backup`), `caddy/` (Caddy + `caddy-ratelimit`, HSTS/CSP/headers),
+`deploy.yml` (tag `v*` → prod, `main` → staging, migrate avant bascule, health-check
+`/health/ready`, rollback auto), `PROVISION.md` + `.env.prod.example`, `backup/`
+(pg_dump | gzip | gpg, rétention 7/4/6, rclone hors-site, `restore.sh` + `RESTORE.md`),
+`RUNBOOK.md`. Observabilité : `infra/observability/` — Prometheus (+ alertes),
+Alertmanager, Loki/Promtail, Grafana provisionné (dashboard « Flash — API ») ;
+`docs/security/HARDENING.md` + `.github/dependabot.yml`.
+
+Prochaine : `MOB-*` (app Flutter), `DSN-*` (identité visuelle).
 
 ✅ Phase 2 livrée : `BE-029` (KYC), `BE-032` (demandes de paiement), `BE-033` (marchand
 QR), `BE-034` → `BE-036` (cash agent), `BE-037` (annulation / remboursement), `BE-038`

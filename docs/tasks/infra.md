@@ -103,11 +103,18 @@ Cible : dev local en Docker (API + Web + Postgres + Redis + Mailhog), production
 
 ## Observabilité & sécurité (INFRA-022 → INFRA-024)
 
-- [ ] **INFRA-022** · Logs : JSON structuré → fichier + rotation ; agrégation légère
-  (Loki + Grafana en option compose, sinon `docker logs` + Dozzle). Pas de PII.
-- [ ] **INFRA-023** · Métriques : `/metrics` Prometheus (API), dashboards Grafana
-  (latence p50/p95, taux d'erreur, transferts/min, écart de réconciliation ledger),
-  alertes (Alertmanager → email/webhook gratuit).
-- [ ] **INFRA-024** · Durcissement : `docker-bench`, images non‑root, FS read‑only où
-  possible, `no-new-privileges`, limites CPU/mém, revue OWASP ASVS niveau 2,
-  rate‑limit et WAF léger via Caddy, scan de dépendances planifié (Dependabot).
+- [x] **INFRA-022** · Logs applicatifs JSON (structlog, sans PII) ; en prod
+  `logging: json-file` borné (10 Mo × 5). Agrégation optionnelle
+  `infra/observability/` : Loki + Promtail (découverte Docker, label `level`,
+  rétention 14 j), profil `observability`.
+- [x] **INFRA-023** · `GET /metrics` déjà exposé (BE-T4). `infra/observability/` :
+  Prometheus (scrape DNS des réplicas `api`, `prometheus/alerts.yml` : API down,
+  5xx > 5 %, p95 > 750 ms, saturation), Alertmanager (e-mail/webhook), Grafana
+  provisionné (dashboard « Flash — API » : req/s, taux d'erreur, p50/p95/p99,
+  transferts/min, logs Loki). Écart de réconciliation ledger = code retour de
+  `flash run-jobs` (cron), stub d'alerte commenté.
+- [x] **INFRA-024** · `docs/security/HARDENING.md` : `no-new-privileges` + `cap_drop:
+  ALL` + `read_only`/tmpfs (api) + `mem_limit` + non-root dans `docker-compose.prod.yml` ;
+  rate-limit + limite de corps + en-têtes + CSP via Caddy ; SBOM/provenance + scan
+  Trivy bloquant en CI ; `.github/dependabot.yml` (pip/npm/actions/docker hebdo) ;
+  commande `docker-bench` et checklist OWASP ASVS L2 documentées.

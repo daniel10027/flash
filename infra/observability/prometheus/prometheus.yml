@@ -1,0 +1,25 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  - alerts.yml
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ["alertmanager:9093"]
+
+scrape_configs:
+  - job_name: flash-api
+    metrics_path: /metrics
+    # `deploy.replicas` -> Docker crée api-1, api-2 ; le DNS compose renvoie
+    # toutes les IP. `dns_sd_configs` les découvre.
+    dns_sd_configs:
+      - names: ["api"]
+        type: A
+        port: 8000
+
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]

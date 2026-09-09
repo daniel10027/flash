@@ -1,0 +1,48 @@
+groups:
+  - name: flash-api
+    rules:
+      - alert: FlashApiDown
+        expr: up{job="flash-api"} == 0
+        for: 2m
+        labels: { severity: critical }
+        annotations:
+          summary: "Instance API injoignable ({{ $labels.instance }})"
+
+      - alert: FlashHighErrorRate
+        # > 5 % de 5xx sur 5 min
+        expr: |
+          sum(rate(flash_http_requests_total{status=~"5.."}[5m]))
+            / clamp_min(sum(rate(flash_http_requests_total[5m])), 0.001) > 0.05
+        for: 5m
+        labels: { severity: critical }
+        annotations:
+          summary: "Taux d'erreur 5xx > 5 % sur l'API"
+
+      - alert: FlashLatencyP95High
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum(rate(flash_http_request_duration_seconds_bucket[5m])) by (le)
+          ) > 0.75
+        for: 10m
+        labels: { severity: warning }
+        annotations:
+          summary: "Latence p95 > 750 ms sur 10 min"
+
+      - alert: FlashRequestsSaturation
+        expr: sum(flash_http_requests_in_progress) > 100
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: "Beaucoup de requêtes en cours ({{ $value }}) — saturation possible"
+
+  # Écart de réconciliation du ledger : le cron `flash run-jobs` sort 1 en cas
+  # d'écart. Le surveiller via l'ordonnanceur (systemd OnFailure / healthchecks.io)
+  # ou pousser `flash_ledger_reconcile_diff_minor` dans un textfile collector, puis :
+  #
+  # - alert: FlashLedgerReconcileDrift
+  #   expr: flash_ledger_reconcile_diff_minor != 0
+  #   for: 0m
+  #   labels: { severity: critical }
+  #   annotations:
+  #     summary: "Écart de réconciliation ledger détecté ({{ $value }} minor)"

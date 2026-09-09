@@ -1,0 +1,32 @@
+# Route les alertes vers un e-mail (SMTP déjà en place) et/ou un webhook gratuit.
+global:
+  resolve_timeout: 5m
+  smtp_smarthost: "${SMTP_HOST:-smtp.example}:${SMTP_PORT:-587}"
+  smtp_from: "alertmanager@${DOMAIN:-flash.example}"
+  smtp_auth_username: "${SMTP_USERNAME:-}"
+  smtp_auth_password: "${SMTP_PASSWORD:-}"
+
+route:
+  receiver: ops-email
+  group_by: ["alertname"]
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+  routes:
+    - matchers: ['severity="critical"']
+      receiver: ops-email
+      repeat_interval: 1h
+
+receivers:
+  - name: ops-email
+    email_configs:
+      - to: "${ALERT_EMAIL:-ops@flash.example}"
+        send_resolved: true
+    # webhook_configs:
+    #   - url: "${ALERT_WEBHOOK_URL}"
+    #     send_resolved: true
+
+inhibit_rules:
+  - source_matchers: ['alertname="FlashApiDown"']
+    target_matchers: ['severity="warning"']
+    equal: ["job"]
