@@ -24,3 +24,10 @@ test('le formulaire de connexion valide la saisie', async ({ page }) => {
   }
   await expect(submit).toBeEnabled();
 });
+
+test('la connexion propose la création de compte', async ({ page }) => {
+  await page.goto('/login');
+  await page.getByRole('link', { name: 'Créer un compte' }).click();
+  await expect(page).toHaveURL(/\/register$/);
+  await expect(page.getByRole('heading', { name: 'Créer un compte' })).toBeVisible();
+});

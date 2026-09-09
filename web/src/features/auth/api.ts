@@ -26,3 +26,11 @@ export async function verifyOtp(input: {
 export async function resendOtp(input: { phone_number: string; country: string }): Promise<void> {
   await api.post('/v1/auth/resend-otp', input);
 }
+
+export async function register(input: {
+  phone_number: string;
+  country: string;
+  pin: string;
+}): Promise<void> {
+  await api.post('/v1/auth/register', input);
+}

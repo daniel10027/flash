@@ -70,6 +70,21 @@
 .ui-input[aria-invalid='true'] {
   border-color: var(--color-danger-fg);
 }
+.ui-input-wrap {
+  position: relative;
+}
+.ui-input-wrap .ui-input {
+  padding-right: 3.5rem;
+}
+.ui-input-suffix {
+  position: absolute;
+  right: var(--space-3);
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--fg-muted);
+  font-size: var(--text-sm);
+  pointer-events: none;
+}
 .ui-hint {
   font-size: var(--text-xs);
   color: var(--fg-muted);

@@ -263,7 +263,7 @@ mais les lots Backend / Infra avancent en priorité car Web et Mobile en dépend
 |-----|------------------|--------------|
 | Fondations & docs | ce fichier | 6 / 6 |
 | Backend (BE) | [docs/tasks/backend.md](docs/tasks/backend.md) | 70 / 78 + transverses BE-T1→T6 |
-| Web (WEB) | [docs/tasks/frontend-web.md](docs/tasks/frontend-web.md) | 12 / 49 (socle) |
+| Web (WEB) | [docs/tasks/frontend-web.md](docs/tasks/frontend-web.md) | 32 / 49 (socle + parcours client) |
 | Mobile (MOB) | [docs/tasks/mobile.md](docs/tasks/mobile.md) | 0 / 44 |
 | Infra & CI/CD (INFRA) | [docs/tasks/infra.md](docs/tasks/infra.md) | 3 / 24 |
 | Design & marque (DSN) | [docs/tasks/design.md](docs/tasks/design.md) | 0 / 10 |
@@ -390,16 +390,21 @@ relevé ; `PaymentChannel` QR/API + `Merchant.channel_fees` négociés sous
 livrés** (CI GitHub Actions, tests de migrations, contrats OpenAPI schemathesis, métriques
 Prometheus `/metrics`, `docs/api/errors.md` exhaustif, test de charge locust).
 
-**Front web démarré** : `design/tokens.json` (thème bordeaux) + **socle `WEB-001` → `WEB-012`**
-dans `web/` (Vite + React 18 + TS strict, design tokens → CSS, composants `shared/ui` +
-galerie `/ui`, client API typé généré depuis `openapi.json` + wrapper fetch, session +
-garde de routes, layout responsive, i18n FR + formats monétaires, ErrorBoundary + 404/500 +
-toasts, PWA, a11y, config runtime, Dockerfile + compose). Correctif backend au passage :
-`openapi.py` hisse les `$defs` Pydantic dans `components/schemas` (spec résolvable par les
-générateurs de client).
+**Front web `web/` : socle `WEB-001` → `WEB-012` + parcours client `WEB-013` → `WEB-032`
+livrés** (32/49). Vite + React 18 + TS strict ; `design/tokens.json` (bordeaux) → CSS ;
+composants `shared/ui` + galerie `/ui` ; client API typé généré depuis `openapi.json` +
+`apiFetch` (Idempotency-Key, X-Request-ID, refresh 401) ; session + garde de routes ;
+layout responsive ; i18n FR + formats monétaires ; ErrorBoundary + 404/500 + toasts ;
+PWA ; a11y ; config runtime ; Dockerfile + compose. Écrans : inscription, connexion,
+tableau de bord, envoyer, demander, payer marchand (scan QR), recevoir, retrait/dépôt
+cash, compte opérateur, historique (scroll infini) + reçu, coffre, épargne, carte
+(révéler PAN/CVV), profil (KYC upload, numéros, sécurité, paramètres), notifications
+(SSE). `tsc` + ESLint + Prettier OK, 10 tests Vitest, build OK, e2e Playwright.
+Correctif backend au passage : `openapi.py` hisse les `$defs` Pydantic dans
+`components/schemas` (spec résolvable par les générateurs de client).
 
-Prochaine : parcours client web (`WEB-013` → `WEB-032`), puis `MOB-*`, `INFRA` (CD/VPS),
-`DSN-*`.
+Prochaine : espace agent web (`WEB-033` → `WEB-039`) + back-office (`WEB-040` → `WEB-046`),
+puis `MOB-*`, `INFRA` (CD/VPS), `DSN-*`.
 
 ✅ Phase 2 livrée : `BE-029` (KYC), `BE-032` (demandes de paiement), `BE-033` (marchand
 QR), `BE-034` → `BE-036` (cash agent), `BE-037` (annulation / remboursement), `BE-038`

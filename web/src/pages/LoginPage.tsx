@@ -1,11 +1,11 @@
 // WEB-005 (socle) — connexion minimale : numéro + code secret, OTP si demandé.
 // Le parcours complet (mot de passe oublié, gestion appareil) relève de WEB-014.
 import { useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Button, Card, Input, PinInput, toast } from '@shared/ui';
 import { useSession } from '@shared/auth/session';
-import { login, verifyOtp } from '@features/auth/api';
+import { login, resendOtp, verifyOtp } from '@features/auth/api';
 
 export function LoginPage() {
   const { t } = useTranslation();
@@ -96,10 +96,28 @@ export function LoginPage() {
             <Button type="submit" block loading={busy} disabled={code.length < 6}>
               {t('auth.signIn')}
             </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => {
+                void resendOtp({ phone_number: phone, country }).then(
+                  () => toast.info('Nouveau code envoyé.'),
+                  (e) => toast.error(e),
+                );
+              }}
+            >
+              Renvoyer le code
+            </Button>
             <Button type="button" variant="ghost" onClick={() => setStep('credentials')}>
               {t('common.back')}
             </Button>
           </form>
+        )}
+
+        {step === 'credentials' && (
+          <p className="ui-hint" style={{ textAlign: 'center' }}>
+            Pas de compte ? <Link to="/register">Créer un compte</Link>
+          </p>
         )}
       </Card>
     </main>

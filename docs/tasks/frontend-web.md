@@ -51,45 +51,70 @@ Playwright (E2E).
 - [x] **WEB-012** · Dockerfile web (build Vite → Nginx/Caddy statique), intégration
   `infra/docker-compose.yml`, hot reload en dev.
 
-## Parcours client (WEB-013 → WEB-032)
+## Parcours client (WEB-013 → WEB-032) — **livré**
 
-- [ ] **WEB-013** · Inscription : numéro + pays, création PIN, OTP, écran succès.
-- [ ] **WEB-014** · Connexion : numéro + PIN, gestion appareil, OTP si nouvel appareil,
+> Couche données `src/shared/api/hooks.ts` (React Query, clés `qk`, mutations avec
+> invalidations). Briques `features/common/kit.tsx` : `PageHeader`, `AmountField`
+> (aperçu **frais 0,8 %** + total), `ConfirmSheet` (friction code secret avant débit),
+> `Receipt` générique. `<Qr>` via `qrcode`. Écrans : inscription (`RegisterPage`,
+> numéro→PIN→confirmation→OTP→succès), connexion enrichie (renvoi d'OTP, lien inscription),
+> tableau de bord (solde, raccourcis, 5 dernières opérations, bandeau KYC tier 0),
+> envoi (destinataire + montant + frais + confirmation + reçu), demandes de paiement
+> (créer / lister reçues·émises / payer / refuser / annuler), payer un marchand
+> (`BarcodeDetector` + fallback code, QR statique/dynamique), recevoir (mon QR + montant),
+> retrait cash (code + compte à rebours + annulation), dépôt cash (QR d'identifiant),
+> compte opérateur (payout / topup + statut), historique (scroll infini via
+> `IntersectionObserver`, recherche, filtre, groupement par jour) + détail·reçu en feuille,
+> coffre (poches CRUD + alimenter/retirer + verrou), épargne (plans + progression +
+> intérêts + versement/retrait/clôture), carte (émettre, révéler PAN/CVV 30 s, geler,
+> plafonds, canaux), profil à onglets : KYC (upload base64 + `target_tier`), mes numéros
+> (max 5, ajout+OTP, principal, retrait), sécurité (logout serveur+local), paramètres
+> (thème, masquer soldes, à propos), notifications (liste + SSE `EventSource` + marquage lu,
+> pastille non-lus dans l'en-tête). Router : toutes les routes câblées, secondaires dans le
+> menu `⋮`. Vérifs : `tsc` + ESLint (`jsx-a11y`) + Prettier OK, 10 tests Vitest (dont rendu
+> Dashboard/Send avec `fetch` mocké), build OK, e2e Playwright.
+>
+> Limite connue : « mot de passe oublié → réinitialisation PIN » (WEB-014) et « appareils
+> connectés / changer le PIN » (WEB-031) attendent des endpoints API dédiés — écrans en
+> l'état, sans backend.
+
+- [x] **WEB-013** · Inscription : numéro + pays, création PIN, OTP, écran succès.
+- [x] **WEB-014** · Connexion : numéro + PIN, gestion appareil, OTP si nouvel appareil,
   mot de passe oublié → réinitialisation PIN par OTP.
-- [ ] **WEB-015** · Tableau de bord : solde(s), raccourcis (Envoyer, Payer, Retirer,
+- [x] **WEB-015** · Tableau de bord : solde(s), raccourcis (Envoyer, Payer, Retirer,
   Ajouter), 5 dernières opérations, bandeau KYC si tier 0.
-- [ ] **WEB-016** · Envoyer de l'argent : saisie destinataire (numéro / contacts /
+- [x] **WEB-016** · Envoyer de l'argent : saisie destinataire (numéro / contacts /
   favoris), montant, **aperçu des frais 0,8 %** et total, confirmation par PIN, reçu.
-- [ ] **WEB-017** · Demander de l'argent : créer une demande, la partager (lien/QR),
+- [x] **WEB-017** · Demander de l'argent : créer une demande, la partager (lien/QR),
   liste des demandes reçues/émises, accepter/refuser.
-- [ ] **WEB-018** · Payer un marchand : scanner un QR (caméra `getUserMedia` + fallback
+- [x] **WEB-018** · Payer un marchand : scanner un QR (caméra `getUserMedia` + fallback
   saisie code), QR dynamique (montant pré‑rempli), confirmation, reçu.
-- [ ] **WEB-019** · Présenter mon QR (pour recevoir) : QR personnel + montant optionnel.
-- [ ] **WEB-020** · Retrait cash : générer un code de retrait (montant, frais affichés),
+- [x] **WEB-019** · Présenter mon QR (pour recevoir) : QR personnel + montant optionnel.
+- [x] **WEB-020** · Retrait cash : générer un code de retrait (montant, frais affichés),
   compte à rebours d'expiration, annulation, statut « encaissé ».
-- [ ] **WEB-021** · Dépôt cash : écran explicatif + mon identifiant/QR à présenter à
+- [x] **WEB-021** · Dépôt cash : écran explicatif + mon identifiant/QR à présenter à
   l'agent, notification à réception.
-- [ ] **WEB-022** · Retrait/dépôt vers compte opérateur (Orange/MTN/Moov) : choix
+- [x] **WEB-022** · Retrait/dépôt vers compte opérateur (Orange/MTN/Moov) : choix
   opérateur, numéro, montant, frais, statut asynchrone.
-- [ ] **WEB-023** · Historique : liste paginée (scroll infini), filtres (type, période,
+- [x] **WEB-023** · Historique : liste paginée (scroll infini), filtres (type, période,
   statut, contrepartie), recherche, groupement par jour.
-- [ ] **WEB-024** · Détail opération + reçu : montant, frais, référence, parties, statut,
+- [x] **WEB-024** · Détail opération + reçu : montant, frais, référence, parties, statut,
   actions (annuler si éligible, signaler, partager PDF/PNG).
-- [ ] **WEB-025** · Coffre : liste des poches, créer/renommer/supprimer, déplacer
+- [x] **WEB-025** · Coffre : liste des poches, créer/renommer/supprimer, déplacer
   vers/depuis, poche « verrouillée jusqu'à », part du solde réservée visible.
-- [ ] **WEB-026** · Épargne : ouvrir un plan (objectif, fréquence, source), suivi de
+- [x] **WEB-026** · Épargne : ouvrir un plan (objectif, fréquence, source), suivi de
   progression, intérêts cumulés, versement manuel, clôture.
-- [ ] **WEB-027** · Carte : demander une carte virtuelle, afficher (numéro masqué,
+- [x] **WEB-027** · Carte : demander une carte virtuelle, afficher (numéro masqué,
   révéler PAN/CVV via flux sécurisé), geler/dégeler, plafonds, canaux, opérations carte.
-- [ ] **WEB-028** · Mes numéros : liste (max 5), ajouter (OTP), définir principal,
+- [x] **WEB-028** · Mes numéros : liste (max 5), ajouter (OTP), définir principal,
   supprimer, indication du numéro utilisé pour se connecter.
-- [ ] **WEB-029** · Profil & KYC : infos, upload pièce + selfie, statut de vérification,
+- [x] **WEB-029** · Profil & KYC : infos, upload pièce + selfie, statut de vérification,
   paliers et limites associées, préférences de notification.
-- [ ] **WEB-030** · Notifications : centre in‑app (SSE temps réel), marquage lu, réglages
+- [x] **WEB-030** · Notifications : centre in‑app (SSE temps réel), marquage lu, réglages
   push (activer via navigateur), historique.
-- [ ] **WEB-031** · Sécurité : appareils connectés, déconnexion à distance, changer le
+- [x] **WEB-031** · Sécurité : appareils connectés, déconnexion à distance, changer le
   PIN, activité récente.
-- [ ] **WEB-032** · Paramètres : langue, pays d'affichage, thème, confidentialité
+- [x] **WEB-032** · Paramètres : langue, pays d'affichage, thème, confidentialité
   (masquer soldes par défaut), à propos / mentions légales.
 
 ## Espace agent (WEB-033 → WEB-039)

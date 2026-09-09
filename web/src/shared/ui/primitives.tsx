@@ -48,9 +48,10 @@ type InputProps = InputHTMLAttributes<HTMLInputElement> & {
   label?: string;
   hint?: string;
   error?: string;
+  suffix?: string;
 };
 export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
-  { label, hint, error, id, className, ...rest },
+  { label, hint, error, id, className, suffix, ...rest },
   ref,
 ) {
   const autoId = useId();
@@ -63,14 +64,21 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
           {label}
         </label>
       )}
-      <input
-        ref={ref}
-        id={inputId}
-        className="ui-input"
-        aria-invalid={error ? true : undefined}
-        aria-describedby={describedBy}
-        {...rest}
-      />
+      <div className={suffix ? 'ui-input-wrap' : undefined}>
+        <input
+          ref={ref}
+          id={inputId}
+          className="ui-input"
+          aria-invalid={error ? true : undefined}
+          aria-describedby={describedBy}
+          {...rest}
+        />
+        {suffix && (
+          <span className="ui-input-suffix" aria-hidden>
+            {suffix}
+          </span>
+        )}
+      </div>
       {error ? (
         <span id={`${inputId}-err`} className="ui-hint ui-hint--error">
           {error}
