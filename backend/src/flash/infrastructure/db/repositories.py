@@ -21,6 +21,7 @@ from flash.domain.identity.kyc_case import KycCase
 from flash.domain.identity.user import User
 from flash.domain.ledger.chart import AccountType
 from flash.domain.ledger.transaction import LedgerTransaction
+from flash.domain.merchants.api_key import MerchantApiKey
 from flash.domain.merchants.charge import MerchantCharge
 from flash.domain.merchants.merchant import Merchant
 from flash.domain.merchants.payment import MerchantPayment
@@ -44,6 +45,7 @@ from flash.infrastructure.db.models import (
     LedgerAccountModel,
     LedgerPostingModel,
     LedgerTransactionModel,
+    MerchantApiKeyModel,
     MerchantChargeModel,
     MerchantModel,
     MerchantPaymentModel,
@@ -615,6 +617,42 @@ class SqlAlchemyMerchantSettlementRepository:
         self._tracker.track(settlement)
 
 
+class SqlAlchemyMerchantApiKeyRepository:
+    def __init__(self, session: Session, tracker: _AggregateTracker) -> None:
+        self._session = session
+        self._tracker = tracker
+
+    def _load(self, model: MerchantApiKeyModel | None) -> MerchantApiKey | None:
+        if model is None:
+            return None
+        api_key = mappers.merchant_api_key_to_domain(model)
+        self._tracker.track(api_key)
+        return api_key
+
+    def get(self, key_id: EntityId) -> MerchantApiKey | None:
+        return self._load(self._session.get(MerchantApiKeyModel, str(key_id)))
+
+    def get_by_prefix(self, prefix: str) -> MerchantApiKey | None:
+        stmt = select(MerchantApiKeyModel).where(MerchantApiKeyModel.prefix == prefix)
+        return self._load(self._session.scalars(stmt).first())
+
+    def list_for_merchant(self, merchant_id: EntityId) -> list[MerchantApiKey]:
+        stmt = (
+            select(MerchantApiKeyModel)
+            .where(MerchantApiKeyModel.merchant_id == str(merchant_id))
+            .order_by(MerchantApiKeyModel.created_at.desc())
+        )
+        return [k for k in (self._load(m) for m in self._session.scalars(stmt)) if k is not None]
+
+    def add(self, api_key: MerchantApiKey) -> None:
+        self._session.add(mappers.merchant_api_key_to_model(api_key))
+        self._tracker.track(api_key)
+
+    def save(self, api_key: MerchantApiKey) -> None:
+        self._session.merge(mappers.merchant_api_key_to_model(api_key))
+        self._tracker.track(api_key)
+
+
 class SqlAlchemyVaultRepository:
     """Le coffre est l'ensemble des lignes ``vault_pockets`` d'un portefeuille."""
 
@@ -914,6 +952,7 @@ __all__ = [
     "SqlAlchemyCashOrderRepository",
     "SqlAlchemyKycCaseRepository",
     "SqlAlchemyLedgerRepository",
+    "SqlAlchemyMerchantApiKeyRepository",
     "SqlAlchemyMerchantChargeRepository",
     "SqlAlchemyMerchantPaymentRepository",
     "SqlAlchemyMerchantRepository",

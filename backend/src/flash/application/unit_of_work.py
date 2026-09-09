@@ -15,6 +15,7 @@ from flash.domain.cash.ports import CashOrderRepository
 from flash.domain.identity.ports import KycCaseRepository, UserRepository
 from flash.domain.ledger.ports import LedgerRepository
 from flash.domain.merchants.ports import (
+    MerchantApiKeyRepository,
     MerchantChargeRepository,
     MerchantPaymentRepository,
     MerchantRepository,
@@ -64,6 +65,9 @@ class WorkUnitOfWork(Protocol):
 
     @property
     def merchant_settlements(self) -> MerchantSettlementRepository: ...
+
+    @property
+    def merchant_api_keys(self) -> MerchantApiKeyRepository: ...
 
     @property
     def vaults(self) -> VaultRepository: ...

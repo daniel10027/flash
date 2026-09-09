@@ -16,6 +16,9 @@ from enum import StrEnum
 from flash.domain.merchants.bank_account import BankAccount
 from flash.domain.merchants.events import (
     MerchantEnrolled,
+    MerchantKybApproved,
+    MerchantKybRejected,
+    MerchantKybSubmitted,
     MerchantSettlementConfigured,
     MerchantSuspended,
 )
@@ -30,6 +33,14 @@ _MAX_FEE_BPS = 1_000  # 10 %
 class MerchantStatus(StrEnum):
     ACTIVE = "ACTIVE"
     SUSPENDED = "SUSPENDED"
+
+
+class KybStatus(StrEnum):
+    """*Know Your Business* : état de la vérification du marchand."""
+
+    PENDING = "PENDING"
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
 
 
 class SettlementFrequency(StrEnum):
@@ -63,6 +74,9 @@ class Merchant(EventRecorder):
         bank_account: BankAccount | None = None,
         next_settlement_at: datetime | None = None,
         last_settlement_id: EntityId | None = None,
+        kyb_status: KybStatus = KybStatus.PENDING,
+        kyb_reviewed_at: datetime | None = None,
+        kyb_reason: str | None = None,
     ) -> None:
         super().__init__()
         if not display_name.strip():
@@ -81,6 +95,9 @@ class Merchant(EventRecorder):
         self.bank_account = bank_account
         self.next_settlement_at = next_settlement_at
         self.last_settlement_id = last_settlement_id
+        self.kyb_status = kyb_status
+        self.kyb_reviewed_at = kyb_reviewed_at
+        self.kyb_reason = kyb_reason
 
     @classmethod
     def enroll(
@@ -135,6 +152,61 @@ class Merchant(EventRecorder):
         """QR statique : identifie le marchand, le montant est saisi par le client."""
         return f"flash://pay?m={self.id}"
 
+    # ------------------------------------------------------------------ KYB
+    def submit_kyb(self, now: datetime) -> None:
+        """Le marchand soumet (ou re-soumet) son dossier de vérification."""
+        if self.kyb_status is KybStatus.APPROVED:
+            raise InvalidAccountState("Ce marchand est déjà vérifié.", status="APPROVED")
+        self.kyb_status = KybStatus.PENDING
+        self.kyb_reason = None
+        self.record_event(
+            MerchantKybSubmitted(
+                occurred_at=now, aggregate_id=str(self.id), user_id=str(self.user_id)
+            )
+        )
+
+    def approve_kyb(self, *, reviewer: str, now: datetime) -> None:
+        if self.kyb_status is KybStatus.APPROVED:
+            return
+        self.kyb_status = KybStatus.APPROVED
+        self.kyb_reviewed_at = now
+        self.kyb_reason = None
+        self.record_event(
+            MerchantKybApproved(
+                occurred_at=now,
+                aggregate_id=str(self.id),
+                user_id=str(self.user_id),
+                reviewer=reviewer,
+            )
+        )
+
+    def reject_kyb(self, *, reviewer: str, reason: str, now: datetime) -> None:
+        if not reason.strip():
+            raise InvalidInput("Un motif de rejet est requis.")
+        self.kyb_status = KybStatus.REJECTED
+        self.kyb_reviewed_at = now
+        self.kyb_reason = reason.strip()
+        self.record_event(
+            MerchantKybRejected(
+                occurred_at=now,
+                aggregate_id=str(self.id),
+                user_id=str(self.user_id),
+                reviewer=reviewer,
+                reason=reason.strip(),
+            )
+        )
+
+    @property
+    def kyb_approved(self) -> bool:
+        return self.kyb_status is KybStatus.APPROVED
+
+    def ensure_kyb_approved(self) -> None:
+        if self.kyb_status is not KybStatus.APPROVED:
+            raise InvalidAccountState(
+                "La vérification du marchand (KYB) n'est pas validée.",
+                status=self.kyb_status.value,
+            )
+
     # ------------------------------------------------------------------ règlement
     def configure_settlement(
         self, *, bank_account: BankAccount, frequency: SettlementFrequency, now: datetime
@@ -188,4 +260,4 @@ class Merchant(EventRecorder):
         return f"Merchant(id={self.id!s}, name={self.display_name!r}, fee_bps={self.fee_bps})"
 
 
-__all__ = ["Merchant", "MerchantStatus", "SettlementFrequency"]
+__all__ = ["KybStatus", "Merchant", "MerchantStatus", "SettlementFrequency"]

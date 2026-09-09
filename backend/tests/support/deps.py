@@ -14,6 +14,8 @@ from flash.infrastructure.codes import PepperedWithdrawalCodes
 from flash.infrastructure.documents import InMemoryDocumentStore
 from flash.infrastructure.events import NotifyingEventPublisher
 from flash.infrastructure.limits import NullLimitCounter, build_limit_repository
+from flash.infrastructure.merchant_api_keys import Sha256MerchantApiKeyVault
+from flash.infrastructure.merchant_poster import PillowMerchantPosterRenderer
 from flash.infrastructure.notifications import BusChannel, FanOutNotifier, InAppChannel
 from flash.infrastructure.operator_gateway import SandboxOperatorGateway
 from flash.infrastructure.pricing import build_pricing_repository
@@ -97,6 +99,8 @@ def build_test_deps(
         operator_gateway=SandboxOperatorGateway(pepper="test-operator-pepper"),
         operator_webhook_secret=operator_webhook_secret,
         bank_gateway=SandboxBankGateway(pepper="test-bank-pepper"),
+        merchant_api_key_vault=Sha256MerchantApiKeyVault("test-merchant-key-pepper"),
+        merchant_poster=PillowMerchantPosterRenderer(),
     )
 
 

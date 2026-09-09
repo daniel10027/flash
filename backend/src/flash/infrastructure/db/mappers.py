@@ -24,9 +24,15 @@ from flash.domain.identity.kyc_case import (
 from flash.domain.identity.user import PhoneNumber, User, UserStatus
 from flash.domain.ledger.chart import Direction
 from flash.domain.ledger.transaction import LedgerTransaction, Posting, TransactionKind
+from flash.domain.merchants.api_key import MerchantApiKey
 from flash.domain.merchants.bank_account import BankAccount
 from flash.domain.merchants.charge import MerchantCharge, MerchantChargeStatus
-from flash.domain.merchants.merchant import Merchant, MerchantStatus, SettlementFrequency
+from flash.domain.merchants.merchant import (
+    KybStatus,
+    Merchant,
+    MerchantStatus,
+    SettlementFrequency,
+)
 from flash.domain.merchants.payment import MerchantPayment, MerchantPaymentStatus
 from flash.domain.merchants.settlement import MerchantSettlement, MerchantSettlementStatus
 from flash.domain.operators.transfer import (
@@ -50,6 +56,7 @@ from flash.infrastructure.db.models import (
     KycDocumentModel,
     LedgerPostingModel,
     LedgerTransactionModel,
+    MerchantApiKeyModel,
     MerchantChargeModel,
     MerchantModel,
     MerchantPaymentModel,
@@ -440,6 +447,9 @@ def merchant_to_domain(model: MerchantModel) -> Merchant:
         last_settlement_id=(
             EntityId(model.last_settlement_id) if model.last_settlement_id else None
         ),
+        kyb_status=KybStatus(model.kyb_status),
+        kyb_reviewed_at=model.kyb_reviewed_at,
+        kyb_reason=model.kyb_reason,
     )
 
 
@@ -461,7 +471,36 @@ def merchant_to_model(merchant: Merchant) -> MerchantModel:
         last_settlement_id=(
             str(merchant.last_settlement_id) if merchant.last_settlement_id else None
         ),
+        kyb_status=merchant.kyb_status.value,
+        kyb_reviewed_at=merchant.kyb_reviewed_at,
+        kyb_reason=merchant.kyb_reason,
         created_at=merchant.created_at,
+    )
+
+
+def merchant_api_key_to_domain(model: MerchantApiKeyModel) -> MerchantApiKey:
+    return MerchantApiKey(
+        id=EntityId(model.id),
+        merchant_id=EntityId(model.merchant_id),
+        prefix=model.prefix,
+        secret_hash=model.secret_hash,
+        label=model.label,
+        created_at=model.created_at,
+        last_used_at=model.last_used_at,
+        revoked_at=model.revoked_at,
+    )
+
+
+def merchant_api_key_to_model(api_key: MerchantApiKey) -> MerchantApiKeyModel:
+    return MerchantApiKeyModel(
+        id=str(api_key.id),
+        merchant_id=str(api_key.merchant_id),
+        prefix=api_key.prefix,
+        secret_hash=api_key.secret_hash,
+        label=api_key.label,
+        created_at=api_key.created_at,
+        last_used_at=api_key.last_used_at,
+        revoked_at=api_key.revoked_at,
     )
 
 
@@ -819,6 +858,8 @@ __all__ = [
     "kyc_case_to_model",
     "ledger_transaction_to_domain",
     "ledger_transaction_to_model",
+    "merchant_api_key_to_domain",
+    "merchant_api_key_to_model",
     "merchant_charge_to_domain",
     "merchant_charge_to_model",
     "merchant_payment_to_domain",

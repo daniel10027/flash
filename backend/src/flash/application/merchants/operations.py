@@ -55,6 +55,7 @@ class MerchantView:
     fee_bps: int
     status: str
     static_qr_payload: str
+    kyb_status: str
 
     @classmethod
     def of(cls, merchant: Merchant) -> MerchantView:
@@ -66,6 +67,7 @@ class MerchantView:
             fee_bps=merchant.fee_bps,
             status=merchant.status.value,
             static_qr_payload=merchant.static_qr_payload(),
+            kyb_status=merchant.kyb_status.value,
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -77,6 +79,7 @@ class MerchantView:
             "fee_bps": self.fee_bps,
             "status": self.status,
             "static_qr_payload": self.static_qr_payload,
+            "kyb_status": self.kyb_status,
         }
 
 

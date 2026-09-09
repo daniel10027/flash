@@ -7,6 +7,15 @@ from flask import Blueprint, Response, jsonify, request
 from pydantic import Field
 from werkzeug.exceptions import BadRequest
 
+from flash.application.merchants.api_keys import (
+    IssueMerchantApiKey,
+    IssueMerchantApiKeyCommand,
+    ListMerchantApiKeys,
+    ListMerchantApiKeysCommand,
+    RevokeMerchantApiKey,
+    RevokeMerchantApiKeyCommand,
+)
+from flash.application.merchants.kyb import SubmitMerchantKyb, SubmitMerchantKybCommand
 from flash.application.merchants.operations import (
     CreateMerchantCharge,
     CreateMerchantChargeCommand,
@@ -16,6 +25,10 @@ from flash.application.merchants.operations import (
     ListMerchantPaymentsCommand,
     PayMerchant,
     PayMerchantCommand,
+)
+from flash.application.merchants.poster import (
+    RenderMerchantPoster,
+    RenderMerchantPosterCommand,
 )
 from flash.application.merchants.refund import (
     RefundMerchantPayment,
@@ -89,6 +102,83 @@ def create_charge() -> tuple[Response, int]:
         )
     )
     return jsonify(view.to_dict()), 201
+
+
+# ------------------------------------------------------------------ KYB
+@merchant_bp.post("/kyb")
+@require_auth
+@rate_limit(name="merchant-kyb", limit=10, per_seconds=60, subject="user")
+@document(
+    summary="Soumettre (ou re-soumettre) le dossier de vérification marchand",
+    tags=["merchants"],
+)
+def submit_merchant_kyb() -> tuple[Response, int]:
+    view = SubmitMerchantKyb(services=deps().services).execute(
+        SubmitMerchantKybCommand(merchant_user_id=str(current_principal().user_id))
+    )
+    return jsonify(view.to_dict()), 200
+
+
+# ------------------------------------------------------------------ clés d'API
+class IssueApiKeyRequest(ApiModel):
+    label: str = Field(default="", max_length=60, examples=["Caisse principale"])
+
+
+@merchant_bp.post("/api-keys")
+@require_auth
+@rate_limit(name="merchant-api-key", limit=10, per_seconds=60, subject="user")
+@document(
+    summary="Émettre une clé d'API marchande (le secret n'est montré qu'ici)",
+    tags=["merchants"],
+    status_code=201,
+    request_schema=IssueApiKeyRequest.model_json_schema(),
+)
+def issue_merchant_api_key() -> tuple[Response, int]:
+    body = IssueApiKeyRequest.model_validate(_json())
+    view = IssueMerchantApiKey(
+        services=deps().services, vault=deps().merchant_api_key_vault
+    ).execute(
+        IssueMerchantApiKeyCommand(
+            merchant_user_id=str(current_principal().user_id), label=body.label
+        )
+    )
+    return jsonify(view.to_dict()), 201
+
+
+@merchant_bp.get("/api-keys")
+@require_auth
+@document(summary="Lister les clés d'API du marchand (préfixe seul)", tags=["merchants"])
+def list_merchant_api_keys() -> tuple[Response, int]:
+    views = ListMerchantApiKeys(services=deps().services).execute(
+        ListMerchantApiKeysCommand(merchant_user_id=str(current_principal().user_id))
+    )
+    return jsonify({"api_keys": [v.to_dict() for v in views]}), 200
+
+
+@merchant_bp.delete("/api-keys/<key_id>")
+@require_auth
+@document(summary="Révoquer une clé d'API marchande", tags=["merchants"])
+def revoke_merchant_api_key(key_id: str) -> tuple[Response, int]:
+    view = RevokeMerchantApiKey(services=deps().services).execute(
+        RevokeMerchantApiKeyCommand(
+            merchant_user_id=str(current_principal().user_id), key_id=key_id
+        )
+    )
+    return jsonify(view.to_dict()), 200
+
+
+@merchant_bp.get("/poster")
+@require_auth
+@document(summary="Affiche imprimable (PNG) portant le QR statique du marchand", tags=["merchants"])
+def merchant_poster() -> Response:
+    poster = RenderMerchantPoster(
+        services=deps().services, renderer=deps().merchant_poster
+    ).execute(
+        RenderMerchantPosterCommand(merchant_user_id=str(current_principal().user_id))
+    )
+    resp = Response(poster.content, mimetype=poster.media_type)
+    resp.headers["Content-Disposition"] = f'inline; filename="{poster.filename}"'
+    return resp
 
 
 @merchant_bp.get("/payments")

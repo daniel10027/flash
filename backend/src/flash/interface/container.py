@@ -15,7 +15,9 @@ from flash.application.auth.tokens import TokenService
 from flash.application.card.ports import CardIssuer
 from flash.application.cash.ports import WithdrawalCodes
 from flash.application.identity.documents import DocumentStore
+from flash.application.merchants.api_keys import MerchantApiKeyVault
 from flash.application.merchants.bank import BankGateway
+from flash.application.merchants.poster import MerchantPosterRenderer
 from flash.application.notifications.dispatcher import NotificationDispatcher
 from flash.application.notifications.ports import NotificationBus, NotificationRepository
 from flash.application.operators.ports import OperatorGateway
@@ -42,6 +44,8 @@ from flash.infrastructure.documents import LocalFilesystemDocumentStore
 from flash.infrastructure.events import LoggingEventPublisher, NotifyingEventPublisher
 from flash.infrastructure.ids import Uuid7Generator
 from flash.infrastructure.limits import NullLimitCounter, build_limit_repository
+from flash.infrastructure.merchant_api_keys import Sha256MerchantApiKeyVault
+from flash.infrastructure.merchant_poster import PillowMerchantPosterRenderer
 from flash.infrastructure.notification_bus import RedisNotificationBus
 from flash.infrastructure.notifications import (
     BusChannel,
@@ -93,6 +97,8 @@ class Deps:
     operator_gateway: OperatorGateway
     operator_webhook_secret: str
     bank_gateway: BankGateway
+    merchant_api_key_vault: MerchantApiKeyVault
+    merchant_poster: MerchantPosterRenderer
 
 
 def build_app_services(settings: Settings) -> AppServices:
@@ -170,6 +176,8 @@ def build_deps(settings: Settings, *, tokens: TokenService) -> Deps:
         operator_gateway=SandboxOperatorGateway(pepper=settings.secret_key),
         operator_webhook_secret=settings.operator_webhook_secret,
         bank_gateway=SandboxBankGateway(pepper=settings.secret_key),
+        merchant_api_key_vault=Sha256MerchantApiKeyVault(settings.secret_key),
+        merchant_poster=PillowMerchantPosterRenderer(),
     )
 
 

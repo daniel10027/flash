@@ -93,11 +93,47 @@ class MerchantSettlementFailed(DomainEvent):
     reason: str
 
 
+@dataclass(frozen=True, slots=True, kw_only=True)
+class MerchantKybSubmitted(DomainEvent):
+    user_id: str
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class MerchantKybApproved(DomainEvent):
+    user_id: str
+    reviewer: str
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class MerchantKybRejected(DomainEvent):
+    user_id: str
+    reviewer: str
+    reason: str
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class MerchantApiKeyIssued(DomainEvent):
+    merchant_id: str
+    key_prefix: str
+    label: str
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class MerchantApiKeyRevoked(DomainEvent):
+    merchant_id: str
+    key_prefix: str
+
+
 __all__ = [
+    "MerchantApiKeyIssued",
+    "MerchantApiKeyRevoked",
     "MerchantChargeCancelled",
     "MerchantChargeExpired",
     "MerchantChargeOpened",
     "MerchantEnrolled",
+    "MerchantKybApproved",
+    "MerchantKybRejected",
+    "MerchantKybSubmitted",
     "MerchantPaymentCompleted",
     "MerchantPaymentRefunded",
     "MerchantSettlementConfigured",

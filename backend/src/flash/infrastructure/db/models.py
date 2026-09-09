@@ -450,6 +450,9 @@ class MerchantModel(Base):
     bank_name: Mapped[str | None] = mapped_column(String(120), nullable=True)
     next_settlement_at: Mapped[datetime | None] = mapped_column(TZDateTime, nullable=True)
     last_settlement_id: Mapped[str | None] = mapped_column(_UUID, nullable=True)
+    kyb_status: Mapped[str] = mapped_column(String(10), nullable=False, default="PENDING")
+    kyb_reviewed_at: Mapped[datetime | None] = mapped_column(TZDateTime, nullable=True)
+    kyb_reason: Mapped[str | None] = mapped_column(String(200), nullable=True)
     created_at: Mapped[datetime] = mapped_column(TZDateTime, nullable=False)
 
     __table_args__ = (
@@ -535,6 +538,23 @@ class MerchantSettlementModel(Base):
         CheckConstraint("amount_minor > 0", name="merchant_settlement_amount_positive"),
         Index("ix_merchant_settlements_merchant_id", "merchant_id"),
     )
+
+
+class MerchantApiKeyModel(Base):
+    __tablename__ = "merchant_api_keys"
+
+    id: Mapped[str] = mapped_column(_UUID, primary_key=True)
+    merchant_id: Mapped[str] = mapped_column(
+        ForeignKey("merchants.id", ondelete="RESTRICT"), nullable=False
+    )
+    prefix: Mapped[str] = mapped_column(String(16), nullable=False, unique=True)
+    secret_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    label: Mapped[str] = mapped_column(String(60), nullable=False, default="sans nom")
+    created_at: Mapped[datetime] = mapped_column(TZDateTime, nullable=False)
+    last_used_at: Mapped[datetime | None] = mapped_column(TZDateTime, nullable=True)
+    revoked_at: Mapped[datetime | None] = mapped_column(TZDateTime, nullable=True)
+
+    __table_args__ = (Index("ix_merchant_api_keys_merchant_id", "merchant_id"),)
 
 
 class PaymentRequestModel(Base):
@@ -668,6 +688,7 @@ __all__ = [
     "LedgerAccountModel",
     "LedgerPostingModel",
     "LedgerTransactionModel",
+    "MerchantApiKeyModel",
     "MerchantChargeModel",
     "MerchantModel",
     "MerchantPaymentModel",

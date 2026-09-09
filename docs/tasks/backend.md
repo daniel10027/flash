@@ -268,8 +268,19 @@ Chaque tâche livrée : code complet + tests + doc, **zéro `TODO`**.
   (compte bancaire + échéance `next_settlement_at`), `due_for_settlement` /
   `advance_settlement_schedule` / `record_settlement`. *Reste : sous‑comptes
   caisses/employés, frais négociés par canal.*
-- [ ] **BE-069** · Onboarding marchand + KYB, génération QR marchand (statique + affiche
-  imprimable PDF), clés API marchand.
+- [x] **BE-069** · KYB marchand : `Merchant.kyb_status` (PENDING/APPROVED/REJECTED),
+  `submit_kyb` / `approve_kyb` / `reject_kyb` / `ensure_kyb_approved` + events.
+  `SubmitMerchantKyb` (`POST /v1/merchant/kyb`), `ReviewMerchantKyb`
+  (`POST /v1/admin/merchants/<id>/kyb`, rôles `admin`/`compliance`). Clés d'API :
+  entité `MerchantApiKey` (préfixe visible + `secret_hash`, révocable), port
+  `MerchantApiKeyVault` + `Sha256MerchantApiKeyVault` (secret `mk_<prefix>_<random>`,
+  hash SHA-256 salé, jamais persisté en clair). `IssueMerchantApiKey`
+  (`POST /v1/merchant/api-keys` → secret montré une seule fois, plafond 10 actives),
+  `ListMerchantApiKeys` (`GET`), `RevokeMerchantApiKey` (`DELETE …/<id>`). Affiche
+  imprimable : port `MerchantPosterRenderer` + `PillowMerchantPosterRenderer` (PNG A5
+  avec QR statique), `RenderMerchantPoster` (`GET /v1/merchant/poster`, `image/png`).
+  Table `merchant_api_keys` + colonnes KYB sur `merchants`, migration `d4e8a1c6b923`.
+  *Note : affiche livrée en PNG (pas de dépendance PDF ajoutée).*
 - [x] **BE-070** · Règlements marchands : port `application/merchants/bank.py::BankGateway`
   (`transfer` → `BankAck` synchrone) + `SandboxBankGateway` déterministe. Agrégat
   `MerchantSettlement` (PENDING → PAID / FAILED), `LedgerTransaction.merchant_settlement`

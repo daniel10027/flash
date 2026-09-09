@@ -418,6 +418,62 @@ class TestMerchantRoundtrip:
             assert uow.merchant_payments.get_by_ledger_transaction_id(txn_id) is not None
 
 
+    def test_merchant_kyb_and_api_key_persist(
+        self, session_factory: sessionmaker[Session]
+    ) -> None:
+        from flash.domain.merchants.api_key import MerchantApiKey
+        from flash.domain.merchants.merchant import KybStatus, Merchant
+
+        clock = FixedClock(T0)
+        owner = _new_user("+2250700000061")
+        merchant = Merchant.enroll(
+            merchant_id=EntityId(str(uuid7())),
+            user_id=owner.id,
+            display_name="Chez Awa",
+            category="RESTAURANT",
+            currency=XOF,
+            fee_bps=100,
+            now=T0,
+        )
+        with SqlAlchemyUnitOfWork(session_factory, clock) as uow:
+            uow.users.add(owner)
+            uow.merchants.add(merchant)
+            uow.commit()
+
+        key_id = EntityId(str(uuid7()))
+        with SqlAlchemyUnitOfWork(session_factory, clock) as uow:
+            loaded = uow.merchants.get(merchant.id)
+            assert loaded is not None and loaded.kyb_status is KybStatus.PENDING
+            loaded.approve_kyb(reviewer="key:compliance", now=T0)
+            uow.merchants.save(loaded)
+            uow.merchant_api_keys.add(
+                MerchantApiKey.issue(
+                    key_id=key_id,
+                    merchant_id=merchant.id,
+                    prefix="abcd1234",
+                    secret_hash="f" * 64,
+                    label="Caisse",
+                    now=T0,
+                )
+            )
+            uow.commit()
+
+        with SqlAlchemyUnitOfWork(session_factory, clock) as uow:
+            again = uow.merchants.get(merchant.id)
+            assert again is not None and again.kyb_status is KybStatus.APPROVED
+            assert again.kyb_reviewed_at is not None
+            by_prefix = uow.merchant_api_keys.get_by_prefix("abcd1234")
+            assert by_prefix is not None and by_prefix.id == key_id
+            [listed] = uow.merchant_api_keys.list_for_merchant(merchant.id)
+            listed.revoke(T0)
+            uow.merchant_api_keys.save(listed)
+            uow.commit()
+
+        with SqlAlchemyUnitOfWork(session_factory, clock) as uow:
+            revoked = uow.merchant_api_keys.get(key_id)
+            assert revoked is not None and revoked.is_active is False
+
+
 class TestNotificationRepository:
     def test_add_list_count_and_mark_read(self, session_factory: sessionmaker[Session]) -> None:
         from flash.application.notifications.model import Notification, NotificationKind

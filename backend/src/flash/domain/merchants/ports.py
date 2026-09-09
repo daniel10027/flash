@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Protocol, runtime_checkable
 
+from flash.domain.merchants.api_key import MerchantApiKey
 from flash.domain.merchants.charge import MerchantCharge
 from flash.domain.merchants.merchant import Merchant
 from flash.domain.merchants.payment import MerchantPayment
@@ -82,7 +83,21 @@ class MerchantSettlementRepository(Protocol):
     def save(self, settlement: MerchantSettlement) -> None: ...
 
 
+@runtime_checkable
+class MerchantApiKeyRepository(Protocol):
+    def get(self, key_id: EntityId) -> MerchantApiKey | None: ...
+
+    def get_by_prefix(self, prefix: str) -> MerchantApiKey | None: ...
+
+    def list_for_merchant(self, merchant_id: EntityId) -> list[MerchantApiKey]: ...
+
+    def add(self, api_key: MerchantApiKey) -> None: ...
+
+    def save(self, api_key: MerchantApiKey) -> None: ...
+
+
 __all__ = [
+    "MerchantApiKeyRepository",
     "MerchantChargeRepository",
     "MerchantPaymentRepository",
     "MerchantRepository",

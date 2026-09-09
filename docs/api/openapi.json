@@ -2149,6 +2149,167 @@
         }
       }
     },
+    "/v1/merchant/kyb": {
+      "post": {
+        "summary": "Soumettre (ou re-soumettre) le dossier de vérification marchand",
+        "tags": [
+          "merchants"
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès"
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/v1/merchant/api-keys": {
+      "post": {
+        "summary": "Émettre une clé d'API marchande (le secret n'est montré qu'ici)",
+        "tags": [
+          "merchants"
+        ],
+        "responses": {
+          "201": {
+            "description": "Succès"
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "label": {
+                    "default": "",
+                    "examples": [
+                      "Caisse principale"
+                    ],
+                    "maxLength": 60,
+                    "title": "Label",
+                    "type": "string"
+                  }
+                },
+                "title": "IssueApiKeyRequest",
+                "type": "object"
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "summary": "Lister les clés d'API du marchand (préfixe seul)",
+        "tags": [
+          "merchants"
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès"
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/v1/merchant/api-keys/{key_id}": {
+      "delete": {
+        "summary": "Révoquer une clé d'API marchande",
+        "tags": [
+          "merchants"
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès"
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/v1/merchant/poster": {
+      "get": {
+        "summary": "Affiche imprimable (PNG) portant le QR statique du marchand",
+        "tags": [
+          "merchants"
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès"
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
     "/v1/merchant/payments": {
       "get": {
         "summary": "Encaissements du marchand",
@@ -4976,6 +5137,60 @@
                 "schema": {
                   "$ref": "#/components/schemas/Error"
                 }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/merchants/{merchant_id}/kyb": {
+      "post": {
+        "summary": "Back-office : approuver ou rejeter la vérification (KYB) d'un marchand",
+        "tags": [
+          "admin"
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès"
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "decision": {
+                    "examples": [
+                      "approve",
+                      "reject"
+                    ],
+                    "title": "Decision",
+                    "type": "string"
+                  },
+                  "reason": {
+                    "default": "",
+                    "maxLength": 200,
+                    "title": "Reason",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "decision"
+                ],
+                "title": "ReviewKybRequest",
+                "type": "object"
               }
             }
           }

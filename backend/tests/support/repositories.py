@@ -18,6 +18,7 @@ from flash.domain.identity.kyc_case import KycCase, KycCaseStatus
 from flash.domain.identity.user import User
 from flash.domain.ledger.chart import AccountType
 from flash.domain.ledger.transaction import LedgerTransaction
+from flash.domain.merchants.api_key import MerchantApiKey
 from flash.domain.merchants.charge import MerchantCharge, MerchantChargeStatus
 from flash.domain.merchants.merchant import Merchant
 from flash.domain.merchants.payment import MerchantPayment
@@ -516,6 +517,40 @@ class InMemoryMerchantSettlementRepository(_Tracking):
         self._track(settlement)
 
 
+class InMemoryMerchantApiKeyRepository(_Tracking):
+    def __init__(self) -> None:
+        super().__init__()
+        self._by_id: dict[str, MerchantApiKey] = {}
+
+    def get(self, key_id: EntityId) -> MerchantApiKey | None:
+        key = self._by_id.get(str(key_id))
+        if key is not None:
+            self._track(key)
+        return key
+
+    def get_by_prefix(self, prefix: str) -> MerchantApiKey | None:
+        for key in self._by_id.values():
+            if key.prefix == prefix:
+                self._track(key)
+                return key
+        return None
+
+    def list_for_merchant(self, merchant_id: EntityId) -> list[MerchantApiKey]:
+        rows = [k for k in self._by_id.values() if k.merchant_id == merchant_id]
+        rows.sort(key=lambda k: k.created_at, reverse=True)
+        for k in rows:
+            self._track(k)
+        return rows
+
+    def add(self, api_key: MerchantApiKey) -> None:
+        self._by_id[str(api_key.id)] = api_key
+        self._track(api_key)
+
+    def save(self, api_key: MerchantApiKey) -> None:
+        self._by_id[str(api_key.id)] = api_key
+        self._track(api_key)
+
+
 class InMemoryVaultRepository(_Tracking):
     def __init__(self) -> None:
         super().__init__()
@@ -764,6 +799,7 @@ class InMemoryUnitOfWork:
         merchant_charges: InMemoryMerchantChargeRepository | None = None,
         merchant_payments: InMemoryMerchantPaymentRepository | None = None,
         merchant_settlements: InMemoryMerchantSettlementRepository | None = None,
+        merchant_api_keys: InMemoryMerchantApiKeyRepository | None = None,
         vaults: InMemoryVaultRepository | None = None,
         savings: InMemorySavingsPlanRepository | None = None,
         cards: InMemoryCardRepository | None = None,
@@ -782,6 +818,9 @@ class InMemoryUnitOfWork:
         self.merchant_payments = merchant_payments or InMemoryMerchantPaymentRepository()
         self.merchant_settlements = (
             merchant_settlements or InMemoryMerchantSettlementRepository()
+        )
+        self.merchant_api_keys = (
+            merchant_api_keys or InMemoryMerchantApiKeyRepository()
         )
         self.vaults = vaults or InMemoryVaultRepository()
         self.savings = savings or InMemorySavingsPlanRepository()
@@ -825,6 +864,7 @@ class InMemoryUnitOfWork:
             *self.merchant_charges.seen,
             *self.merchant_payments.seen,
             *self.merchant_settlements.seen,
+            *self.merchant_api_keys.seen,
             *self.vaults.seen,
             *self.savings.seen,
             *self.cards.seen,
@@ -844,6 +884,7 @@ __all__ = [
     "InMemoryCashOrderRepository",
     "InMemoryKycCaseRepository",
     "InMemoryLedgerRepository",
+    "InMemoryMerchantApiKeyRepository",
     "InMemoryMerchantChargeRepository",
     "InMemoryMerchantPaymentRepository",
     "InMemoryMerchantRepository",
