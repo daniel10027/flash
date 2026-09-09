@@ -2162,40 +2162,6 @@
           "content": {
             "application/json": {
               "schema": {
-                "$defs": {
-                  "KycDocumentPayload": {
-                    "additionalProperties": false,
-                    "properties": {
-                      "kind": {
-                        "examples": [
-                          "ID_FRONT",
-                          "SELFIE"
-                        ],
-                        "title": "Kind",
-                        "type": "string"
-                      },
-                      "content_base64": {
-                        "minLength": 8,
-                        "title": "Content Base64",
-                        "type": "string"
-                      },
-                      "content_type": {
-                        "examples": [
-                          "image/jpeg"
-                        ],
-                        "title": "Content Type",
-                        "type": "string"
-                      }
-                    },
-                    "required": [
-                      "kind",
-                      "content_base64",
-                      "content_type"
-                    ],
-                    "title": "KycDocumentPayload",
-                    "type": "object"
-                  }
-                },
                 "additionalProperties": false,
                 "properties": {
                   "target_tier": {
@@ -2209,7 +2175,7 @@
                   },
                   "documents": {
                     "items": {
-                      "$ref": "#/$defs/KycDocumentPayload"
+                      "$ref": "#/components/schemas/KycDocumentPayload"
                     },
                     "maxItems": 6,
                     "minItems": 1,
@@ -7041,6 +7007,38 @@
             "additionalProperties": true
           }
         }
+      },
+      "KycDocumentPayload": {
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "examples": [
+              "ID_FRONT",
+              "SELFIE"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "content_base64": {
+            "minLength": 8,
+            "title": "Content Base64",
+            "type": "string"
+          },
+          "content_type": {
+            "examples": [
+              "image/jpeg"
+            ],
+            "title": "Content Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "content_base64",
+          "content_type"
+        ],
+        "title": "KycDocumentPayload",
+        "type": "object"
       }
     },
     "securitySchemes": {

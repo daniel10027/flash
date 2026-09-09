@@ -5,32 +5,50 @@ React Hook Form + Zod, client API généré depuis `docs/api/openapi.json`, i18n
 option), thème bordeaux (`design/tokens.json`), PWA. Tests : Vitest + Testing Library,
 Playwright (E2E).
 
-## Socle (WEB-001 → WEB-012)
+## Socle (WEB-001 → WEB-012) — **livré**
 
-- [ ] **WEB-001** · Init Vite + TS + ESLint/Prettier + structure (`app/`, `features/`,
+> `web/` : Vite + React 18 + TS strict (`noUncheckedIndexedAccess`), alias `@app`/`@features`
+> /`@shared`/`@pages`, ESLint (+ `jsx-a11y`) + Prettier. `design/tokens.json` →
+> `scripts/build-tokens.mjs` → `src/shared/theme/tokens.css` (rôles sémantiques clair/sombre,
+> `data-theme` system/light/dark). Composants `shared/ui` + galerie `/ui`. Client API :
+> `npm run gen:api` (openapi-typescript ← `docs/api/openapi.json`) + `apiFetch` (base URL
+> runtime, `X-Request-ID`, `Idempotency-Key` auto, refresh 401 unique, `ApiError`/`NetworkError`).
+> Session Zustand (access en mémoire, refresh localStorage) + `RequireAuth`/`RedirectIfAuthed`
+> + pont d'expiration → `/login`. Layout responsive (nav latérale desktop / barre du bas
+> mobile, en-tête solde masquable, menu profil thème+déconnexion). i18n `react-i18next` FR +
+> `formatMoney` (XOF/XAF sans décimale) / `formatDate` / `formatRelative`. `ErrorBoundary`,
+> pages 404/500, `Toaster` (mappe `code` → message). PWA (`vite-plugin-pwa`, manifest,
+> `NetworkFirst` sur `wallets`/`statement`/`notifications`, invite de MAJ). A11y (skip-link,
+> focus visible, aria, tabs au clavier). Config runtime `window.__FLASH_CONFIG__` via
+> `/config.js` généré par `docker-entrypoint.sh`. `web/Dockerfile` (stages dev / build /
+> runtime Caddy) + service `web` (profil `web`) dans `infra/docker-compose.yml`.
+> Vérifs : `tsc` + ESLint + Prettier OK, 8 tests Vitest, build de prod OK, e2e Playwright
+> (fumée : redirection login, 404, validation du formulaire).
+
+- [x] **WEB-001** · Init Vite + TS + ESLint/Prettier + structure (`app/`, `features/`,
   `shared/`, `pages/`). Alias de chemins. Scripts `dev/build/preview/test/e2e`.
-- [ ] **WEB-002** · Intégration des design tokens (couleurs bordeaux + secondaire,
+- [x] **WEB-002** · Intégration des design tokens (couleurs bordeaux + secondaire,
   typo, espacements, rayons, ombres) → CSS variables + thème. Mode clair/sombre.
-- [ ] **WEB-003** · Composants UI de base : Button, Input, PinInput, Money, Amount,
+- [x] **WEB-003** · Composants UI de base : Button, Input, PinInput, Money, Amount,
   Sheet/Modal, Toast, Skeleton, EmptyState, Avatar, Badge, Tabs, ListRow. Storybook
   ou galerie `/ui`.
-- [ ] **WEB-004** · Génération du client API typé (openapi-typescript + wrapper fetch
+- [x] **WEB-004** · Génération du client API typé (openapi-typescript + wrapper fetch
   avec `Idempotency-Key`, `request_id`, refresh token auto, gestion `DomainError`).
-- [ ] **WEB-005** · Couche auth : contexte session, stockage token (mémoire + refresh
+- [x] **WEB-005** · Couche auth : contexte session, stockage token (mémoire + refresh
   cookie/localStorage sécurisé), guard de routes, redirection.
-- [ ] **WEB-006** · Layout applicatif : barre latérale/bottom‑nav responsive, en‑tête
+- [x] **WEB-006** · Layout applicatif : barre latérale/bottom‑nav responsive, en‑tête
   avec solde masquable, sélecteur de wallet/pays, menu profil.
-- [ ] **WEB-007** · i18n (react‑i18next), FR par défaut, fichiers de traduction, format
+- [x] **WEB-007** · i18n (react‑i18next), FR par défaut, fichiers de traduction, format
   monétaire/date par pays.
-- [ ] **WEB-008** · Gestion d'erreurs globale (ErrorBoundary, page 500/404, toasts
+- [x] **WEB-008** · Gestion d'erreurs globale (ErrorBoundary, page 500/404, toasts
   d'erreur API mappés depuis `code`).
-- [ ] **WEB-009** · PWA : manifest (icônes Flash), service worker (cache shell,
+- [x] **WEB-009** · PWA : manifest (icônes Flash), service worker (cache shell,
   offline lecture historique/solde en cache), invite d'installation.
-- [ ] **WEB-010** · Accessibilité : focus visible, navigation clavier, aria sur les
+- [x] **WEB-010** · Accessibilité : focus visible, navigation clavier, aria sur les
   composants, contraste AA vérifié sur le thème bordeaux.
-- [ ] **WEB-011** · Config runtime (`window.__FLASH_CONFIG__` injecté par l'image),
+- [x] **WEB-011** · Config runtime (`window.__FLASH_CONFIG__` injecté par l'image),
   `API_BASE_URL`, `SENTRY_DSN` optionnel, `ENV`.
-- [ ] **WEB-012** · Dockerfile web (build Vite → Nginx/Caddy statique), intégration
+- [x] **WEB-012** · Dockerfile web (build Vite → Nginx/Caddy statique), intégration
   `infra/docker-compose.yml`, hot reload en dev.
 
 ## Parcours client (WEB-013 → WEB-032)

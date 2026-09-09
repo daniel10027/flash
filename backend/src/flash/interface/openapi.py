@@ -72,6 +72,38 @@ _ERROR_SCHEMA: dict[str, Any] = {
 }
 
 
+def _rewrite_defs_refs(node: Any) -> Any:
+    """Réécrit récursivement ``#/$defs/X`` -> ``#/components/schemas/X``."""
+    if isinstance(node, dict):
+        ref = node.get("$ref")
+        if isinstance(ref, str) and ref.startswith("#/$defs/"):
+            node = {**node, "$ref": "#/components/schemas/" + ref[len("#/$defs/") :]}
+        return {k: _rewrite_defs_refs(v) for k, v in node.items()}
+    if isinstance(node, list):
+        return [_rewrite_defs_refs(v) for v in node]
+    return node
+
+
+def _hoist_schema(
+    schema: dict[str, Any] | None, components_schemas: dict[str, Any]
+) -> dict[str, Any] | None:
+    """Sort les ``$defs`` (Pydantic) d'un schéma inline vers ``components/schemas`` et
+    réécrit les ``$ref`` en conséquence, pour un document OpenAPI résolvable."""
+    if not schema:
+        return schema
+    defs = schema.get("$defs")
+    if isinstance(defs, dict):
+        for name, sub in defs.items():
+            resolved = _rewrite_defs_refs(sub)
+            existing = components_schemas.get(name)
+            if existing is not None and existing != resolved:  # pragma: no cover - rare
+                name = f"{name}_{abs(hash(json.dumps(resolved, sort_keys=True))) % 10000}"
+            components_schemas.setdefault(name, resolved)
+    cleaned = {k: v for k, v in schema.items() if k != "$defs"}
+    rewritten: dict[str, Any] = _rewrite_defs_refs(cleaned)
+    return rewritten
+
+
 def _rule_to_path(rule: str) -> str:
     # Flask "<int:id>" / "<id>" -> OpenAPI "{id}"
     out: list[str] = []
@@ -87,6 +119,7 @@ def build_spec(app: Flask) -> dict[str, Any]:
     settings = app.extensions.get("flash_settings")
     base_url = getattr(settings, "api_base_url", "http://localhost:8000")
 
+    components_schemas: dict[str, Any] = {"Error": _ERROR_SCHEMA}
     paths: dict[str, Any] = {}
     for rule in app.url_map.iter_rules():
         if rule.rule.startswith(("/static", "/openapi", "/docs", "/redoc", "/metrics")):
@@ -96,7 +129,9 @@ def build_spec(app: Flask) -> dict[str, Any]:
         methods = sorted(rule.methods - {"HEAD", "OPTIONS"}) if rule.methods else []
         for method in methods:
             item = paths.setdefault(_rule_to_path(rule.rule), {})
-            item[method.lower()] = _operation_object(operation, method, rule.rule)
+            item[method.lower()] = _operation_object(
+                operation, method, rule.rule, components_schemas
+            )
 
     return {
         "openapi": "3.1.0",
@@ -108,7 +143,7 @@ def build_spec(app: Flask) -> dict[str, Any]:
         "servers": [{"url": base_url}],
         "paths": paths,
         "components": {
-            "schemas": {"Error": _ERROR_SCHEMA},
+            "schemas": components_schemas,
             "securitySchemes": {
                 "bearerAuth": {"type": "http", "scheme": "bearer", "bearerFormat": "JWT"}
             },
@@ -116,18 +151,25 @@ def build_spec(app: Flask) -> dict[str, Any]:
     }
 
 
-def _operation_object(operation: Operation | None, method: str, rule: str) -> dict[str, Any]:
+def _operation_object(
+    operation: Operation | None,
+    method: str,
+    rule: str,
+    components_schemas: dict[str, Any],
+) -> dict[str, Any]:
     if operation is None:
         return {
             "summary": f"{method} {rule}",
             "responses": {"200": {"description": "OK"}},
         }
+    request_schema = _hoist_schema(operation.request_schema, components_schemas)
+    response_schema = _hoist_schema(operation.response_schema, components_schemas)
     responses: dict[str, Any] = {
         str(operation.status_code): {
             "description": "Succès",
             **(
-                {"content": {"application/json": {"schema": operation.response_schema}}}
-                if operation.response_schema
+                {"content": {"application/json": {"schema": response_schema}}}
+                if response_schema
                 else {}
             ),
         },
@@ -143,10 +185,10 @@ def _operation_object(operation: Operation | None, method: str, rule: str) -> di
     }
     if operation.secured:
         obj["security"] = [{"bearerAuth": []}]
-    if operation.request_schema:
+    if request_schema:
         obj["requestBody"] = {
             "required": True,
-            "content": {"application/json": {"schema": operation.request_schema}},
+            "content": {"application/json": {"schema": request_schema}},
         }
     if operation.idempotent:
         obj["parameters"] = [

@@ -1,0 +1,107 @@
+// WEB-005 (socle) — connexion minimale : numéro + code secret, OTP si demandé.
+// Le parcours complet (mot de passe oublié, gestion appareil) relève de WEB-014.
+import { useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import { Button, Card, Input, PinInput, toast } from '@shared/ui';
+import { useSession } from '@shared/auth/session';
+import { login, verifyOtp } from '@features/auth/api';
+
+export function LoginPage() {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
+  const location = useLocation() as { state?: { from?: string } };
+  const setSession = useSession((s) => s.setSession);
+
+  const [phone, setPhone] = useState('');
+  const [country, setCountry] = useState('CI');
+  const [pin, setPin] = useState('');
+  const [code, setCode] = useState('');
+  const [step, setStep] = useState<'credentials' | 'otp'>('credentials');
+  const [busy, setBusy] = useState(false);
+
+  const goHome = () => navigate(location.state?.from ?? '/', { replace: true });
+
+  async function submitCredentials(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      const res = await login({ phone_number: phone, country, pin });
+      if (res.kind === 'authenticated') {
+        setSession(res.tokens);
+        goHome();
+      } else {
+        setStep('otp');
+        toast.info('Un code de vérification vous a été envoyé.');
+      }
+    } catch (err) {
+      toast.error(err);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function submitOtp(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      const tokens = await verifyOtp({ phone_number: phone, country, code });
+      setSession(tokens);
+      goHome();
+    } catch (err) {
+      toast.error(err);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <main
+      style={{
+        minHeight: '100dvh',
+        display: 'grid',
+        placeItems: 'center',
+        padding: 'var(--space-4)',
+      }}
+    >
+      <Card style={{ width: 'min(380px, 100%)', display: 'grid', gap: 'var(--space-4)' }}>
+        <h1 style={{ fontSize: 'var(--text-2xl)' }}>{t('auth.signIn')}</h1>
+
+        {step === 'credentials' ? (
+          <form onSubmit={submitCredentials} style={{ display: 'grid', gap: 'var(--space-3)' }}>
+            <Input
+              label={t('auth.phone')}
+              inputMode="tel"
+              autoComplete="tel"
+              placeholder="+225…"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              required
+            />
+            <Input
+              label="Pays"
+              value={country}
+              maxLength={2}
+              onChange={(e) => setCountry(e.target.value.toUpperCase())}
+              required
+            />
+            <PinInput label={t('auth.pin')} value={pin} onChange={setPin} />
+            <Button type="submit" block loading={busy} disabled={pin.length < 4 || !phone}>
+              {t('common.continue')}
+            </Button>
+          </form>
+        ) : (
+          <form onSubmit={submitOtp} style={{ display: 'grid', gap: 'var(--space-3)' }}>
+            <PinInput label={t('auth.otp')} length={6} value={code} onChange={setCode} />
+            <Button type="submit" block loading={busy} disabled={code.length < 6}>
+              {t('auth.signIn')}
+            </Button>
+            <Button type="button" variant="ghost" onClick={() => setStep('credentials')}>
+              {t('common.back')}
+            </Button>
+          </form>
+        )}
+      </Card>
+    </main>
+  );
+}

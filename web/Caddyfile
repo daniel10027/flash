@@ -1,0 +1,23 @@
+# Sert le bundle statique + SPA fallback. Le TLS de bord est géré par le Caddy d'infra
+# (infra/deploy/Caddyfile) ; ici on écoute en clair sur :80 dans le réseau Docker.
+:80 {
+	root * /srv
+	encode gzip zstd
+
+	# Assets fingerprintés : cache long.
+	@immutable path /assets/*
+	header @immutable Cache-Control "public, max-age=31536000, immutable"
+
+	# La config runtime et le service worker ne doivent jamais être mis en cache.
+	@nocache path /config.js /sw.js /manifest.webmanifest
+	header @nocache Cache-Control "no-store"
+
+	header {
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		X-Frame-Options "DENY"
+	}
+
+	try_files {path} /index.html
+	file_server
+}

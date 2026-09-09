@@ -263,7 +263,7 @@ mais les lots Backend / Infra avancent en priorité car Web et Mobile en dépend
 |-----|------------------|--------------|
 | Fondations & docs | ce fichier | 6 / 6 |
 | Backend (BE) | [docs/tasks/backend.md](docs/tasks/backend.md) | 70 / 78 + transverses BE-T1→T6 |
-| Web (WEB) | [docs/tasks/frontend-web.md](docs/tasks/frontend-web.md) | 0 / 46 |
+| Web (WEB) | [docs/tasks/frontend-web.md](docs/tasks/frontend-web.md) | 12 / 49 (socle) |
 | Mobile (MOB) | [docs/tasks/mobile.md](docs/tasks/mobile.md) | 0 / 44 |
 | Infra & CI/CD (INFRA) | [docs/tasks/infra.md](docs/tasks/infra.md) | 3 / 24 |
 | Design & marque (DSN) | [docs/tasks/design.md](docs/tasks/design.md) | 0 / 10 |
@@ -388,9 +388,18 @@ relevé ; `PaymentChannel` QR/API + `Merchant.channel_fees` négociés sous
 
 **Phase 4 backend TERMINÉE** (`BE-061` → `BE-078`) + **lots transverses `BE-T1` → `BE-T6`
 livrés** (CI GitHub Actions, tests de migrations, contrats OpenAPI schemathesis, métriques
-Prometheus `/metrics`, `docs/api/errors.md` exhaustif, test de charge locust). Prochaine :
-`INFRA` (déploiement VPS, CD) et les fronts Web (`WEB-*`) / Mobile (`MOB-*`) qui dépendent
-de cette API.
+Prometheus `/metrics`, `docs/api/errors.md` exhaustif, test de charge locust).
+
+**Front web démarré** : `design/tokens.json` (thème bordeaux) + **socle `WEB-001` → `WEB-012`**
+dans `web/` (Vite + React 18 + TS strict, design tokens → CSS, composants `shared/ui` +
+galerie `/ui`, client API typé généré depuis `openapi.json` + wrapper fetch, session +
+garde de routes, layout responsive, i18n FR + formats monétaires, ErrorBoundary + 404/500 +
+toasts, PWA, a11y, config runtime, Dockerfile + compose). Correctif backend au passage :
+`openapi.py` hisse les `$defs` Pydantic dans `components/schemas` (spec résolvable par les
+générateurs de client).
+
+Prochaine : parcours client web (`WEB-013` → `WEB-032`), puis `MOB-*`, `INFRA` (CD/VPS),
+`DSN-*`.
 
 ✅ Phase 2 livrée : `BE-029` (KYC), `BE-032` (demandes de paiement), `BE-033` (marchand
 QR), `BE-034` → `BE-036` (cash agent), `BE-037` (annulation / remboursement), `BE-038`

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+
 import pytest
 from flask import Flask, jsonify
 from flask.wrappers import Response
@@ -60,6 +62,29 @@ class TestSpec:
         assert "201" in op["responses"]
         assert "4XX" in op["responses"]
         assert op["parameters"][0]["name"] == "Idempotency-Key"
+
+    def test_pydantic_defs_are_hoisted_to_components(self, app: Flask) -> None:
+        # Un schéma imbriqué (Pydantic `$defs` + `$ref: #/$defs/X`) doit devenir
+        # résolvable : X passe dans components/schemas et les refs sont réécrites.
+        nested = {
+            "type": "object",
+            "properties": {"docs": {"type": "array", "items": {"$ref": "#/$defs/Doc"}}},
+            "$defs": {"Doc": {"type": "object", "properties": {"kind": {"type": "string"}}}},
+        }
+
+        @app.post("/v1/demo/kyc")
+        @document(summary="démo", tags=["demo"], request_schema=nested, secured=False)
+        def _kyc() -> Response:
+            return jsonify(ok=True)
+
+        spec = build_spec(app)
+        assert "Doc" in spec["components"]["schemas"]
+        body = spec["paths"]["/v1/demo/kyc"]["post"]["requestBody"]["content"][
+            "application/json"
+        ]["schema"]
+        assert "$defs" not in body
+        assert body["properties"]["docs"]["items"]["$ref"] == "#/components/schemas/Doc"
+        assert "#/$defs/" not in json.dumps(spec)
 
     def test_flask_converters_become_openapi_path_params(self, app: Flask) -> None:
         @app.get("/v1/demo/items/<int:item_id>")

@@ -3,8 +3,8 @@
 #   docker compose -f infra/docker-compose.yml up --build
 #
 # Services démarrés par défaut : db, redis, mailhog, api.
-# Le service `web` est derrière le profil `web` tant que `web/` n'est pas échafaudé
-# (tâche WEB-001) :  docker compose -f infra/docker-compose.yml --profile web up
+# Le SPA `web` (Vite + HMR) reste derrière le profil `web` pour garder un `up` minimal :
+#   docker compose -f infra/docker-compose.yml --profile web up
 #
 # Ports exposés côté hôte (choisis pour ne pas entrer en conflit avec d'autres piles) :
 #   API      -> http://localhost:8000
@@ -85,7 +85,8 @@ services:
       dockerfile: Dockerfile
       target: dev
     environment:
-      VITE_API_BASE_URL: http://localhost:8000
+      # Le SPA appelle l'API via le proxy Vite (/v1 -> api:8000) en dev.
+      VITE_API_PROXY: http://api:8000
     volumes:
       - ../web:/app
       - /app/node_modules

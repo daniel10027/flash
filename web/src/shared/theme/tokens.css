@@ -1,0 +1,120 @@
+/* Généré par scripts/build-tokens.mjs — ne pas éditer à la main. */
+:root {
+  --color-brand-50: #fbeef0;
+  --color-brand-100: #f4ccd2;
+  --color-brand-200: #e79aa6;
+  --color-brand-300: #d76678;
+  --color-brand-400: #c23d54;
+  --color-brand-500: #8c1d33;
+  --color-brand-600: #7a1a2d;
+  --color-brand-700: #621525;
+  --color-brand-800: #4b101c;
+  --color-brand-900: #360b14;
+  --color-accent-300: #7cd4c0;
+  --color-accent-500: #12a594;
+  --color-accent-700: #0c7a6d;
+  --color-neutral-0: #ffffff;
+  --color-neutral-50: #f7f7f8;
+  --color-neutral-100: #ededf0;
+  --color-neutral-200: #dcdce1;
+  --color-neutral-300: #c2c2cb;
+  --color-neutral-400: #9a9aa6;
+  --color-neutral-500: #727282;
+  --color-neutral-600: #54545f;
+  --color-neutral-700: #3c3c45;
+  --color-neutral-800: #26262c;
+  --color-neutral-900: #161619;
+  --color-success-fg: #0c7a3f;
+  --color-success-bg: #e6f4ea;
+  --color-warning-fg: #8a5a00;
+  --color-warning-bg: #fbf0dc;
+  --color-danger-fg: #a4152b;
+  --color-danger-bg: #fbe9ec;
+  --color-info-fg: #0b5c9c;
+  --color-info-bg: #e7f1fb;
+  --font-sans: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', 'SFMono-Regular', ui-monospace, monospace;
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.375rem;
+  --text-2xl: 1.75rem;
+  --text-3xl: 2.25rem;
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+  --leading-tight: 1.2;
+  --leading-normal: 1.5;
+  --leading-relaxed: 1.7;
+  --space-0: 0;
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-8: 3rem;
+  --space-10: 4rem;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-full: 999px;
+  --shadow-sm: 0 1px 2px rgba(22, 22, 25, 0.08);
+  --shadow-md: 0 4px 12px rgba(22, 22, 25, 0.1);
+  --shadow-lg: 0 12px 32px rgba(22, 22, 25, 0.16);
+  --duration-fast: 120ms;
+  --duration-base: 200ms;
+  --duration-slow: 320ms;
+  --z-nav: 100;
+  --z-sheet: 200;
+  --z-toast: 300;
+  --z-modal: 400;
+
+  /* Rôles sémantiques — thème clair */
+  --bg: var(--color-neutral-50);
+  --bg-elevated: var(--color-neutral-0);
+  --bg-sunken: var(--color-neutral-100);
+  --fg: var(--color-neutral-900);
+  --fg-muted: var(--color-neutral-500);
+  --border: var(--color-neutral-200);
+  --primary: var(--color-brand-500);
+  --primary-hover: var(--color-brand-600);
+  --primary-fg: var(--color-neutral-0);
+  --focus-ring: var(--color-brand-400);
+}
+
+:root[data-theme='dark'],
+:root[data-theme='system'] {
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-theme='system'] {
+    --bg: var(--color-neutral-900);
+    --bg-elevated: var(--color-neutral-800);
+    --bg-sunken: #0f0f12;
+    --fg: var(--color-neutral-50);
+    --fg-muted: var(--color-neutral-400);
+    --border: var(--color-neutral-700);
+    --primary: var(--color-brand-300);
+    --primary-hover: var(--color-brand-200);
+    --primary-fg: var(--color-neutral-900);
+    --focus-ring: var(--color-brand-300);
+  }
+}
+
+:root[data-theme='dark'] {
+  --bg: var(--color-neutral-900);
+  --bg-elevated: var(--color-neutral-800);
+  --bg-sunken: #0f0f12;
+  --fg: var(--color-neutral-50);
+  --fg-muted: var(--color-neutral-400);
+  --border: var(--color-neutral-700);
+  --primary: var(--color-brand-300);
+  --primary-hover: var(--color-brand-200);
+  --primary-fg: var(--color-neutral-900);
+  --focus-ring: var(--color-brand-300);
+}

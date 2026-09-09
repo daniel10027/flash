@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="fr" data-theme="system">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#8c1d33" />
+    <meta name="description" content="Flash — envoyez, payez, épargnez, instantanément." />
+    <title>Flash</title>
+    <!-- Config runtime injectée par l'image Docker (WEB-011) : /config.js est généré
+         au démarrage du conteneur. Absent en dev → le bloc de secours ci-dessous prend le relais. -->
+    <script src="/config.js"></script>
+    <script>
+      window.__FLASH_CONFIG__ = window.__FLASH_CONFIG__ || {
+        API_BASE_URL: '',
+        ENV: 'development',
+        SENTRY_DSN: '',
+      };
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <noscript>Flash nécessite JavaScript pour fonctionner.</noscript>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

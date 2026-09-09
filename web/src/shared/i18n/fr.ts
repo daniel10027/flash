@@ -1,0 +1,56 @@
+export const fr = {
+  common: {
+    appName: 'Flash',
+    retry: 'Réessayer',
+    cancel: 'Annuler',
+    confirm: 'Confirmer',
+    continue: 'Continuer',
+    back: 'Retour',
+    loading: 'Chargement…',
+    search: 'Rechercher',
+    save: 'Enregistrer',
+    close: 'Fermer',
+  },
+  nav: {
+    home: 'Accueil',
+    send: 'Envoyer',
+    pay: 'Payer',
+    history: 'Historique',
+    vault: 'Coffre',
+    savings: 'Épargne',
+    card: 'Carte',
+    profile: 'Profil',
+    notifications: 'Notifications',
+    logout: 'Se déconnecter',
+  },
+  auth: {
+    signIn: 'Se connecter',
+    signUp: 'Créer un compte',
+    phone: 'Numéro de téléphone',
+    pin: 'Code secret',
+    otp: 'Code de vérification',
+    forgotPin: 'Code secret oublié ?',
+  },
+  balance: {
+    title: 'Solde disponible',
+    hidden: '••••••',
+    show: 'Afficher le solde',
+    hide: 'Masquer le solde',
+  },
+  errors: {
+    generic: 'Une erreur est survenue.',
+    network: 'Connexion au serveur impossible.',
+    notFound: 'Page introuvable',
+    notFoundBody: 'Cette page n’existe pas ou a été déplacée.',
+    server: 'Le service est momentanément indisponible.',
+    boundary: 'L’application a rencontré un problème.',
+  },
+  a11y: {
+    skipToContent: 'Aller au contenu',
+    openMenu: 'Ouvrir le menu',
+    closeMenu: 'Fermer le menu',
+    theme: 'Thème',
+  },
+} as const;
+
+export type Translations = typeof fr;
