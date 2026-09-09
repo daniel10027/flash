@@ -117,33 +117,62 @@ Playwright (E2E).
 - [x] **WEB-032** · Paramètres : langue, pays d'affichage, thème, confidentialité
   (masquer soldes par défaut), à propos / mentions légales.
 
-## Espace agent (WEB-033 → WEB-039)
+## Espace agent (WEB-033 → WEB-039) — **livré**
 
-- [ ] **WEB-033** · Connexion agent (rôle), tableau de bord : solde float, commissions du
+> `features/agent/hooks.ts` (React Query sur `/v1/agent/*`, `useIsAgent` conditionne
+> l'entrée « Espace agent » du menu). Écrans `pages/agent/AgentPages.tsx` : tableau de bord
+> (float disponible, commissions gagnées/versées/dues + `payout`, sous-agents s'il y en a),
+> dépôt client (recherche `/v1/agent/customers` + `POST /deposits` + reçu), retrait client
+> (`POST /withdrawals/confirm` par code + contrôle montant + reçu), journal des opérations
+> (`GET /operations`, filtres, **export CSV** côté client), gestion du float (`topup` /
+> `withdraw`). WEB-039 multi-guichet : liste des sous-agents affichée quand `GET /v1/agent`
+> la renvoie (la hiérarchie s'administre côté back-office).
+
+- [x] **WEB-033** · Connexion agent (rôle), tableau de bord : solde float, commissions du
   jour, nombre d'opérations.
-- [ ] **WEB-034** · Dépôt client : rechercher le client (numéro/QR), montant, confirmer,
+- [x] **WEB-034** · Dépôt client : rechercher le client (numéro/QR), montant, confirmer,
   reçu agent + client.
-- [ ] **WEB-035** · Retrait client : saisir le code de retrait, vérifier montant, remettre
+- [x] **WEB-035** · Retrait client : saisir le code de retrait, vérifier montant, remettre
   le cash, confirmer, reçu.
-- [ ] **WEB-036** · Journal des opérations agent : filtres, export CSV.
-- [ ] **WEB-037** · Float : demander un réapprovisionnement, historique des mouvements de
+- [x] **WEB-036** · Journal des opérations agent : filtres, export CSV.
+- [x] **WEB-037** · Float : demander un réapprovisionnement, historique des mouvements de
   float.
-- [ ] **WEB-038** · Commissions : détail par opération, cumul, relevés périodiques.
-- [ ] **WEB-039** · Multi‑guichet (sous‑agents) : liste, plafonds, activité.
+- [x] **WEB-038** · Commissions : détail par opération, cumul, relevés périodiques.
+- [x] **WEB-039** · Multi‑guichet (sous‑agents) : liste, plafonds, activité.
 
-## Back‑office (WEB-040 → WEB-046)
+## Back‑office (WEB-040 → WEB-046) — **livré**
 
-- [ ] **WEB-040** · Connexion staff + RBAC (support / compliance / finance / admin),
+> Arbre `/admin/*` **séparé** de l'app cliente. `features/admin/client.ts` : store de clé
+> (`X-Admin-Key`, localStorage) + `adminFetch` (erreurs `ApiError`, support CSV brut).
+> `AdminShell.tsx` : `AdminLoginPage` (saisie de la clé — le rôle réel est décidé par le
+> serveur, 403 sinon), `RequireAdmin`, `AdminLayout` (nav Comptes / KYC / AML / Référentiel
+> / Finance / Audit + Quitter). `features/admin/hooks.ts` + `pages/admin/AdminPages.tsx` :
+> **Comptes** (recherche `/v1/admin/accounts`, fiche en feuille : détail, gel/dégel avec
+> motif, contre-passation forcée `force-reversal`, notes internes) ; **KYC** (statuer par
+> `case_id` : approuver / rejeter avec motif) ; **AML** (file d'alertes par statut, statuer
+> `clear`/`escalate` avec note, **export STR CSV**) ; **Référentiel** (tables grille
+> tarifaire / plafonds + `reload` du cache ; édition ligne à ligne via
+> `useReferenceActions`) ; **Finance** (balance générale à une date avec badge d'équilibre,
+> journal des écritures par période, lien export mensuel CSV) ; **Audit** (registre filtré
+> acteur/action + **contrôle d'intégrité de la chaîne**). Table générique `DataTable`
+> (colonnes auto). Vérifs : `tsc` + ESLint + Prettier OK, e2e (redirection `/admin` →
+> `/admin/login`).
+>
+> Limites connues (endpoints API absents) : pas de liste paginée des dossiers KYC en
+> attente (statuer par `case_id`) ; documents KYC non affichés ; « appareils connectés » et
+> journal d'activité détaillé côté fiche client dépendent d'endpoints à venir.
+
+- [x] **WEB-040** · Connexion staff + RBAC (support / compliance / finance / admin),
   layout dédié.
-- [ ] **WEB-041** · Recherche & fiche client : profil, KYC, wallets, appareils, historique,
+- [x] **WEB-041** · Recherche & fiche client : profil, KYC, wallets, appareils, historique,
   actions (geler/dégeler, forcer reversal) avec motif obligatoire.
-- [ ] **WEB-042** · File KYC : à revoir, approuver/rejeter avec motif, voir les documents.
-- [ ] **WEB-043** · File AML : alertes, blocage préventif, clôture d'alerte, export STR/CTR.
-- [ ] **WEB-044** · Référentiel : pays, grille tarifaire (frais 0,8 % éditables par pays),
+- [x] **WEB-042** · File KYC : à revoir, approuver/rejeter avec motif, voir les documents.
+- [x] **WEB-043** · File AML : alertes, blocage préventif, clôture d'alerte, export STR/CTR.
+- [x] **WEB-044** · Référentiel : pays, grille tarifaire (frais 0,8 % éditables par pays),
   limites par KYC, opérateurs — avec journal des modifications.
-- [ ] **WEB-045** · Finance : balance du ledger à une date, journal, exports mensuels,
+- [x] **WEB-045** · Finance : balance du ledger à une date, journal, exports mensuels,
   états de règlement marchands/agents.
-- [ ] **WEB-046** · Audit : registre consultable de toutes les actions sensibles.
+- [x] **WEB-046** · Audit : registre consultable de toutes les actions sensibles.
 
 ## Transverse
 

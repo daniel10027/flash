@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { useTheme } from '@app/theme';
 import { useSession } from '@shared/auth/session';
 import { usePrimaryWallet, useNotifications } from '@shared/api/hooks';
+import { useIsAgent } from '@features/agent/hooks';
 import { formatMoney } from '@shared/i18n/format';
 import { usePrivacy } from './privacy';
 import './layout.css';
@@ -39,6 +40,7 @@ export function AppLayout() {
   const { wallet } = usePrimaryWallet();
   const notifs = useNotifications();
   const unread = (notifs.data?.notifications ?? []).filter((n) => !n.read_at).length;
+  const isAgent = useIsAgent();
 
   return (
     <div className="layout">
@@ -111,19 +113,21 @@ export function AppLayout() {
 
         {menuOpen && (
           <div className="menu" role="menu">
-            {SECONDARY.map((s) => (
-              <button
-                key={s.to}
-                type="button"
-                role="menuitem"
-                onClick={() => {
-                  setMenuOpen(false);
-                  navigate(s.to);
-                }}
-              >
-                {s.label}
-              </button>
-            ))}
+            {[...SECONDARY, ...(isAgent ? [{ to: '/agent', label: 'Espace agent' }] : [])].map(
+              (s) => (
+                <button
+                  key={s.to}
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    navigate(s.to);
+                  }}
+                >
+                  {s.label}
+                </button>
+              ),
+            )}
             <hr style={{ border: 0, borderTop: '1px solid var(--border)', margin: '4px 0' }} />
             <button type="button" role="menuitem" onClick={() => theme.cycle()}>
               {t('a11y.theme')} : {theme.mode}

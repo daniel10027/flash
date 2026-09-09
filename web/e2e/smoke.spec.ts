@@ -31,3 +31,9 @@ test('la connexion propose la création de compte', async ({ page }) => {
   await expect(page).toHaveURL(/\/register$/);
   await expect(page.getByRole('heading', { name: 'Créer un compte' })).toBeVisible();
 });
+
+test('le back-office exige une clé et redirige vers /admin/login', async ({ page }) => {
+  await page.goto('/admin');
+  await expect(page).toHaveURL(/\/admin\/login$/);
+  await expect(page.getByRole('heading', { name: 'Back-office Flash' })).toBeVisible();
+});

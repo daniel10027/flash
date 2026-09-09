@@ -20,6 +20,22 @@ import { ProfilePage } from '@pages/ProfilePage';
 import { NotificationsPage } from '@pages/NotificationsPage';
 import { UiGalleryPage } from '@pages/UiGalleryPage';
 import { NotFoundPage, RouteErrorPage } from '@pages/ErrorPages';
+import {
+  AgentDashboardPage,
+  AgentDepositPage,
+  AgentFloatPage,
+  AgentOperationsPage,
+  AgentWithdrawPage,
+} from '@pages/agent/AgentPages';
+import { AdminLayout, AdminLoginPage, RequireAdmin } from '@pages/admin/AdminShell';
+import {
+  AdminAccountsPage,
+  AdminAmlPage,
+  AdminAuditPage,
+  AdminFinancePage,
+  AdminKycPage,
+  AdminReferencePage,
+} from '@pages/admin/AdminPages';
 
 function SessionExpiryBridge() {
   const navigate = useNavigate();
@@ -56,6 +72,11 @@ const router = createBrowserRouter([
       { path: 'card', element: <CardPage /> },
       { path: 'notifications', element: <NotificationsPage /> },
       { path: 'profile', element: <ProfilePage /> },
+      { path: 'agent', element: <AgentDashboardPage /> },
+      { path: 'agent/deposit', element: <AgentDepositPage /> },
+      { path: 'agent/withdraw', element: <AgentWithdrawPage /> },
+      { path: 'agent/operations', element: <AgentOperationsPage /> },
+      { path: 'agent/float', element: <AgentFloatPage /> },
       { path: 'ui', element: <UiGalleryPage /> },
     ],
   },
@@ -74,6 +95,24 @@ const router = createBrowserRouter([
         <RegisterPage />
       </RedirectIfAuthed>
     ),
+  },
+  { path: '/admin/login', element: <AdminLoginPage /> },
+  {
+    path: '/admin',
+    element: (
+      <RequireAdmin>
+        <AdminLayout />
+      </RequireAdmin>
+    ),
+    errorElement: <RouteErrorPage />,
+    children: [
+      { index: true, element: <AdminAccountsPage /> },
+      { path: 'kyc', element: <AdminKycPage /> },
+      { path: 'aml', element: <AdminAmlPage /> },
+      { path: 'reference', element: <AdminReferencePage /> },
+      { path: 'finance', element: <AdminFinancePage /> },
+      { path: 'audit', element: <AdminAuditPage /> },
+    ],
   },
   { path: '/404', element: <NotFoundPage /> },
   { path: '*', element: <Navigate to="/404" replace /> },
