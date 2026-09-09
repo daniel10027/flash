@@ -20,6 +20,10 @@ from flash.domain.card.events import (
 from flash.domain.cash.events import CashDepositCompleted, CashWithdrawalConfirmed
 from flash.domain.identity.events import KycCaseApproved, KycCaseRejected
 from flash.domain.merchants.events import MerchantPaymentCompleted, MerchantPaymentRefunded
+from flash.domain.operators.events import (
+    OperatorTransferFailed,
+    OperatorTransferSucceeded,
+)
 from flash.domain.savings.events import (
     SavingsContributionSkipped,
     SavingsInterestCapitalised,
@@ -239,6 +243,31 @@ def _savings_closed(e: SavingsPlanClosed) -> list[_Spec]:
     ]
 
 
+def _operator_succeeded(e: OperatorTransferSucceeded) -> list[_Spec]:
+    amount = _money(e.amount_minor, e.currency)
+    ref = {"reference": e.reference, "operator": e.operator}
+    if e.direction == "PAYOUT":
+        title, body = "Envoi opérateur effectué", f"{amount} envoyés vers {e.msisdn_masked}."
+    else:
+        net = _money(e.amount_minor - e.fee_minor, e.currency)
+        title, body = "Rechargement reçu", f"{net} crédités depuis {e.msisdn_masked}."
+    return [(e.user_id, NotificationKind.OPERATOR, title, body, ref)]
+
+
+def _operator_failed(e: OperatorTransferFailed) -> list[_Spec]:
+    amount = _money(e.amount_minor, e.currency)
+    verb = "L'envoi" if e.direction == "PAYOUT" else "Le rechargement"
+    return [
+        (
+            e.user_id,
+            NotificationKind.OPERATOR,
+            "Opération opérateur échouée",
+            f"{verb} de {amount} a échoué ({e.reason}). Les fonds réservés sont rendus.",
+            {"reference": e.reference},
+        )
+    ]
+
+
 def _card_authorized(e: CardPaymentAuthorized) -> list[_Spec]:
     where = f" chez {e.merchant_name}" if e.merchant_name else ""
     return [
@@ -331,6 +360,8 @@ _BUILDERS: dict[type[DomainEvent], Callable[[Any], list[_Spec]]] = {
     CardPaymentDeclined: _card_declined,
     CardFrozen: _card_frozen,
     CardPaymentRefunded: _card_refunded,
+    OperatorTransferSucceeded: _operator_succeeded,
+    OperatorTransferFailed: _operator_failed,
 }
 
 

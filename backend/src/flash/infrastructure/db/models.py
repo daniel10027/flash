@@ -272,6 +272,35 @@ class AuditEntryModel(Base):
     )
 
 
+class OperatorTransferModel(Base):
+    __tablename__ = "operator_transfers"
+
+    id: Mapped[str] = mapped_column(_UUID, primary_key=True)
+    user_id: Mapped[str] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
+    )
+    wallet_id: Mapped[str] = mapped_column(_UUID, nullable=False)
+    operator: Mapped[str] = mapped_column(String(32), nullable=False)
+    direction: Mapped[str] = mapped_column(String(8), nullable=False)
+    msisdn: Mapped[str] = mapped_column(String(20), nullable=False)
+    amount_minor: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    fee_minor: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
+    currency: Mapped[str] = mapped_column(_CCY, nullable=False)
+    reference: Mapped[str] = mapped_column(String(64), nullable=False)
+    external_ref: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    status: Mapped[str] = mapped_column(String(12), nullable=False)
+    failure_reason: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(TZDateTime, nullable=False)
+    resolved_at: Mapped[datetime | None] = mapped_column(TZDateTime, nullable=True)
+    ledger_transaction_id: Mapped[str | None] = mapped_column(_UUID, nullable=True)
+
+    __table_args__ = (
+        UniqueConstraint("reference"),
+        CheckConstraint("amount_minor > 0", name="operator_transfer_amount_positive"),
+        Index("ix_operator_transfers_user_id", "user_id"),
+    )
+
+
 class LedgerAccountModel(Base):
     __tablename__ = "ledger_accounts"
 
@@ -601,6 +630,7 @@ __all__ = [
     "MerchantPaymentModel",
     "NotificationModel",
     "OperatorModel",
+    "OperatorTransferModel",
     "OutboxModel",
     "PaymentRequestModel",
     "PhoneNumberModel",

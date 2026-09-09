@@ -21,6 +21,7 @@ from flash.domain.ledger.transaction import LedgerTransaction
 from flash.domain.merchants.charge import MerchantCharge, MerchantChargeStatus
 from flash.domain.merchants.merchant import Merchant
 from flash.domain.merchants.payment import MerchantPayment
+from flash.domain.operators.transfer import OperatorTransfer
 from flash.domain.payments.request import PaymentRequest, PaymentRequestStatus
 from flash.domain.savings.plan import SavingsPlan, SavingsPlanStatus
 from flash.domain.shared.errors import PhoneNumberAlreadyLinked
@@ -644,6 +645,46 @@ class InMemoryCardAuthorizationRepository(_Tracking):
         self._track(authorization)
 
 
+class InMemoryOperatorTransferRepository(_Tracking):
+    def __init__(self) -> None:
+        super().__init__()
+        self._by_id: dict[str, OperatorTransfer] = {}
+
+    def get(self, transfer_id: EntityId) -> OperatorTransfer | None:
+        transfer = self._by_id.get(str(transfer_id))
+        if transfer is not None:
+            self._track(transfer)
+        return transfer
+
+    def get_by_reference(self, reference: str) -> OperatorTransfer | None:
+        for transfer in self._by_id.values():
+            if transfer.reference == reference:
+                self._track(transfer)
+                return transfer
+        return None
+
+    def get_for_update_by_reference(self, reference: str) -> OperatorTransfer:
+        transfer = self.get_by_reference(reference)
+        if transfer is None:
+            raise KeyError(reference)
+        return transfer
+
+    def list_for_user(self, user_id: EntityId) -> list[OperatorTransfer]:
+        rows = [t for t in self._by_id.values() if t.user_id == user_id]
+        rows.sort(key=lambda t: t.created_at, reverse=True)
+        for t in rows:
+            self._track(t)
+        return rows
+
+    def add(self, transfer: OperatorTransfer) -> None:
+        self._by_id[str(transfer.id)] = transfer
+        self._track(transfer)
+
+    def save(self, transfer: OperatorTransfer) -> None:
+        self._by_id[str(transfer.id)] = transfer
+        self._track(transfer)
+
+
 class InMemoryUnitOfWork:
     """Frontière transactionnelle en mémoire."""
 
@@ -664,6 +705,7 @@ class InMemoryUnitOfWork:
         savings: InMemorySavingsPlanRepository | None = None,
         cards: InMemoryCardRepository | None = None,
         card_authorizations: InMemoryCardAuthorizationRepository | None = None,
+        operator_transfers: InMemoryOperatorTransferRepository | None = None,
     ) -> None:
         self.users = users or InMemoryUserRepository()
         self.wallets = wallets or InMemoryWalletRepository()
@@ -679,6 +721,9 @@ class InMemoryUnitOfWork:
         self.savings = savings or InMemorySavingsPlanRepository()
         self.cards = cards or InMemoryCardRepository()
         self.card_authorizations = card_authorizations or InMemoryCardAuthorizationRepository()
+        self.operator_transfers = (
+            operator_transfers or InMemoryOperatorTransferRepository()
+        )
         self.committed = False
         self.rolled_back = False
         self._extra_events: list[DomainEvent] = []
@@ -717,6 +762,7 @@ class InMemoryUnitOfWork:
             *self.savings.seen,
             *self.cards.seen,
             *self.card_authorizations.seen,
+            *self.operator_transfers.seen,
         ):
             events.extend(aggregate.pull_events())
         events.extend(self._extra_events)
@@ -734,6 +780,7 @@ __all__ = [
     "InMemoryMerchantChargeRepository",
     "InMemoryMerchantPaymentRepository",
     "InMemoryMerchantRepository",
+    "InMemoryOperatorTransferRepository",
     "InMemoryPaymentRequestRepository",
     "InMemorySavingsPlanRepository",
     "InMemoryUnitOfWork",

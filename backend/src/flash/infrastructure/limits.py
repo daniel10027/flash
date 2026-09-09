@@ -48,6 +48,8 @@ _OPERATIONS = (
     OperationType.MERCHANT_PAYMENT,
     OperationType.CASH_DEPOSIT,
     OperationType.CASH_WITHDRAWAL,
+    OperationType.OPERATOR_PAYOUT,
+    OperationType.OPERATOR_COLLECT,
 )
 
 

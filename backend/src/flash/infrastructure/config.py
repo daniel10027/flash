@@ -72,6 +72,7 @@ class Settings(BaseSettings):
 
     # --- passerelles externes
     operator_gateway: str = Field(default="sandbox", alias="OPERATOR_GATEWAY")
+    operator_webhook_secret: str = Field(default="", alias="OPERATOR_WEBHOOK_SECRET")
     card_issuer: str = Field(default="sandbox", alias="CARD_ISSUER")
     bank_gateway: str = Field(default="sandbox", alias="BANK_GATEWAY")
 

@@ -245,14 +245,24 @@ Chaque tâche livrée : code complet + tests + doc, **zéro `TODO`**.
 - [x] **BE-063** · Grille tarifaire réellement par pays : CI transfert 0,8 % (80 bps),
   **SN 1,0 %** (preuve de généricité), CM/GA 0,9 % **en XAF** ; paiement marchand gratuit
   partout. Plafonds `limits` déclinés en XOF (UEMOA) et XAF (CEMAC). Tests par pays.
-- [ ] **BE-064** · Port `OperatorGateway` + `SandboxOperatorGateway` : `payout` (Flash →
-  Orange/MTN/Moov) et `collect` (opérateur → Flash), statuts asynchrones + webhooks.
-- [ ] **BE-065** · `SendToOperatorAccount` (retrait interopérable) : réserve, appel
-  `payout`, `operator_suspense`, réconciliation sur callback ; échec → reversal.
-- [ ] **BE-066** · `TopUpFromOperator` (dépôt depuis un compte opérateur) via `collect` +
-  webhook signé.
-- [ ] **BE-067** · Webhooks opérateurs `POST /v1/operators/{op}/callbacks` (signature,
-  rejeu, idempotence, mise à jour du suspense).
+- [x] **BE-064** · Port `application/operators/ports.py::OperatorGateway` (`payout` /
+  `collect` → `GatewayAck` accepted + external_ref, **asynchrone**) +
+  `SandboxOperatorGateway` (déterministe). Agrégat `OperatorTransfer` (PENDING →
+  SUCCEEDED / FAILED, idempotent) + events + `LedgerTransaction.operator_payout` /
+  `operator_collect` (via `OPERATOR_SUSPENSE`). Grille `OPERATOR_PAYOUT` 1,5 % /
+  `OPERATOR_COLLECT` 1 % par pays.
+- [x] **BE-065** · `SendToOperatorAccount` : `wallet.reserve(amount + fee)`, appel
+  `gateway.payout`, `OperatorTransfer` PENDING ; refus passerelle → `release` +
+  `OperatorGatewayRejected`. Résolution sur callback : `SUCCEEDED` → `settle_reservation`
+  + écriture ledger ; `FAILED` → `release`. Idempotent (`Idempotency-Key`).
+- [x] **BE-066** · `TopUpFromOperator` : `OperatorTransfer` COLLECT PENDING (aucun
+  mouvement de portefeuille) ; `SUCCEEDED` → `wallet.credit(amount - fee)` +
+  `operator_collect`. Blueprint `POST /v1/operators/topups`.
+- [x] **BE-067** · `HandleOperatorCallback` + webhook signé
+  `POST /v1/operators/{operator}/callbacks` (`require_operator_webhook` HMAC du corps
+  brut, `OPERATOR_WEBHOOK_SECRET`). Idempotent par `reference` (rejeu → `applied:false`) ;
+  refus 422 si opérateur ≠ émetteur ou référence inconnue. Table `operator_transfers`,
+  migration `b6c1e9d47f20`.
 - [ ] **BE-068** · `domain/merchant/` : `Merchant` (catégorie, comptes de règlement,
   frais négociés, sous‑comptes caisses/employés).
 - [ ] **BE-069** · Onboarding marchand + KYB, génération QR marchand (statique + affiche

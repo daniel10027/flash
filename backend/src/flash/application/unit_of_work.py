@@ -19,6 +19,7 @@ from flash.domain.merchants.ports import (
     MerchantPaymentRepository,
     MerchantRepository,
 )
+from flash.domain.operators.ports import OperatorTransferRepository
 from flash.domain.payments.ports import PaymentRequestRepository
 from flash.domain.savings.ports import SavingsPlanRepository
 from flash.domain.shared.events import DomainEvent
@@ -71,6 +72,9 @@ class WorkUnitOfWork(Protocol):
 
     @property
     def card_authorizations(self) -> CardAuthorizationRepository: ...
+
+    @property
+    def operator_transfers(self) -> OperatorTransferRepository: ...
 
     def __enter__(self) -> WorkUnitOfWork: ...
 

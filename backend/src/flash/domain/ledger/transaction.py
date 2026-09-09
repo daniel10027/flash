@@ -516,6 +516,72 @@ class LedgerTransaction:
             metadata=metadata or {},
         )
 
+    @classmethod
+    def operator_payout(
+        cls,
+        *,
+        id: EntityId,
+        occurred_at: datetime,
+        reference: str,
+        client_account_id: EntityId,
+        client_wallet_id: EntityId,
+        operator_suspense_account_id: EntityId,
+        fee_income_account_id: EntityId,
+        amount: Money,
+        fee: Money,
+        metadata: Mapping[str, Any] | None = None,
+    ) -> LedgerTransaction:
+        """Envoi vers un opérateur : le client paie ``amount + fee`` ; ``amount`` part en
+        transit vers l'opérateur (``OPERATOR_SUSPENSE``), ``fee`` va à Flash."""
+        postings = [
+            _debit(client_account_id, amount + fee, wallet_id=client_wallet_id),
+            _credit(operator_suspense_account_id, amount),
+        ]
+        if fee.is_positive:
+            postings.append(_credit(fee_income_account_id, fee))
+        return LedgerTransaction(
+            id=id,
+            kind=TransactionKind.OPERATOR_PAYOUT,
+            postings=tuple(postings),
+            occurred_at=occurred_at,
+            reference=reference,
+            reason="Envoi vers un compte opérateur",
+            metadata=metadata or {},
+        )
+
+    @classmethod
+    def operator_collect(
+        cls,
+        *,
+        id: EntityId,
+        occurred_at: datetime,
+        reference: str,
+        operator_suspense_account_id: EntityId,
+        client_account_id: EntityId,
+        client_wallet_id: EntityId,
+        fee_income_account_id: EntityId,
+        amount: Money,
+        fee: Money,
+        metadata: Mapping[str, Any] | None = None,
+    ) -> LedgerTransaction:
+        """Rechargement depuis un opérateur : ``amount`` arrive en transit, le client est
+        crédité ``amount - fee``, Flash encaisse ``fee``."""
+        postings = [
+            _debit(operator_suspense_account_id, amount),
+            _credit(client_account_id, amount - fee, wallet_id=client_wallet_id),
+        ]
+        if fee.is_positive:
+            postings.append(_credit(fee_income_account_id, fee))
+        return LedgerTransaction(
+            id=id,
+            kind=TransactionKind.OPERATOR_COLLECT,
+            postings=tuple(postings),
+            occurred_at=occurred_at,
+            reference=reference,
+            reason="Rechargement depuis un compte opérateur",
+            metadata=metadata or {},
+        )
+
     @staticmethod
     def reversal(
         *,

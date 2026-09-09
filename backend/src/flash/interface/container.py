@@ -17,6 +17,7 @@ from flash.application.cash.ports import WithdrawalCodes
 from flash.application.identity.documents import DocumentStore
 from flash.application.notifications.dispatcher import NotificationDispatcher
 from flash.application.notifications.ports import NotificationBus, NotificationRepository
+from flash.application.operators.ports import OperatorGateway
 from flash.application.ports import OtpService
 from flash.application.services import AppServices
 from flash.domain.audit.ports import AuditLog
@@ -48,6 +49,7 @@ from flash.infrastructure.notifications import (
     LoggingNotificationChannel,
     SmtpEmailChannel,
 )
+from flash.infrastructure.operator_gateway import SandboxOperatorGateway
 from flash.infrastructure.otp import ConsoleOtpChannel, RedisOtpService
 from flash.infrastructure.pricing import build_pricing_repository
 from flash.infrastructure.reference import (
@@ -86,6 +88,8 @@ class Deps:
     card_webhook_secret: str
     card_daily_limit_minor: int
     card_monthly_limit_minor: int
+    operator_gateway: OperatorGateway
+    operator_webhook_secret: str
 
 
 def build_app_services(settings: Settings) -> AppServices:
@@ -160,6 +164,8 @@ def build_deps(settings: Settings, *, tokens: TokenService) -> Deps:
         card_webhook_secret=settings.card_webhook_secret,
         card_daily_limit_minor=settings.card_daily_limit_minor,
         card_monthly_limit_minor=settings.card_monthly_limit_minor,
+        operator_gateway=SandboxOperatorGateway(pepper=settings.secret_key),
+        operator_webhook_secret=settings.operator_webhook_secret,
     )
 
 

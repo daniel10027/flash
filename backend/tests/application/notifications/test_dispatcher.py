@@ -17,6 +17,10 @@ from flash.domain.card.events import (
 from flash.domain.cash.events import CashDepositCompleted, CashWithdrawalConfirmed
 from flash.domain.identity.events import KycCaseApproved, KycCaseRejected
 from flash.domain.merchants.events import MerchantPaymentCompleted, MerchantPaymentRefunded
+from flash.domain.operators.events import (
+    OperatorTransferFailed,
+    OperatorTransferSucceeded,
+)
 from flash.domain.savings.events import (
     SavingsContributionSkipped,
     SavingsInterestCapitalised,
@@ -326,6 +330,58 @@ def test_card_events_notify_holder(
     assert "CARD_LIMIT_REACHED" in notes[1].body
     assert "gelée" in notes[2].body
     assert "remboursés" in notes[3].body
+
+
+def test_operator_events_notify_user(
+    dispatcher: NotificationDispatcher, notifier: RecordingNotifier
+) -> None:
+    dispatcher.handle(
+        [
+            OperatorTransferSucceeded(
+                occurred_at=T0,
+                aggregate_id="t-1",
+                user_id="u-1",
+                wallet_id="w-1",
+                operator="ORANGE_CI",
+                direction="PAYOUT",
+                msisdn_masked="+225070***0304",
+                amount_minor=50_000,
+                fee_minor=750,
+                currency="XOF",
+                reference="OPO-1",
+            ),
+            OperatorTransferSucceeded(
+                occurred_at=T0,
+                aggregate_id="t-2",
+                user_id="u-1",
+                wallet_id="w-1",
+                operator="MTN_CI",
+                direction="COLLECT",
+                msisdn_masked="+225050***9999",
+                amount_minor=30_000,
+                fee_minor=300,
+                currency="XOF",
+                reference="OPC-1",
+            ),
+            OperatorTransferFailed(
+                occurred_at=T0,
+                aggregate_id="t-3",
+                user_id="u-1",
+                wallet_id="w-1",
+                operator="ORANGE_CI",
+                direction="PAYOUT",
+                amount_minor=50_000,
+                currency="XOF",
+                reference="OPO-3",
+                reason="TIMEOUT",
+            ),
+        ]
+    )
+    notes = notifier.for_user("u-1")
+    assert [n.kind for n in notes] == [NotificationKind.OPERATOR] * 3
+    assert "envoyés" in notes[0].body
+    assert "29 700 XOF" in notes[1].body  # net de frais
+    assert "échoué" in notes[2].body and "TIMEOUT" in notes[2].body
 
 
 def test_unmapped_event_produces_nothing(

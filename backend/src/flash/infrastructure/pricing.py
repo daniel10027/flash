@@ -57,6 +57,26 @@ def _default_rules() -> list[PricingRule]:
                 percent_bps=0,  # gratuit pour le client
             )
         )
+        rules.append(
+            PricingRule(
+                country=country,
+                operation=OperationType.OPERATOR_PAYOUT,
+                currency=currency,
+                percent_bps=150,  # 1,5 % — interop sortante
+                min_fee=Money(25, currency),
+                rounding=RoundingRule.UP_TO_UNIT,
+            )
+        )
+        rules.append(
+            PricingRule(
+                country=country,
+                operation=OperationType.OPERATOR_COLLECT,
+                currency=currency,
+                percent_bps=100,  # 1,0 % — interop entrante
+                min_fee=Money(10, currency),
+                rounding=RoundingRule.UP_TO_UNIT,
+            )
+        )
     return rules
 
 

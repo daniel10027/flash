@@ -322,6 +322,70 @@ class TestVaultSavingsInterest:
         assert credit.account_id == SAVINGS and credit.analytic == "plan-7"
 
 
+class TestOperatorInterop:
+    def test_payout_balanced_client_pays_amount_plus_fee(self) -> None:
+        txn = LedgerTransaction.operator_payout(
+            id=_id(1),
+            occurred_at=T0,
+            reference="OPO-1",
+            client_account_id=CLIENT,
+            client_wallet_id=W_CLIENT,
+            operator_suspense_account_id=_id(500),
+            fee_income_account_id=FEE_INCOME,
+            amount=xof(50_000),
+            fee=xof(750),
+        )
+        assert txn.kind is TransactionKind.OPERATOR_PAYOUT
+        assert txn.is_balanced and sum_postings(txn.postings) == {"XOF": 0}
+        debit = next(p for p in txn.postings if p.direction is Direction.DEBIT)
+        assert debit.account_id == CLIENT and debit.amount == xof(50_750)
+
+    def test_collect_balanced_client_gets_amount_minus_fee(self) -> None:
+        txn = LedgerTransaction.operator_collect(
+            id=_id(2),
+            occurred_at=T0,
+            reference="OPC-1",
+            operator_suspense_account_id=_id(500),
+            client_account_id=CLIENT,
+            client_wallet_id=W_CLIENT,
+            fee_income_account_id=FEE_INCOME,
+            amount=xof(30_000),
+            fee=xof(300),
+        )
+        assert txn.kind is TransactionKind.OPERATOR_COLLECT
+        assert txn.is_balanced and sum_postings(txn.postings) == {"XOF": 0}
+        credit = next(
+            p for p in txn.postings if p.direction is Direction.CREDIT and p.wallet_id is not None
+        )
+        assert credit.account_id == CLIENT and credit.amount == xof(29_700)
+
+    def test_zero_fee_variants_are_balanced(self) -> None:
+        payout = LedgerTransaction.operator_payout(
+            id=_id(3),
+            occurred_at=T0,
+            reference="OPO-2",
+            client_account_id=CLIENT,
+            client_wallet_id=W_CLIENT,
+            operator_suspense_account_id=_id(500),
+            fee_income_account_id=FEE_INCOME,
+            amount=xof(1_000),
+            fee=xof(0),
+        )
+        collect = LedgerTransaction.operator_collect(
+            id=_id(4),
+            occurred_at=T0,
+            reference="OPC-2",
+            operator_suspense_account_id=_id(500),
+            client_account_id=CLIENT,
+            client_wallet_id=W_CLIENT,
+            fee_income_account_id=FEE_INCOME,
+            amount=xof(1_000),
+            fee=xof(0),
+        )
+        assert payout.is_balanced and len(payout.postings) == 2
+        assert collect.is_balanced and len(collect.postings) == 2
+
+
 class TestReversal:
     def _transfer(self) -> LedgerTransaction:
         return LedgerTransaction.transfer(

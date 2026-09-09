@@ -14,6 +14,7 @@ from flash.infrastructure.documents import InMemoryDocumentStore
 from flash.infrastructure.events import NotifyingEventPublisher
 from flash.infrastructure.limits import NullLimitCounter, build_limit_repository
 from flash.infrastructure.notifications import BusChannel, FanOutNotifier, InAppChannel
+from flash.infrastructure.operator_gateway import SandboxOperatorGateway
 from flash.infrastructure.pricing import build_pricing_repository
 from flash.infrastructure.reference import MutableReferenceDirectory
 from flash.interface.container import Deps
@@ -44,6 +45,7 @@ def build_test_deps(
     admin_api_key: str = "test-admin-key",
     card_webhook_secret: str = "test-card-webhook-secret",
     compliance_api_key: str = "test-compliance-key",
+    operator_webhook_secret: str = "test-operator-webhook-secret",
 ) -> Deps:
     bundle = bundle or build_test_security()
     the_clock = clock or FixedClock()
@@ -91,6 +93,8 @@ def build_test_deps(
         card_webhook_secret=card_webhook_secret,
         card_daily_limit_minor=500_000,
         card_monthly_limit_minor=5_000_000,
+        operator_gateway=SandboxOperatorGateway(pepper="test-operator-pepper"),
+        operator_webhook_secret=operator_webhook_secret,
     )
 
 

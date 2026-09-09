@@ -24,7 +24,11 @@ _MAX_LIMIT = 100
 _DEFAULT_LIMIT = 20
 
 # Opérations où le payeur supporte lui-même les frais (débit = montant + frais).
-_FEE_ON_PAYER = {TransactionKind.TRANSFER, TransactionKind.CASH_OUT}
+_FEE_ON_PAYER = {
+    TransactionKind.TRANSFER,
+    TransactionKind.CASH_OUT,
+    TransactionKind.OPERATOR_PAYOUT,
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -94,7 +98,11 @@ def _project_for_wallets(txn: LedgerTransaction, wallet_ids: set[str]) -> _Proje
 
     counterparty = meta.get("recipient_masked") if is_out else meta.get("sender_masked")
     if counterparty is None:
-        counterparty = meta.get("merchant_name") or meta.get("client_masked")
+        counterparty = (
+            meta.get("merchant_name")
+            or meta.get("client_masked")
+            or meta.get("msisdn_masked")
+        )
 
     return _Projection(
         direction="out" if is_out else "in",

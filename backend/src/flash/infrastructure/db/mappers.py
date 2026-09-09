@@ -27,6 +27,11 @@ from flash.domain.ledger.transaction import LedgerTransaction, Posting, Transact
 from flash.domain.merchants.charge import MerchantCharge, MerchantChargeStatus
 from flash.domain.merchants.merchant import Merchant, MerchantStatus
 from flash.domain.merchants.payment import MerchantPayment, MerchantPaymentStatus
+from flash.domain.operators.transfer import (
+    OperatorTransfer,
+    OperatorTransferDirection,
+    OperatorTransferStatus,
+)
 from flash.domain.payments.request import PaymentRequest, PaymentRequestStatus
 from flash.domain.savings.plan import SavingsFrequency, SavingsPlan, SavingsPlanStatus
 from flash.domain.shared.identifiers import CountryCode, EntityId, Msisdn
@@ -47,6 +52,7 @@ from flash.infrastructure.db.models import (
     MerchantModel,
     MerchantPaymentModel,
     OperatorModel,
+    OperatorTransferModel,
     PaymentRequestModel,
     PhoneNumberModel,
     SavingsPlanModel,
@@ -652,6 +658,53 @@ def card_authorization_to_model(auth: CardAuthorization) -> CardAuthorizationMod
     )
 
 
+def operator_transfer_to_domain(model: OperatorTransferModel) -> OperatorTransfer:
+    currency = Currency.of(model.currency)
+    return OperatorTransfer(
+        id=EntityId(model.id),
+        user_id=EntityId(model.user_id),
+        wallet_id=EntityId(model.wallet_id),
+        operator=model.operator,
+        direction=OperatorTransferDirection(model.direction),
+        msisdn=Msisdn(model.msisdn),
+        amount=Money(model.amount_minor, currency),
+        fee=Money(model.fee_minor, currency),
+        reference=model.reference,
+        status=OperatorTransferStatus(model.status),
+        created_at=model.created_at,
+        currency_code=model.currency,
+        external_ref=model.external_ref,
+        failure_reason=model.failure_reason,
+        resolved_at=model.resolved_at,
+        ledger_transaction_id=(
+            EntityId(model.ledger_transaction_id) if model.ledger_transaction_id else None
+        ),
+    )
+
+
+def operator_transfer_to_model(transfer: OperatorTransfer) -> OperatorTransferModel:
+    return OperatorTransferModel(
+        id=str(transfer.id),
+        user_id=str(transfer.user_id),
+        wallet_id=str(transfer.wallet_id),
+        operator=transfer.operator,
+        direction=transfer.direction.value,
+        msisdn=transfer.msisdn.value,
+        amount_minor=transfer.amount.amount_minor,
+        fee_minor=transfer.fee.amount_minor,
+        currency=transfer.currency_code,
+        reference=transfer.reference,
+        external_ref=transfer.external_ref,
+        status=transfer.status.value,
+        failure_reason=transfer.failure_reason,
+        created_at=transfer.created_at,
+        resolved_at=transfer.resolved_at,
+        ledger_transaction_id=(
+            str(transfer.ledger_transaction_id) if transfer.ledger_transaction_id else None
+        ),
+    )
+
+
 def payment_request_to_domain(model: PaymentRequestModel) -> PaymentRequest:
     currency = Currency.of(model.currency)
     return PaymentRequest(
@@ -709,6 +762,8 @@ __all__ = [
     "merchant_to_domain",
     "merchant_to_model",
     "operator_to_model",
+    "operator_transfer_to_domain",
+    "operator_transfer_to_model",
     "payment_request_to_domain",
     "payment_request_to_model",
     "savings_plan_to_domain",

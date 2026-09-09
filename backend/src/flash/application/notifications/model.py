@@ -19,6 +19,7 @@ class NotificationKind(StrEnum):
     VAULT = "VAULT"  # mouvement de coffre (mise de côté / reprise)
     SAVINGS = "SAVINGS"  # épargne : versement programmé, intérêts, clôture
     CARD = "CARD"  # carte : autorisation, refus, gel, remboursement
+    OPERATOR = "OPERATOR"  # interop opérateur mobile money (envoi / rechargement)
     SECURITY = "SECURITY"  # événement de sécurité (nouvel appareil…)
 
 

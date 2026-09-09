@@ -4198,6 +4198,270 @@
         ]
       }
     },
+    "/v1/operators/{operator}/callbacks": {
+      "post": {
+        "summary": "Callback opérateur : résolution d'un transfert (signé, idempotent)",
+        "tags": [
+          "operators"
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès"
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "reference": {
+                    "maxLength": 64,
+                    "minLength": 4,
+                    "title": "Reference",
+                    "type": "string"
+                  },
+                  "status": {
+                    "pattern": "^(SUCCEEDED|FAILED)$",
+                    "title": "Status",
+                    "type": "string"
+                  },
+                  "external_ref": {
+                    "anyOf": [
+                      {
+                        "maxLength": 64,
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "title": "External Ref"
+                  },
+                  "reason": {
+                    "anyOf": [
+                      {
+                        "maxLength": 120,
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "title": "Reason"
+                  }
+                },
+                "required": [
+                  "reference",
+                  "status"
+                ],
+                "title": "CallbackRequest",
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/operators/transfers": {
+      "get": {
+        "summary": "Mes transferts opérateurs (envois / rechargements)",
+        "tags": [
+          "operators"
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès"
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/v1/operators/payouts": {
+      "post": {
+        "summary": "Envoyer de l'argent vers un compte opérateur (interop sortante)",
+        "tags": [
+          "operators"
+        ],
+        "responses": {
+          "201": {
+            "description": "Succès"
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "operator": {
+                    "maxLength": 32,
+                    "minLength": 2,
+                    "title": "Operator",
+                    "type": "string"
+                  },
+                  "msisdn": {
+                    "maxLength": 20,
+                    "minLength": 8,
+                    "title": "Msisdn",
+                    "type": "string"
+                  },
+                  "amount_minor": {
+                    "examples": [
+                      50000
+                    ],
+                    "exclusiveMinimum": 0,
+                    "title": "Amount Minor",
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "operator",
+                  "msisdn",
+                  "amount_minor"
+                ],
+                "title": "MoveRequest",
+                "type": "object"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 255
+            }
+          }
+        ]
+      }
+    },
+    "/v1/operators/topups": {
+      "post": {
+        "summary": "Recharger son portefeuille depuis un compte opérateur (interop entrante)",
+        "tags": [
+          "operators"
+        ],
+        "responses": {
+          "201": {
+            "description": "Succès"
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "operator": {
+                    "maxLength": 32,
+                    "minLength": 2,
+                    "title": "Operator",
+                    "type": "string"
+                  },
+                  "msisdn": {
+                    "maxLength": 20,
+                    "minLength": 8,
+                    "title": "Msisdn",
+                    "type": "string"
+                  },
+                  "amount_minor": {
+                    "examples": [
+                      50000
+                    ],
+                    "exclusiveMinimum": 0,
+                    "title": "Amount Minor",
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "operator",
+                  "msisdn",
+                  "amount_minor"
+                ],
+                "title": "MoveRequest",
+                "type": "object"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 255
+            }
+          }
+        ]
+      }
+    },
     "/v1/admin/jobs/expire": {
       "post": {
         "summary": "Back-office : expirer les opérations en attente périmées",

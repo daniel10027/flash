@@ -24,6 +24,7 @@ from flash.domain.ledger.transaction import LedgerTransaction
 from flash.domain.merchants.charge import MerchantCharge
 from flash.domain.merchants.merchant import Merchant
 from flash.domain.merchants.payment import MerchantPayment
+from flash.domain.operators.transfer import OperatorTransfer
 from flash.domain.payments.request import PaymentRequest
 from flash.domain.savings.plan import SavingsPlan
 from flash.domain.shared.errors import PhoneNumberAlreadyLinked
@@ -45,6 +46,7 @@ from flash.infrastructure.db.models import (
     MerchantChargeModel,
     MerchantModel,
     MerchantPaymentModel,
+    OperatorTransferModel,
     PaymentRequestModel,
     PhoneNumberModel,
     SavingsPlanModel,
@@ -769,6 +771,55 @@ class SqlAlchemyCardAuthorizationRepository:
         self._tracker.track(authorization)
 
 
+class SqlAlchemyOperatorTransferRepository:
+    def __init__(self, session: Session, tracker: _AggregateTracker) -> None:
+        self._session = session
+        self._tracker = tracker
+
+    def _load(self, model: OperatorTransferModel | None) -> OperatorTransfer | None:
+        if model is None:
+            return None
+        transfer = mappers.operator_transfer_to_domain(model)
+        self._tracker.track(transfer)
+        return transfer
+
+    def get(self, transfer_id: EntityId) -> OperatorTransfer | None:
+        return self._load(self._session.get(OperatorTransferModel, str(transfer_id)))
+
+    def get_by_reference(self, reference: str) -> OperatorTransfer | None:
+        stmt = select(OperatorTransferModel).where(OperatorTransferModel.reference == reference)
+        return self._load(self._session.scalars(stmt).first())
+
+    def get_for_update_by_reference(self, reference: str) -> OperatorTransfer:
+        stmt = (
+            select(OperatorTransferModel)
+            .where(OperatorTransferModel.reference == reference)
+            .with_for_update()
+        )
+        model = self._session.scalars(stmt).first()
+        if model is None:
+            raise KeyError(reference)
+        loaded = self._load(model)
+        assert loaded is not None
+        return loaded
+
+    def list_for_user(self, user_id: EntityId) -> list[OperatorTransfer]:
+        stmt = (
+            select(OperatorTransferModel)
+            .where(OperatorTransferModel.user_id == str(user_id))
+            .order_by(OperatorTransferModel.created_at.desc())
+        )
+        return [t for t in (self._load(m) for m in self._session.scalars(stmt)) if t is not None]
+
+    def add(self, transfer: OperatorTransfer) -> None:
+        self._session.add(mappers.operator_transfer_to_model(transfer))
+        self._tracker.track(transfer)
+
+    def save(self, transfer: OperatorTransfer) -> None:
+        self._session.merge(mappers.operator_transfer_to_model(transfer))
+        self._tracker.track(transfer)
+
+
 def _new_account_id() -> EntityId:
     return EntityId(str(uuid7()))
 
@@ -783,6 +834,7 @@ __all__ = [
     "SqlAlchemyMerchantChargeRepository",
     "SqlAlchemyMerchantPaymentRepository",
     "SqlAlchemyMerchantRepository",
+    "SqlAlchemyOperatorTransferRepository",
     "SqlAlchemyPaymentRequestRepository",
     "SqlAlchemySavingsPlanRepository",
     "SqlAlchemyUserRepository",

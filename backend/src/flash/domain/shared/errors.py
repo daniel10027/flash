@@ -174,6 +174,17 @@ class PocketNotEmpty(DomainError):
     message = "Impossible de supprimer une poche non vide."
 
 
+# ------------------------------------------------------------- interop opérateurs
+class OperatorGatewayRejected(DomainError):
+    code = "OPERATOR_GATEWAY_REJECTED"
+    message = "L'opérateur a refusé l'opération."
+
+
+class OperatorTransferNotResolvable(DomainError):
+    code = "OPERATOR_TRANSFER_NOT_RESOLVABLE"
+    message = "Ce transfert opérateur n'est plus en attente."
+
+
 # -------------------------------------------------------------------------- carte
 class CardNotActive(DomainError):
     code = "CARD_NOT_ACTIVE"
