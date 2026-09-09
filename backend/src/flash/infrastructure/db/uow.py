@@ -25,6 +25,7 @@ from flash.infrastructure.db.repositories import (
     SqlAlchemyCardAuthorizationRepository,
     SqlAlchemyCardRepository,
     SqlAlchemyCashOrderRepository,
+    SqlAlchemyComplianceAlertRepository,
     SqlAlchemyKycCaseRepository,
     SqlAlchemyLedgerRepository,
     SqlAlchemyMerchantApiKeyRepository,
@@ -80,6 +81,7 @@ class SqlAlchemyUnitOfWork:
         self.cards = SqlAlchemyCardRepository(self._session, self)
         self.card_authorizations = SqlAlchemyCardAuthorizationRepository(self._session, self)
         self.operator_transfers = SqlAlchemyOperatorTransferRepository(self._session, self)
+        self.compliance_alerts = SqlAlchemyComplianceAlertRepository(self._session, self)
         self.support_notes = SqlAlchemySupportNoteRepository(self._session, self)
         self.support_tickets = SqlAlchemySupportTicketRepository(self._session, self)
         return self

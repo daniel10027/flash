@@ -584,6 +584,48 @@ class TestMerchantRoundtrip:
             assert uow.merchant_webhooks.list_due(T0) == []
 
 
+class TestComplianceRoundtrip:
+    def test_compliance_alert_persists_and_dedups(
+        self, session_factory: sessionmaker[Session]
+    ) -> None:
+        from flash.domain.compliance.alert import AlertKind, AlertStatus, ComplianceAlert
+
+        clock = FixedClock(T0)
+        user = _new_user("+2250700000081")
+        alert = ComplianceAlert.open(
+            alert_id=EntityId(str(uuid7())),
+            user_id=user.id,
+            kind=AlertKind.VELOCITY,
+            score=70,
+            detail={"count": 22, "volume_minor": 4_000_000},
+            window_key="vel:2026-01-01",
+            now=T0,
+        )
+        with SqlAlchemyUnitOfWork(session_factory, clock) as uow:
+            uow.users.add(user)
+            uow.compliance_alerts.add(alert)
+            uow.commit()
+
+        with SqlAlchemyUnitOfWork(session_factory, clock) as uow:
+            assert uow.compliance_alerts.exists_window(
+                user.id, "VELOCITY", "vel:2026-01-01"
+            )
+            [loaded] = uow.compliance_alerts.list_open()
+            assert loaded.detail["count"] == 22
+            loaded.escalate(analyst="key:compliance", note="STR", now=T0)
+            uow.compliance_alerts.save(loaded)
+            uow.commit()
+
+        with SqlAlchemyUnitOfWork(session_factory, clock) as uow:
+            assert uow.compliance_alerts.list_open() == []
+            [escalated] = uow.compliance_alerts.list_by_status("ESCALATED")
+            assert escalated.status is AlertStatus.ESCALATED
+            window = uow.compliance_alerts.list_between(
+                "2025-12-01T00:00:00+00:00", "2026-12-01T00:00:00+00:00"
+            )
+            assert [a.id for a in window] == [alert.id]
+
+
 class TestBackofficeRoundtrip:
     def test_support_notes_and_tickets_persist(
         self, session_factory: sessionmaker[Session]

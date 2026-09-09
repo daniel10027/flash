@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import timedelta
 
+from flash.application.compliance.detection import AmlThresholds
 from flash.application.merchants.webhooks import MerchantWebhookEnqueuer
 from flash.application.notifications.dispatcher import NotificationDispatcher
 from flash.application.services import AppServices
@@ -107,6 +108,7 @@ def build_test_deps(
         merchant_api_key_vault=Sha256MerchantApiKeyVault("test-merchant-key-pepper"),
         merchant_poster=PillowMerchantPosterRenderer(),
         merchant_webhook_sender=RecordingMerchantWebhookSender(),
+        aml_thresholds=AmlThresholds(),
     )
 
 

@@ -63,6 +63,7 @@ def serve(host: str, port: int) -> None:
 def run_jobs() -> None:
     """Exécute une passe des tâches planifiées (à appeler par cron) : expiration des
     opérations en attente + réconciliation des soldes."""
+    from flash.application.compliance.detection import AmlThresholds, ScanForAmlAlerts
     from flash.application.jobs.agent_commission import PayDueAgentCommissions
     from flash.application.jobs.card_reconcile import ReconcileCardSettlements
     from flash.application.jobs.expire import ExpireStaleOperations
@@ -117,6 +118,23 @@ def run_jobs() -> None:
     click.echo(
         f"commissions agent : {commissions.paid} versées ({commissions.paid_minor} minor), "
         f"{commissions.skipped} reportées (sur {commissions.checked} éligibles)"
+    )
+
+    aml = ScanForAmlAlerts(
+        services=services,
+        thresholds=AmlThresholds(
+            ctr_threshold_minor=settings.aml_ctr_threshold_minor,
+            lookback_hours=settings.aml_lookback_hours,
+            velocity_window_hours=settings.aml_velocity_window_hours,
+            velocity_max_count=settings.aml_velocity_max_count,
+            velocity_max_volume_minor=settings.aml_velocity_max_volume_minor,
+            structuring_window_hours=settings.aml_structuring_window_hours,
+            structuring_min_count=settings.aml_structuring_min_count,
+        ),
+    ).execute()
+    click.echo(
+        f"scan AML : {aml.alerts_opened} alertes ouvertes sur {aml.accounts_flagged} "
+        f"comptes ({aml.transactions_scanned} transactions balayées)"
     )
 
     card_report = ReconcileCardSettlements(services=services).execute()

@@ -6152,6 +6152,180 @@
           }
         }
       }
+    },
+    "/v1/admin/compliance/alerts": {
+      "get": {
+        "summary": "Conformité : file d'alertes AML (ouvertes, ou filtrées par statut)",
+        "tags": [
+          "admin"
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès"
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Conformité : ouvrir une alerte AML manuelle",
+        "tags": [
+          "admin"
+        ],
+        "responses": {
+          "201": {
+            "description": "Succès"
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "user_id": {
+                    "maxLength": 64,
+                    "minLength": 8,
+                    "title": "User Id",
+                    "type": "string"
+                  },
+                  "reason": {
+                    "maxLength": 500,
+                    "minLength": 1,
+                    "title": "Reason",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "user_id",
+                  "reason"
+                ],
+                "title": "ManualAlertRequest",
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/compliance/alerts/{alert_id}/review": {
+      "post": {
+        "summary": "Conformité : clôturer (faux positif) ou escalader (STR + gel du compte)",
+        "tags": [
+          "admin"
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès"
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "decision": {
+                    "examples": [
+                      "clear",
+                      "escalate"
+                    ],
+                    "title": "Decision",
+                    "type": "string"
+                  },
+                  "note": {
+                    "default": "",
+                    "maxLength": 500,
+                    "title": "Note",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "decision"
+                ],
+                "title": "ReviewAlertRequest",
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/compliance/reports/str": {
+      "get": {
+        "summary": "Conformité : export CSV des alertes AML sur une période (STR/CTR)",
+        "tags": [
+          "admin"
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès"
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/jobs/compliance/scan": {
+      "post": {
+        "summary": "Back-office : lancer le scan AML (seuil / structuration / vélocité)",
+        "tags": [
+          "admin"
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès"
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {

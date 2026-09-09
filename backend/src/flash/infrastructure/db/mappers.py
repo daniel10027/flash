@@ -13,6 +13,7 @@ from flash.domain.agent.agent import Agent, AgentStatus
 from flash.domain.card.authorization import CardAuthorization, CardAuthorizationStatus
 from flash.domain.card.card import Card, CardChannel, CardNetwork, CardStatus
 from flash.domain.cash.order import CashOrder, CashOrderStatus, CashOrderType
+from flash.domain.compliance.alert import AlertKind, AlertStatus, ComplianceAlert
 from flash.domain.country.reference import Country, Operator
 from flash.domain.identity.kyc import KycTier
 from flash.domain.identity.kyc_case import (
@@ -56,6 +57,7 @@ from flash.infrastructure.db.models import (
     CardAuthorizationModel,
     CardModel,
     CashOrderModel,
+    ComplianceAlertModel,
     CountryModel,
     KycCaseModel,
     KycDocumentModel,
@@ -899,6 +901,41 @@ def payment_request_to_model(request: PaymentRequest) -> PaymentRequestModel:
     )
 
 
+# ------------------------------------------------------------------- conformité
+
+
+def compliance_alert_to_domain(model: ComplianceAlertModel) -> ComplianceAlert:
+    return ComplianceAlert(
+        id=EntityId(model.id),
+        user_id=EntityId(model.user_id),
+        kind=AlertKind(model.kind),
+        status=AlertStatus(model.status),
+        score=model.score,
+        detail=model.detail,
+        created_at=model.created_at,
+        window_key=model.window_key,
+        reviewed_by=model.reviewed_by,
+        resolution_note=model.resolution_note,
+        resolved_at=model.resolved_at,
+    )
+
+
+def compliance_alert_to_model(alert: ComplianceAlert) -> ComplianceAlertModel:
+    return ComplianceAlertModel(
+        id=str(alert.id),
+        user_id=str(alert.user_id),
+        kind=alert.kind.value,
+        status=alert.status.value,
+        score=alert.score,
+        detail=alert.detail,
+        window_key=alert.window_key,
+        reviewed_by=alert.reviewed_by,
+        resolution_note=alert.resolution_note,
+        created_at=alert.created_at,
+        resolved_at=alert.resolved_at,
+    )
+
+
 # ------------------------------------------------------------------- back-office
 
 
@@ -957,6 +994,8 @@ __all__ = [
     "card_to_model",
     "cash_order_to_domain",
     "cash_order_to_model",
+    "compliance_alert_to_domain",
+    "compliance_alert_to_model",
     "country_to_domain",
     "country_to_models",
     "kyc_case_to_domain",

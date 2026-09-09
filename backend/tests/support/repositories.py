@@ -14,6 +14,7 @@ from flash.domain.agent.agent import Agent
 from flash.domain.card.authorization import CardAuthorization, CardAuthorizationStatus
 from flash.domain.card.card import Card
 from flash.domain.cash.order import CashOrder, CashOrderStatus, CashOrderType
+from flash.domain.compliance.alert import ComplianceAlert
 from flash.domain.identity.kyc_case import KycCase, KycCaseStatus
 from flash.domain.identity.user import User
 from flash.domain.ledger.chart import AccountType
@@ -177,6 +178,13 @@ class InMemoryLedgerRepository:
         if before is not None:
             matched = [t for t in matched if str(t.id) < str(before)]
         return matched[:limit]
+
+    def list_since(
+        self, since: datetime, *, limit: int = 5_000
+    ) -> list[LedgerTransaction]:
+        rows = [t for t in self._by_id.values() if t.occurred_at >= since]
+        rows.sort(key=lambda t: t.occurred_at, reverse=True)
+        return rows[:limit]
 
     def ensure_account(
         self,
@@ -837,6 +845,53 @@ class InMemoryOperatorTransferRepository(_Tracking):
         self._track(transfer)
 
 
+class InMemoryComplianceAlertRepository(_Tracking):
+    def __init__(self) -> None:
+        super().__init__()
+        self._by_id: dict[str, ComplianceAlert] = {}
+
+    def get(self, alert_id: EntityId) -> ComplianceAlert | None:
+        alert = self._by_id.get(str(alert_id))
+        if alert is not None:
+            self._track(alert)
+        return alert
+
+    def exists_window(self, user_id: EntityId, kind: str, window_key: str) -> bool:
+        return any(
+            a.user_id == user_id and a.kind.value == kind and a.window_key == window_key
+            for a in self._by_id.values()
+        )
+
+    def list_open(self, *, limit: int = 200) -> list[ComplianceAlert]:
+        return self.list_by_status("OPEN", limit=limit)
+
+    def list_by_status(self, status: str, *, limit: int = 200) -> list[ComplianceAlert]:
+        rows = [a for a in self._by_id.values() if a.status.value == status]
+        rows.sort(key=lambda a: a.created_at, reverse=True)
+        for a in rows[:limit]:
+            self._track(a)
+        return rows[:limit]
+
+    def list_between(self, start: str, end: str) -> list[ComplianceAlert]:
+        rows = [
+            a
+            for a in self._by_id.values()
+            if start <= a.created_at.isoformat() < end
+        ]
+        rows.sort(key=lambda a: a.created_at)
+        for a in rows:
+            self._track(a)
+        return rows
+
+    def add(self, alert: ComplianceAlert) -> None:
+        self._by_id[str(alert.id)] = alert
+        self._track(alert)
+
+    def save(self, alert: ComplianceAlert) -> None:
+        self._by_id[str(alert.id)] = alert
+        self._track(alert)
+
+
 class InMemorySupportNoteRepository:
     def __init__(self) -> None:
         self._items: list[SupportNote] = []
@@ -904,6 +959,7 @@ class InMemoryUnitOfWork:
         cards: InMemoryCardRepository | None = None,
         card_authorizations: InMemoryCardAuthorizationRepository | None = None,
         operator_transfers: InMemoryOperatorTransferRepository | None = None,
+        compliance_alerts: InMemoryComplianceAlertRepository | None = None,
         support_notes: InMemorySupportNoteRepository | None = None,
         support_tickets: InMemorySupportTicketRepository | None = None,
     ) -> None:
@@ -932,6 +988,9 @@ class InMemoryUnitOfWork:
         self.card_authorizations = card_authorizations or InMemoryCardAuthorizationRepository()
         self.operator_transfers = (
             operator_transfers or InMemoryOperatorTransferRepository()
+        )
+        self.compliance_alerts = (
+            compliance_alerts or InMemoryComplianceAlertRepository()
         )
         self.support_notes = support_notes or InMemorySupportNoteRepository()
         self.support_tickets = support_tickets or InMemorySupportTicketRepository()
@@ -977,6 +1036,7 @@ class InMemoryUnitOfWork:
             *self.cards.seen,
             *self.card_authorizations.seen,
             *self.operator_transfers.seen,
+            *self.compliance_alerts.seen,
         ):
             events.extend(aggregate.pull_events())
         events.extend(self._extra_events)
@@ -989,6 +1049,7 @@ __all__ = [
     "InMemoryCardAuthorizationRepository",
     "InMemoryCardRepository",
     "InMemoryCashOrderRepository",
+    "InMemoryComplianceAlertRepository",
     "InMemoryKycCaseRepository",
     "InMemoryLedgerRepository",
     "InMemoryMerchantApiKeyRepository",

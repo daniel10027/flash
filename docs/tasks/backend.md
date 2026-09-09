@@ -339,8 +339,21 @@ Chaque tâche livrée : code complet + tests + doc, **zéro `TODO`**.
   `support`/`compliance`/`finance`/`admin` ; contre-passation = `finance`/`admin`.
   Tables `support_notes` / `support_tickets`, migration `a3c7e91d5f28`. `NOT_AN_AGENT`
   → 404.
-- [ ] **BE-076** · Conformité : détection de seuils (structuration, vélocité), file
-  d'alertes AML, blocage préventif, export STR/CTR (format CSV paramétrable).
+- [x] **BE-076** · Conformité / AML : agrégat `ComplianceAlert` (OPEN → REVIEWING →
+  CLEARED / ESCALATED). Job `ScanForAmlAlerts` (`POST /v1/admin/jobs/compliance/scan` +
+  `flash run-jobs`) — lit `ledger.list_since` sur `AML_LOOKBACK_HOURS`, groupe les
+  **débits** par titulaire de portefeuille, applique 3 règles paramétrables (`Settings`
+  `AML_CTR_THRESHOLD_MINOR`, `AML_VELOCITY_*`, `AML_STRUCTURING_*`) : `CTR_THRESHOLD`
+  (débit unitaire ≥ seuil), `STRUCTURING` (≥ N débits entre 70 % et 100 % du seuil sur
+  la fenêtre, somme > seuil), `VELOCITY` (> max opérations ou > max volume sur 24 h).
+  Dédoublonnage par `(user_id, kind, window_key)` (`ComplianceAlertRepository.exists_window`).
+  `application/compliance/operations.py` : `ListComplianceAlerts` (file OPEN ou par
+  statut), `RaiseManualAlert` (`POST /v1/admin/compliance/alerts`), `ReviewComplianceAlert`
+  (`POST …/<id>/review` — `clear` = faux positif / `escalate` = **STR + `user.freeze`
+  blocage préventif**), `ExportSuspiciousActivity` (`GET /v1/admin/compliance/reports/str
+  ?start&end` → CSV, colonnes fixes). Chaque revue / ouverture manuelle est auditée
+  (`aml.alert.manual` / `aml.alert.clear` / `aml.alert.escalate`). RBAC `compliance` /
+  `admin`. Table `compliance_alerts`, migration `b8d1f6a2c904`.
 - [ ] **BE-077** · Exports réglementaires & compta : balance des comptes du ledger à une
   date, journal, export mensuel par pays. Vérif : la balance est équilibrée.
 - [ ] **BE-078** · Registre d'audit consultable (qui/quoi/quand/avant‑après) pour toutes

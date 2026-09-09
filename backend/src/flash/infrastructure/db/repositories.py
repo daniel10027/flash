@@ -17,6 +17,7 @@ from flash.domain.agent.agent import Agent
 from flash.domain.card.authorization import CardAuthorization
 from flash.domain.card.card import Card
 from flash.domain.cash.order import CashOrder
+from flash.domain.compliance.alert import ComplianceAlert
 from flash.domain.identity.kyc_case import KycCase
 from flash.domain.identity.user import User
 from flash.domain.ledger.chart import AccountType
@@ -43,6 +44,7 @@ from flash.infrastructure.db.models import (
     CardAuthorizationModel,
     CardModel,
     CashOrderModel,
+    ComplianceAlertModel,
     KycCaseModel,
     LedgerAccountModel,
     LedgerPostingModel,
@@ -208,6 +210,17 @@ class SqlAlchemyLedgerRepository:
             # Les identifiants sont des UUIDv7 : l'ordre lexical suit l'ordre temporel.
             stmt = stmt.where(LedgerTransactionModel.id < str(before))
         stmt = stmt.order_by(LedgerTransactionModel.id.desc()).limit(limit)
+        return [mappers.ledger_transaction_to_domain(m) for m in self._session.scalars(stmt)]
+
+    def list_since(
+        self, since: datetime, *, limit: int = 5_000
+    ) -> list[LedgerTransaction]:
+        stmt = (
+            select(LedgerTransactionModel)
+            .where(LedgerTransactionModel.occurred_at >= since)
+            .order_by(LedgerTransactionModel.occurred_at.desc())
+            .limit(limit)
+        )
         return [mappers.ledger_transaction_to_domain(m) for m in self._session.scalars(stmt)]
 
     def ensure_account(
@@ -1015,6 +1028,61 @@ class SqlAlchemyOperatorTransferRepository:
         self._tracker.track(transfer)
 
 
+class SqlAlchemyComplianceAlertRepository:
+    def __init__(self, session: Session, tracker: _AggregateTracker) -> None:
+        self._session = session
+        self._tracker = tracker
+
+    def _load(self, model: ComplianceAlertModel | None) -> ComplianceAlert | None:
+        if model is None:
+            return None
+        alert = mappers.compliance_alert_to_domain(model)
+        self._tracker.track(alert)
+        return alert
+
+    def get(self, alert_id: EntityId) -> ComplianceAlert | None:
+        return self._load(self._session.get(ComplianceAlertModel, str(alert_id)))
+
+    def exists_window(self, user_id: EntityId, kind: str, window_key: str) -> bool:
+        stmt = select(ComplianceAlertModel.id).where(
+            ComplianceAlertModel.user_id == str(user_id),
+            ComplianceAlertModel.kind == kind,
+            ComplianceAlertModel.window_key == window_key,
+        )
+        return self._session.scalars(stmt).first() is not None
+
+    def list_open(self, *, limit: int = 200) -> list[ComplianceAlert]:
+        return self.list_by_status("OPEN", limit=limit)
+
+    def list_by_status(self, status: str, *, limit: int = 200) -> list[ComplianceAlert]:
+        stmt = (
+            select(ComplianceAlertModel)
+            .where(ComplianceAlertModel.status == status)
+            .order_by(ComplianceAlertModel.created_at.desc())
+            .limit(limit)
+        )
+        return [a for a in (self._load(m) for m in self._session.scalars(stmt)) if a is not None]
+
+    def list_between(self, start: str, end: str) -> list[ComplianceAlert]:
+        stmt = (
+            select(ComplianceAlertModel)
+            .where(
+                ComplianceAlertModel.created_at >= datetime.fromisoformat(start),
+                ComplianceAlertModel.created_at < datetime.fromisoformat(end),
+            )
+            .order_by(ComplianceAlertModel.created_at.asc())
+        )
+        return [a for a in (self._load(m) for m in self._session.scalars(stmt)) if a is not None]
+
+    def add(self, alert: ComplianceAlert) -> None:
+        self._session.add(mappers.compliance_alert_to_model(alert))
+        self._tracker.track(alert)
+
+    def save(self, alert: ComplianceAlert) -> None:
+        self._session.merge(mappers.compliance_alert_to_model(alert))
+        self._tracker.track(alert)
+
+
 class SqlAlchemySupportNoteRepository:
     def __init__(self, session: Session, tracker: _AggregateTracker) -> None:
         self._session = session
@@ -1078,6 +1146,7 @@ __all__ = [
     "SqlAlchemyCardAuthorizationRepository",
     "SqlAlchemyCardRepository",
     "SqlAlchemyCashOrderRepository",
+    "SqlAlchemyComplianceAlertRepository",
     "SqlAlchemyKycCaseRepository",
     "SqlAlchemyLedgerRepository",
     "SqlAlchemyMerchantApiKeyRepository",

@@ -595,6 +595,30 @@ class MerchantWebhookDeliveryModel(Base):
     )
 
 
+class ComplianceAlertModel(Base):
+    __tablename__ = "compliance_alerts"
+
+    id: Mapped[str] = mapped_column(_UUID, primary_key=True)
+    user_id: Mapped[str] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
+    )
+    kind: Mapped[str] = mapped_column(String(16), nullable=False)
+    status: Mapped[str] = mapped_column(String(12), nullable=False, default="OPEN")
+    score: Mapped[int] = mapped_column(SmallInteger, nullable=False, default=0)
+    detail: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
+    window_key: Mapped[str] = mapped_column(String(80), nullable=False)
+    reviewed_by: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    resolution_note: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(TZDateTime, nullable=False)
+    resolved_at: Mapped[datetime | None] = mapped_column(TZDateTime, nullable=True)
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "kind", "window_key", name="uq_compliance_alert_window"),
+        Index("ix_compliance_alerts_status", "status"),
+        Index("ix_compliance_alerts_created_at", "created_at"),
+    )
+
+
 class SupportNoteModel(Base):
     __tablename__ = "support_notes"
 
@@ -753,6 +777,7 @@ __all__ = [
     "CardAuthorizationModel",
     "CardModel",
     "CashOrderModel",
+    "ComplianceAlertModel",
     "CountryModel",
     "IdempotencyKeyModel",
     "KycCaseModel",

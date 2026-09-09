@@ -28,6 +28,7 @@ from flash.interface.http import auth as auth_routes
 from flash.interface.http import backoffice as backoffice_routes
 from flash.interface.http import cards as cards_routes
 from flash.interface.http import cash as cash_routes
+from flash.interface.http import compliance as compliance_routes
 from flash.interface.http import kyc as kyc_routes
 from flash.interface.http import merchant_public as merchant_public_routes
 from flash.interface.http import merchants as merchant_routes
@@ -103,6 +104,8 @@ def create_app(
     app.register_blueprint(admin_merchant_routes.bp)
     app.register_blueprint(admin_agent_routes.bp)
     app.register_blueprint(backoffice_routes.bp)
+    app.register_blueprint(compliance_routes.bp)
+    app.register_blueprint(compliance_routes.jobs_bp)
     return app
 
 

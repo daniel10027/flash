@@ -12,6 +12,7 @@ from typing import Protocol, runtime_checkable
 from flash.domain.agent.ports import AgentRepository
 from flash.domain.card.ports import CardAuthorizationRepository, CardRepository
 from flash.domain.cash.ports import CashOrderRepository
+from flash.domain.compliance.ports import ComplianceAlertRepository
 from flash.domain.identity.ports import KycCaseRepository, UserRepository
 from flash.domain.ledger.ports import LedgerRepository
 from flash.domain.merchants.ports import (
@@ -88,6 +89,9 @@ class WorkUnitOfWork(Protocol):
 
     @property
     def operator_transfers(self) -> OperatorTransferRepository: ...
+
+    @property
+    def compliance_alerts(self) -> ComplianceAlertRepository: ...
 
     @property
     def support_notes(self) -> SupportNoteRepository: ...

@@ -14,6 +14,7 @@ from flask import Flask, current_app
 from flash.application.auth.tokens import TokenService
 from flash.application.card.ports import CardIssuer
 from flash.application.cash.ports import WithdrawalCodes
+from flash.application.compliance.detection import AmlThresholds
 from flash.application.identity.documents import DocumentStore
 from flash.application.merchants.api_keys import MerchantApiKeyVault
 from flash.application.merchants.bank import BankGateway
@@ -105,6 +106,7 @@ class Deps:
     merchant_api_key_vault: MerchantApiKeyVault
     merchant_poster: MerchantPosterRenderer
     merchant_webhook_sender: MerchantWebhookSender
+    aml_thresholds: AmlThresholds
 
 
 def build_app_services(settings: Settings) -> AppServices:
@@ -193,6 +195,15 @@ def build_deps(settings: Settings, *, tokens: TokenService) -> Deps:
         merchant_api_key_vault=Sha256MerchantApiKeyVault(settings.secret_key),
         merchant_poster=PillowMerchantPosterRenderer(),
         merchant_webhook_sender=HttpMerchantWebhookSender(),
+        aml_thresholds=AmlThresholds(
+            ctr_threshold_minor=settings.aml_ctr_threshold_minor,
+            lookback_hours=settings.aml_lookback_hours,
+            velocity_window_hours=settings.aml_velocity_window_hours,
+            velocity_max_count=settings.aml_velocity_max_count,
+            velocity_max_volume_minor=settings.aml_velocity_max_volume_minor,
+            structuring_window_hours=settings.aml_structuring_window_hours,
+            structuring_min_count=settings.aml_structuring_min_count,
+        ),
     )
 
 

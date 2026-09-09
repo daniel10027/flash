@@ -70,6 +70,19 @@ class Settings(BaseSettings):
     # --- référentiel pays / opérateurs : "static" (jeu intégré) ou "db" (table + cache Redis)
     reference_source: str = Field(default="static", alias="REFERENCE_SOURCE")
 
+    # --- conformité / AML
+    aml_ctr_threshold_minor: int = Field(default=5_000_000, alias="AML_CTR_THRESHOLD_MINOR")
+    aml_lookback_hours: int = Field(default=72, alias="AML_LOOKBACK_HOURS")
+    aml_velocity_window_hours: int = Field(default=24, alias="AML_VELOCITY_WINDOW_HOURS")
+    aml_velocity_max_count: int = Field(default=20, alias="AML_VELOCITY_MAX_COUNT")
+    aml_velocity_max_volume_minor: int = Field(
+        default=10_000_000, alias="AML_VELOCITY_MAX_VOLUME_MINOR"
+    )
+    aml_structuring_window_hours: int = Field(
+        default=48, alias="AML_STRUCTURING_WINDOW_HOURS"
+    )
+    aml_structuring_min_count: int = Field(default=3, alias="AML_STRUCTURING_MIN_COUNT")
+
     # --- passerelles externes
     operator_gateway: str = Field(default="sandbox", alias="OPERATOR_GATEWAY")
     operator_webhook_secret: str = Field(default="", alias="OPERATOR_WEBHOOK_SECRET")

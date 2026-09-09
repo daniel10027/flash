@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
+from datetime import datetime
 from typing import Protocol, runtime_checkable
 
 from flash.domain.ledger.chart import AccountType
@@ -42,6 +43,12 @@ class LedgerRepository(Protocol):
 
         ``before`` (id UUIDv7) pagine : renvoie ce qui est strictement antérieur.
         """
+        ...
+
+    def list_since(
+        self, since: datetime, *, limit: int = 5_000
+    ) -> list[LedgerTransaction]:
+        """Toutes les transactions dont ``occurred_at`` ≥ ``since`` (analyse AML, exports)."""
         ...
 
     def ensure_account(
