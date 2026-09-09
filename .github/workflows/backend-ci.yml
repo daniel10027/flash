@@ -55,7 +55,7 @@ jobs:
       FLASH_SECRET_KEY: ci-secret-please-ignore-0123456789abcd
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-python@v5
         with:
