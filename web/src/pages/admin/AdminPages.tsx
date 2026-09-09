@@ -20,6 +20,9 @@ import {
   useAmlAlerts,
   useAudit,
   useJournal,
+  useKycCase,
+  useKycDocumentUrl,
+  useKycQueue,
   useKycReview,
   useLimitRules,
   usePricingRules,
@@ -242,62 +245,140 @@ function AccountSheet({ id, onClose }: { id: string | null; onClose: () => void 
 }
 
 /* ------------------------------------------------------------ WEB-042 */
+const KYC_STATUSES = ['PENDING', 'APPROVED', 'REJECTED', 'WITHDRAWN'];
+
 export function AdminKycPage() {
-  const review = useKycReview();
-  const [caseId, setCaseId] = useState('');
-  const [reason, setReason] = useState('');
+  const [status, setStatus] = useState('PENDING');
+  const queue = useKycQueue(status);
+  const [openId, setOpenId] = useState<string | null>(null);
 
   return (
     <div>
       <h1 style={{ fontSize: 'var(--text-xl)', marginBottom: 'var(--space-3)' }}>
         Vérifications KYC
       </h1>
-      <Card style={{ display: 'grid', gap: 'var(--space-3)' }}>
-        <p className="ui-hint">
-          L’API n’expose pas encore la file complète : renseignez l’identifiant du dossier (visible
-          dans la fiche client) pour statuer.
-        </p>
-        <Input
-          label="Identifiant du dossier"
-          value={caseId}
-          onChange={(e) => setCaseId(e.target.value)}
-        />
-        <Input
-          label="Motif (requis pour un rejet)"
-          value={reason}
-          onChange={(e) => setReason(e.target.value)}
-        />
-        <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
-          <Button
-            disabled={!caseId}
-            loading={review.isPending}
-            onClick={() =>
-              review.mutate(
-                { case_id: caseId, approve: true },
-                {
-                  onSuccess: () => toast.success('Dossier approuvé.'),
-                  onError: (e) => toast.error(e),
-                },
-              )
-            }
-          >
-            Approuver
+      <div style={{ display: 'flex', gap: 'var(--space-2)', marginBottom: 'var(--space-3)' }}>
+        {KYC_STATUSES.map((s) => (
+          <Button key={s} variant={s === status ? 'primary' : 'ghost'} onClick={() => setStatus(s)}>
+            {s}
           </Button>
-          <Button
-            variant="danger"
-            disabled={!caseId || !reason}
-            onClick={() =>
-              review.mutate(
-                { case_id: caseId, approve: false, reason },
-                { onSuccess: () => toast.info('Dossier rejeté.'), onError: (e) => toast.error(e) },
-              )
-            }
-          >
-            Rejeter
-          </Button>
-        </div>
-      </Card>
+        ))}
+      </div>
+
+      {queue.isLoading ? (
+        <Skeleton height={160} />
+      ) : queue.data && queue.data.length > 0 ? (
+        <Card style={{ display: 'grid', gap: 'var(--space-1)' }}>
+          {queue.data.map((c) => (
+            <ListRow
+              key={c.case_id}
+              title={`Dossier ${c.case_id.slice(0, 8)}`}
+              subtitle={String(c.target_tier ? `Palier visé ${c.target_tier}` : c.status)}
+              trailing={
+                <Button variant="ghost" onClick={() => setOpenId(c.case_id)}>
+                  Ouvrir
+                </Button>
+              }
+            />
+          ))}
+        </Card>
+      ) : (
+        <EmptyState title="Aucun dossier" description={`Rien avec le statut ${status}.`} />
+      )}
+
+      <KycCaseSheet caseId={openId} onClose={() => setOpenId(null)} />
     </div>
+  );
+}
+
+function KycCaseSheet({ caseId, onClose }: { caseId: string | null; onClose: () => void }) {
+  const detail = useKycCase(caseId);
+  const review = useKycReview();
+  const [reason, setReason] = useState('');
+  const [preview, setPreview] = useState<string | null>(null);
+  const doc = useKycDocumentUrl(caseId, preview);
+
+  return (
+    <Sheet open={!!caseId} onClose={onClose} title="Dossier KYC" variant="center">
+      {detail.isLoading || !detail.data ? (
+        <Skeleton height={200} />
+      ) : (
+        <div style={{ display: 'grid', gap: 'var(--space-3)' }}>
+          <DataTable rows={[{ ...detail.data, documents: undefined }]} />
+
+          <div style={{ display: 'grid', gap: 'var(--space-2)' }}>
+            <strong>Pièces justificatives</strong>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
+              {detail.data.documents.map((d) => (
+                <Button
+                  key={d.kind}
+                  variant={preview === d.kind ? 'primary' : 'ghost'}
+                  onClick={() => setPreview(d.kind)}
+                >
+                  {d.kind} · {(d.byte_size / 1024).toFixed(0)} Ko
+                </Button>
+              ))}
+            </div>
+            {preview &&
+              (doc.error ? (
+                <p className="ui-hint">Impossible de charger la pièce.</p>
+              ) : doc.url ? (
+                <img
+                  src={doc.url}
+                  alt={`Pièce ${preview}`}
+                  style={{ maxWidth: '100%', borderRadius: 'var(--radius-md)' }}
+                />
+              ) : (
+                <Skeleton height={180} />
+              ))}
+          </div>
+
+          <Input
+            label="Motif (requis pour un rejet)"
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+          />
+          <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+            <Button
+              disabled={!caseId}
+              loading={review.isPending}
+              onClick={() =>
+                review.mutate(
+                  { case_id: caseId as string, approve: true },
+                  {
+                    onSuccess: () => {
+                      toast.success('Dossier approuvé.');
+                      onClose();
+                    },
+                    onError: (e) => toast.error(e),
+                  },
+                )
+              }
+            >
+              Approuver
+            </Button>
+            <Button
+              variant="danger"
+              disabled={!caseId || !reason}
+              onClick={() =>
+                review.mutate(
+                  { case_id: caseId as string, approve: false, reason },
+                  {
+                    onSuccess: () => {
+                      toast.info('Dossier rejeté.');
+                      onClose();
+                    },
+                    onError: (e) => toast.error(e),
+                  },
+                )
+              }
+            >
+              Rejeter
+            </Button>
+          </div>
+        </div>
+      )}
+    </Sheet>
   );
 }
 

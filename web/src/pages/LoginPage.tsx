@@ -1,11 +1,11 @@
-// WEB-005 (socle) — connexion minimale : numéro + code secret, OTP si demandé.
-// Le parcours complet (mot de passe oublié, gestion appareil) relève de WEB-014.
+// WEB-014 — connexion : numéro + code secret, OTP si demandé, code secret oublié
+// (réinitialisation par OTP).
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Button, Card, Input, PinInput, toast } from '@shared/ui';
 import { useSession } from '@shared/auth/session';
-import { login, resendOtp, verifyOtp } from '@features/auth/api';
+import { confirmPinReset, login, requestPinReset, resendOtp, verifyOtp } from '@features/auth/api';
 
 export function LoginPage() {
   const { t } = useTranslation();
@@ -17,7 +17,10 @@ export function LoginPage() {
   const [country, setCountry] = useState('CI');
   const [pin, setPin] = useState('');
   const [code, setCode] = useState('');
-  const [step, setStep] = useState<'credentials' | 'otp'>('credentials');
+  const [newPin, setNewPin] = useState('');
+  const [step, setStep] = useState<'credentials' | 'otp' | 'reset_request' | 'reset_confirm'>(
+    'credentials',
+  );
   const [busy, setBusy] = useState(false);
 
   const goHome = () => navigate(location.state?.from ?? '/', { replace: true });
@@ -55,6 +58,37 @@ export function LoginPage() {
     }
   }
 
+  async function submitResetRequest(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      await requestPinReset({ phone_number: phone, country });
+      setStep('reset_confirm');
+      toast.info('Si ce numéro a un compte, un code vient d’être envoyé.');
+    } catch (err) {
+      toast.error(err);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function submitResetConfirm(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      await confirmPinReset({ phone_number: phone, country, code, new_pin: newPin });
+      setStep('credentials');
+      setPin('');
+      setCode('');
+      setNewPin('');
+      toast.success('Code secret réinitialisé. Connectez-vous.');
+    } catch (err) {
+      toast.error(err);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <main
       style={{
@@ -67,7 +101,7 @@ export function LoginPage() {
       <Card style={{ width: 'min(380px, 100%)', display: 'grid', gap: 'var(--space-4)' }}>
         <h1 style={{ fontSize: 'var(--text-2xl)' }}>{t('auth.signIn')}</h1>
 
-        {step === 'credentials' ? (
+        {step === 'credentials' && (
           <form onSubmit={submitCredentials} style={{ display: 'grid', gap: 'var(--space-3)' }}>
             <Input
               label={t('auth.phone')}
@@ -89,8 +123,18 @@ export function LoginPage() {
             <Button type="submit" block loading={busy} disabled={pin.length < 4 || !phone}>
               {t('common.continue')}
             </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              disabled={!phone}
+              onClick={() => setStep('reset_request')}
+            >
+              {t('auth.forgotPin')}
+            </Button>
           </form>
-        ) : (
+        )}
+
+        {step === 'otp' && (
           <form onSubmit={submitOtp} style={{ display: 'grid', gap: 'var(--space-3)' }}>
             <PinInput label={t('auth.otp')} length={6} value={code} onChange={setCode} />
             <Button type="submit" block loading={busy} disabled={code.length < 6}>
@@ -109,6 +153,38 @@ export function LoginPage() {
               Renvoyer le code
             </Button>
             <Button type="button" variant="ghost" onClick={() => setStep('credentials')}>
+              {t('common.back')}
+            </Button>
+          </form>
+        )}
+
+        {step === 'reset_request' && (
+          <form onSubmit={submitResetRequest} style={{ display: 'grid', gap: 'var(--space-3)' }}>
+            <p className="ui-hint">
+              Nous enverrons un code de vérification au {phone || 'numéro saisi'}.
+            </p>
+            <Button type="submit" block loading={busy} disabled={!phone}>
+              Envoyer le code
+            </Button>
+            <Button type="button" variant="ghost" onClick={() => setStep('credentials')}>
+              {t('common.back')}
+            </Button>
+          </form>
+        )}
+
+        {step === 'reset_confirm' && (
+          <form onSubmit={submitResetConfirm} style={{ display: 'grid', gap: 'var(--space-3)' }}>
+            <PinInput label={t('auth.otp')} length={6} value={code} onChange={setCode} />
+            <PinInput label="Nouveau code secret" value={newPin} onChange={setNewPin} />
+            <Button
+              type="submit"
+              block
+              loading={busy}
+              disabled={code.length < 6 || newPin.length < 4}
+            >
+              Réinitialiser
+            </Button>
+            <Button type="button" variant="ghost" onClick={() => setStep('reset_request')}>
               {t('common.back')}
             </Button>
           </form>

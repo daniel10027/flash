@@ -72,6 +72,12 @@ Chaque tâche livrée : code complet + tests + doc, **zéro `TODO`**.
 - [x] **BE-026** · `VerifyOtp` / `ResendOtp` (port `OtpChannel`, store Redis TTL, essais
   limités, anti‑bruteforce).
 - [x] **BE-027** · `Login` (msisdn + pin + device) → tokens ; `RefreshToken` ; `Logout`.
+  Compléments (`application/auth/manage.py`) : `ListDevices` / `RevokeDevice`
+  (`GET`/`DELETE /v1/auth/devices[/{id}]` — `RefreshTokenStore` porte les métadonnées
+  first/last seen, `forget_all`, `list_devices` ; Redis + in-memory) ; `ChangePin`
+  (`POST /v1/auth/change-pin`, vérifie l'ancien code) ; `RequestPinReset` /
+  `ConfirmPinReset` (`POST /v1/auth/reset-pin/{request,confirm}` par OTP —
+  silencieux si le compte n'existe pas ; un reset confirmé révoque toutes les sessions).
 - [x] **BE-028** · `AddPhoneNumber` (OTP sur le nouveau numéro, ≤ 5, unicité globale),
   `RemovePhoneNumber`, `SetPrimaryPhoneNumber`.
 - [x] **BE-029** · `SubmitKyc` (paliers 1/2 : pièces via port `DocumentStore`, base64,
@@ -79,6 +85,10 @@ Chaque tâche livrée : code complet + tests + doc, **zéro `TODO`**.
   par clé `X-Admin-Key` en attendant le RBAC BE-071) → `approve` relève `KycTier` (les
   limites étant résolues par `(pays, palier)` à chaque opération). Agrégat `KycCase`
   (+ `KycDocument`), tables `kyc_cases`/`kyc_documents`, `LocalFilesystemDocumentStore`.
+  Back-office : `ListKycQueue` (`GET /v1/admin/kyc/submissions?status` —
+  `KycCaseRepository.list_by_status`), `GetKycCase` (`GET .../{case_id}` — détail +
+  métadonnées des pièces), `GetKycDocument` (`GET .../{case_id}/documents/{kind}` —
+  octets d'une pièce servis `Cache-Control: no-store`).
 - [x] **BE-030** · `GetWallet` / `ListWallets` (soldes depuis projection + cohérence).
 - [x] **BE-031** · `SendP2PTransfer` : cf. flux §3 architecture. Frais 0,8 %, limites,
   KYC, idempotence, `LedgerTransaction.transfer`+`fee`, événement `TransferCompleted`,

@@ -390,6 +390,13 @@ relevé ; `PaymentChannel` QR/API + `Merchant.channel_fees` négociés sous
 livrés** (CI GitHub Actions, tests de migrations, contrats OpenAPI schemathesis, métriques
 Prometheus `/metrics`, `docs/api/errors.md` exhaustif, test de charge locust).
 
+**Compléments auth & back-office KYC** (au fil du web) : `GET`/`DELETE /v1/auth/devices[/{id}]`
+(appareils connectés + déconnexion à distance ; `RefreshTokenStore` porte first/last seen,
+`forget_all`, `list_devices`), `POST /v1/auth/change-pin`, `POST /v1/auth/reset-pin/{request,
+confirm}` (réinitialisation par OTP, silencieuse si compte inconnu, révoque toutes les
+sessions) ; `GET /v1/admin/kyc/submissions[?status]` + `/{case_id}` + `/{case_id}/documents/
+{kind}` (file des dossiers, détail, octets d'une pièce `no-store`).
+
 **Front web `web/` : `WEB-001` → `WEB-046` livrés** (46/49 ; reste transverse `WEB-047→049`).
 Vite + React 18 + TS strict ; `design/tokens.json` (bordeaux) → CSS ; `shared/ui` + galerie
 `/ui` ; client API typé généré depuis `openapi.json` + `apiFetch` (Idempotency-Key,
@@ -397,14 +404,16 @@ X-Request-ID, refresh 401) ; session + garde de routes ; layout responsive ; i18
 ErrorBoundary + 404/500 + toasts ; PWA ; a11y ; config runtime ; Dockerfile + compose.
 **Parcours client** (17 écrans) : inscription, connexion, tableau de bord, envoyer, demander,
 payer marchand (scan QR), recevoir, retrait/dépôt cash, opérateur, historique (scroll
-infini) + reçu, coffre, épargne, carte (révéler PAN/CVV), profil (KYC / numéros / sécurité /
-paramètres), notifications (SSE). **Espace agent** : tableau de bord (float, commissions),
-dépôt / retrait client, journal + export CSV, gestion du float. **Back-office** (arbre
-`/admin/*` séparé, clé `X-Admin-Key`) : comptes (gel, contre-passation forcée, notes),
-KYC, AML (statuer + export STR), référentiel (grille / plafonds), finance (balance,
-journal, export), audit (+ contrôle d'intégrité de la chaîne). `tsc` + ESLint + Prettier
-OK, 10 tests Vitest, build OK, e2e Playwright. Correctif backend au passage : `openapi.py`
-hisse les `$defs` Pydantic dans `components/schemas`.
+infini) + reçu, coffre, épargne, carte (révéler PAN/CVV), profil (KYC / numéros / sécurité :
+changer le code secret + appareils connectés / paramètres), connexion avec « code secret
+oublié » (réinitialisation par OTP), notifications (SSE). **Espace agent** : tableau de bord
+(float, commissions), dépôt / retrait client, journal + export CSV, gestion du float.
+**Back-office** (arbre `/admin/*` séparé, clé `X-Admin-Key`) : comptes (gel, contre-passation
+forcée, notes), KYC (file par statut + aperçu des pièces + statuer), AML (statuer + export
+STR), référentiel (grille / plafonds), finance (balance, journal, export), audit (+ contrôle
+d'intégrité de la chaîne). `tsc` + ESLint + Prettier OK, 10 tests Vitest, build OK, e2e
+Playwright. Correctif backend au passage : `openapi.py` hisse les `$defs` Pydantic dans
+`components/schemas`.
 
 Prochaine : transverse web (`WEB-047` tests E2E parcours, `WEB-048` perf/Lighthouse,
 `WEB-049` i18n complète), puis `MOB-*`, `INFRA` (CD/VPS), `DSN-*`.

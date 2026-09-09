@@ -1,6 +1,7 @@
 // Back-office — hooks React Query sur l'API `/v1/admin/*` (clé `X-Admin-Key`).
+import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { adminFetch } from './client';
+import { adminFetch, adminFetchBlob } from './client';
 
 export const adminQk = {
   accounts: (q: string) => ['admin', 'accounts', q] as const,
@@ -9,6 +10,8 @@ export const adminQk = {
   pricing: ['admin', 'pricing'] as const,
   limits: ['admin', 'limits'] as const,
   audit: (params: string) => ['admin', 'audit', params] as const,
+  kycQueue: (status: string) => ['admin', 'kyc', 'queue', status] as const,
+  kycCase: (id: string) => ['admin', 'kyc', 'case', id] as const,
 };
 
 /* ------------------------------------------------------------------ WEB-041 */
@@ -65,13 +68,67 @@ export function useAccountNotes(id: string | null) {
 }
 
 /* ------------------------------------------------------------------ WEB-042 */
+export type KycDoc = { kind: string; content_type: string; byte_size: number };
+export type KycQueueItem = Record<string, unknown> & { case_id: string; status: string };
+export type KycCaseDetail = KycQueueItem & { documents: KycDoc[] };
+
+export function useKycQueue(status: string) {
+  return useQuery({
+    queryKey: adminQk.kycQueue(status),
+    queryFn: () =>
+      adminFetch<{ submissions: KycQueueItem[] }>('/v1/admin/kyc/submissions', {
+        query: { status },
+      }),
+    select: (d) => d.submissions ?? [],
+  });
+}
+
+export function useKycCase(id: string | null) {
+  return useQuery({
+    queryKey: adminQk.kycCase(id ?? ''),
+    enabled: !!id,
+    queryFn: () => adminFetch<KycCaseDetail>(`/v1/admin/kyc/submissions/${id}`),
+  });
+}
+
+// Charge les octets d'une pièce et expose une URL d'objet éphémère (révoquée au démontage).
+export function useKycDocumentUrl(caseId: string | null, kind: string | null) {
+  const [url, setUrl] = useState<string | null>(null);
+  const [error, setError] = useState<unknown>(null);
+  useEffect(() => {
+    if (!caseId || !kind) {
+      setUrl(null);
+      return;
+    }
+    let revoked: string | null = null;
+    let alive = true;
+    setUrl(null);
+    setError(null);
+    adminFetchBlob(`/v1/admin/kyc/submissions/${caseId}/documents/${kind}`)
+      .then((blob) => {
+        if (!alive) return;
+        const objUrl = URL.createObjectURL(blob);
+        revoked = objUrl;
+        setUrl(objUrl);
+      })
+      .catch((e) => alive && setError(e));
+    return () => {
+      alive = false;
+      if (revoked) URL.revokeObjectURL(revoked);
+    };
+  }, [caseId, kind]);
+  return { url, error };
+}
+
 export function useKycReview() {
+  const qc = useQueryClient();
   return useMutation({
     mutationFn: (b: { case_id: string; approve: boolean; reason?: string }) =>
       adminFetch(`/v1/admin/kyc/submissions/${b.case_id}/review`, {
         method: 'POST',
         body: { approve: b.approve, reason: b.reason },
       }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'kyc'] }),
   });
 }
 

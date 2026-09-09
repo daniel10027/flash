@@ -7,6 +7,7 @@ import { toast } from '@shared/ui';
 import { api } from '@shared/api/client';
 import { useKycStatus, usePhoneActions, usePhones } from '@shared/api/hooks';
 import { useSession } from '@shared/auth/session';
+import { useDeviceActions, useDevices } from '@features/auth/hooks';
 import { useTheme } from '@app/theme';
 import { usePrivacy } from '@features/layout/privacy';
 
@@ -214,15 +215,75 @@ function PhonesSection() {
 /* ------------------------------------------------------------------ WEB-031 */
 function SecuritySection() {
   const clear = useSession((s) => s.clear);
+  const devices = useDevices();
+  const actions = useDeviceActions();
+  const [cur, setCur] = useState('');
+  const [next, setNext] = useState('');
+
+  async function submitPin() {
+    try {
+      await actions.changePin.mutateAsync({ current_pin: cur, new_pin: next });
+      setCur('');
+      setNext('');
+      toast.success('Code secret modifié.');
+    } catch (e) {
+      toast.error(e);
+    }
+  }
+
   return (
-    <div style={{ display: 'grid', gap: 'var(--space-3)' }}>
-      <Card>
-        <strong>Session</strong>
-        <p className="ui-hint">
-          Le changement de code secret et la liste des appareils connectés seront branchés quand
-          l’API exposera ces endpoints (hors périmètre actuel).
-        </p>
+    <div style={{ display: 'grid', gap: 'var(--space-4)' }}>
+      <Card style={{ display: 'grid', gap: 'var(--space-3)' }}>
+        <strong>Changer le code secret</strong>
+        <PinInput label="Code actuel" value={cur} onChange={setCur} />
+        <PinInput label="Nouveau code" value={next} onChange={setNext} />
+        <Button
+          block
+          loading={actions.changePin.isPending}
+          disabled={cur.length < 4 || next.length < 4}
+          onClick={submitPin}
+        >
+          Enregistrer
+        </Button>
       </Card>
+
+      <Card style={{ display: 'grid', gap: 'var(--space-2)' }}>
+        <strong>Appareils connectés</strong>
+        {devices.isLoading ? (
+          <Skeleton height={48} />
+        ) : devices.data && devices.data.length > 0 ? (
+          devices.data.map((d) => (
+            <ListRow
+              key={d.device_id}
+              title={d.current ? 'Cet appareil' : `Appareil ${d.device_id.slice(0, 8)}`}
+              subtitle={d.last_seen ? `Vu ${new Date(d.last_seen).toLocaleString()}` : undefined}
+              trailing={
+                d.current ? (
+                  <Badge>actuel</Badge>
+                ) : (
+                  <Button
+                    variant="ghost"
+                    loading={actions.revoke.isPending}
+                    onClick={async () => {
+                      try {
+                        await actions.revoke.mutateAsync(d.device_id);
+                        toast.success('Appareil déconnecté.');
+                      } catch (e) {
+                        toast.error(e);
+                      }
+                    }}
+                  >
+                    Déconnecter
+                  </Button>
+                )
+              }
+            />
+          ))
+        ) : (
+          <p className="ui-hint">Aucune autre session active.</p>
+        )}
+      </Card>
+
       <Button
         variant="danger"
         onClick={async () => {

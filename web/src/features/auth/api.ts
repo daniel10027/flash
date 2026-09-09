@@ -34,3 +34,41 @@ export async function register(input: {
 }): Promise<void> {
   await api.post('/v1/auth/register', input);
 }
+
+// WEB-014 — code secret oublié : demande d'un code OTP puis nouveau PIN.
+export async function requestPinReset(input: {
+  phone_number: string;
+  country: string;
+}): Promise<void> {
+  await api.post('/v1/auth/reset-pin/request', input);
+}
+
+export async function confirmPinReset(input: {
+  phone_number: string;
+  country: string;
+  code: string;
+  new_pin: string;
+}): Promise<void> {
+  await api.post('/v1/auth/reset-pin/confirm', input);
+}
+
+// WEB-031 — changer son code secret (authentifié, vérifie l'ancien).
+export async function changePin(input: { current_pin: string; new_pin: string }): Promise<void> {
+  await api.post('/v1/auth/change-pin', input);
+}
+
+export type Device = {
+  device_id: string;
+  first_seen: string | null;
+  last_seen: string | null;
+  current: boolean;
+};
+
+export async function listDevices(): Promise<Device[]> {
+  const res = await api.get<{ devices: Device[] }>('/v1/auth/devices');
+  return res.devices ?? [];
+}
+
+export async function revokeDevice(id: string): Promise<void> {
+  await api.del(`/v1/auth/devices/${encodeURIComponent(id)}`);
+}

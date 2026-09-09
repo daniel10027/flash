@@ -68,15 +68,14 @@ Playwright (E2E).
 > coffre (poches CRUD + alimenter/retirer + verrou), épargne (plans + progression +
 > intérêts + versement/retrait/clôture), carte (émettre, révéler PAN/CVV 30 s, geler,
 > plafonds, canaux), profil à onglets : KYC (upload base64 + `target_tier`), mes numéros
-> (max 5, ajout+OTP, principal, retrait), sécurité (logout serveur+local), paramètres
+> (max 5, ajout+OTP, principal, retrait), sécurité (changer le code secret, liste des
+> appareils connectés + déconnexion à distance, logout serveur+local), paramètres
 > (thème, masquer soldes, à propos), notifications (liste + SSE `EventSource` + marquage lu,
-> pastille non-lus dans l'en-tête). Router : toutes les routes câblées, secondaires dans le
-> menu `⋮`. Vérifs : `tsc` + ESLint (`jsx-a11y`) + Prettier OK, 10 tests Vitest (dont rendu
-> Dashboard/Send avec `fetch` mocké), build OK, e2e Playwright.
->
-> Limite connue : « mot de passe oublié → réinitialisation PIN » (WEB-014) et « appareils
-> connectés / changer le PIN » (WEB-031) attendent des endpoints API dédiés — écrans en
-> l'état, sans backend.
+> pastille non-lus dans l'en-tête). Connexion : « code secret oublié » →
+> réinitialisation par OTP (numéro → code → nouveau code). Router : toutes les routes
+> câblées, secondaires dans le menu `⋮`. Vérifs : `tsc` + ESLint (`jsx-a11y`) + Prettier
+> OK, 10 tests Vitest (dont rendu Dashboard/Send avec `fetch` mocké), build OK, e2e
+> Playwright.
 
 - [x] **WEB-013** · Inscription : numéro + pays, création PIN, OTP, écran succès.
 - [x] **WEB-014** · Connexion : numéro + PIN, gestion appareil, OTP si nouvel appareil,
@@ -148,8 +147,10 @@ Playwright (E2E).
 > serveur, 403 sinon), `RequireAdmin`, `AdminLayout` (nav Comptes / KYC / AML / Référentiel
 > / Finance / Audit + Quitter). `features/admin/hooks.ts` + `pages/admin/AdminPages.tsx` :
 > **Comptes** (recherche `/v1/admin/accounts`, fiche en feuille : détail, gel/dégel avec
-> motif, contre-passation forcée `force-reversal`, notes internes) ; **KYC** (statuer par
-> `case_id` : approuver / rejeter avec motif) ; **AML** (file d'alertes par statut, statuer
+> motif, contre-passation forcée `force-reversal`, notes internes) ; **KYC** (file des
+> dossiers par statut `/v1/admin/kyc/submissions`, feuille détail avec **aperçu des
+> pièces** — octets servis `no-store` via `adminFetchBlob` + `URL.createObjectURL` —
+> approuver / rejeter avec motif) ; **AML** (file d'alertes par statut, statuer
 > `clear`/`escalate` avec note, **export STR CSV**) ; **Référentiel** (tables grille
 > tarifaire / plafonds + `reload` du cache ; édition ligne à ligne via
 > `useReferenceActions`) ; **Finance** (balance générale à une date avec badge d'équilibre,
@@ -157,10 +158,6 @@ Playwright (E2E).
 > acteur/action + **contrôle d'intégrité de la chaîne**). Table générique `DataTable`
 > (colonnes auto). Vérifs : `tsc` + ESLint + Prettier OK, e2e (redirection `/admin` →
 > `/admin/login`).
->
-> Limites connues (endpoints API absents) : pas de liste paginée des dossiers KYC en
-> attente (statuer par `case_id`) ; documents KYC non affichés ; « appareils connectés » et
-> journal d'activité détaillé côté fiche client dépendent d'endpoints à venir.
 
 - [x] **WEB-040** · Connexion staff + RBAC (support / compliance / finance / admin),
   layout dédié.

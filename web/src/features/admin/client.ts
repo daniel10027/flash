@@ -76,3 +76,21 @@ export async function adminFetch<T = unknown>(path: string, opts: Opts = {}): Pr
   if (raw) return text as unknown as T;
   return (text ? JSON.parse(text) : undefined) as T;
 }
+
+// Récupère une ressource binaire (pièce KYC) en envoyant la clé admin.
+export async function adminFetchBlob(path: string): Promise<Blob> {
+  const key = useAdminAuth.getState().key;
+  const base = config.API_BASE_URL.replace(/\/$/, '');
+  const url = new URL(base + path, base || window.location.origin);
+  const headers: Record<string, string> = { 'X-Request-ID': uuid() };
+  if (key) headers['X-Admin-Key'] = key;
+
+  let res: Response;
+  try {
+    res = await fetch(base ? url.toString() : url.pathname + url.search, { headers });
+  } catch {
+    throw new NetworkError();
+  }
+  if (!res.ok) throw new ApiError(res.status, { code: 'INTERNAL_ERROR', message: res.statusText });
+  return res.blob();
+}
