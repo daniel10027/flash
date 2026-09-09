@@ -2,18 +2,24 @@
 
 Le paiement marchand est **gratuit pour le client** (modèle Wave) ; le marchand paie une
 commission ``fee_bps`` prélevée sur le montant encaissé. Le net va sur un compte
-``MERCHANT_PAYABLE`` (dette de Flash envers le marchand), soldé plus tard par un
-règlement (``BE-063``, hors périmètre BE-033).
+``MERCHANT_PAYABLE`` (dette de Flash envers le marchand), soldé périodiquement par un
+**règlement** (``BE-070``) : virement du net accumulé vers le compte bancaire du
+marchand (``MERCHANT_PAYABLE`` → ``BANK_SETTLEMENT``).
 """
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from decimal import ROUND_FLOOR
 from enum import StrEnum
 
-from flash.domain.merchants.events import MerchantEnrolled, MerchantSuspended
-from flash.domain.shared.errors import InvalidAccountState
+from flash.domain.merchants.bank_account import BankAccount
+from flash.domain.merchants.events import (
+    MerchantEnrolled,
+    MerchantSettlementConfigured,
+    MerchantSuspended,
+)
+from flash.domain.shared.errors import InvalidAccountState, InvalidInput
 from flash.domain.shared.events import EventRecorder
 from flash.domain.shared.identifiers import EntityId
 from flash.domain.shared.money import Currency, Money
@@ -24,6 +30,21 @@ _MAX_FEE_BPS = 1_000  # 10 %
 class MerchantStatus(StrEnum):
     ACTIVE = "ACTIVE"
     SUSPENDED = "SUSPENDED"
+
+
+class SettlementFrequency(StrEnum):
+    MANUAL = "MANUAL"
+    DAILY = "DAILY"
+    WEEKLY = "WEEKLY"
+    MONTHLY = "MONTHLY"
+
+    @property
+    def period(self) -> timedelta | None:
+        return {
+            SettlementFrequency.DAILY: timedelta(days=1),
+            SettlementFrequency.WEEKLY: timedelta(days=7),
+            SettlementFrequency.MONTHLY: timedelta(days=30),
+        }.get(self)
 
 
 class Merchant(EventRecorder):
@@ -38,6 +59,10 @@ class Merchant(EventRecorder):
         fee_bps: int,
         created_at: datetime,
         status: MerchantStatus = MerchantStatus.ACTIVE,
+        settlement_frequency: SettlementFrequency = SettlementFrequency.MANUAL,
+        bank_account: BankAccount | None = None,
+        next_settlement_at: datetime | None = None,
+        last_settlement_id: EntityId | None = None,
     ) -> None:
         super().__init__()
         if not display_name.strip():
@@ -52,6 +77,10 @@ class Merchant(EventRecorder):
         self.fee_bps = fee_bps
         self.created_at = created_at
         self.status = status
+        self.settlement_frequency = settlement_frequency
+        self.bank_account = bank_account
+        self.next_settlement_at = next_settlement_at
+        self.last_settlement_id = last_settlement_id
 
     @classmethod
     def enroll(
@@ -106,8 +135,57 @@ class Merchant(EventRecorder):
         """QR statique : identifie le marchand, le montant est saisi par le client."""
         return f"flash://pay?m={self.id}"
 
+    # ------------------------------------------------------------------ règlement
+    def configure_settlement(
+        self, *, bank_account: BankAccount, frequency: SettlementFrequency, now: datetime
+    ) -> None:
+        self.bank_account = bank_account
+        self.settlement_frequency = frequency
+        period = frequency.period
+        self.next_settlement_at = (now + period) if period is not None else None
+        self.record_event(
+            MerchantSettlementConfigured(
+                occurred_at=now,
+                aggregate_id=str(self.id),
+                user_id=str(self.user_id),
+                merchant_id=str(self.id),
+                frequency=frequency.value,
+                bank_iban_masked=bank_account.masked(),
+            )
+        )
+
+    @property
+    def can_settle(self) -> bool:
+        return self.status is MerchantStatus.ACTIVE and self.bank_account is not None
+
+    def require_bank_account(self) -> BankAccount:
+        if self.bank_account is None:
+            raise InvalidInput("Aucun compte bancaire de règlement configuré.")
+        return self.bank_account
+
+    def due_for_settlement(self, now: datetime) -> bool:
+        return (
+            self.can_settle
+            and self.settlement_frequency.period is not None
+            and self.next_settlement_at is not None
+            and now >= self.next_settlement_at
+        )
+
+    def advance_settlement_schedule(self, now: datetime) -> None:
+        period = self.settlement_frequency.period
+        if period is None or self.next_settlement_at is None:
+            return
+        nxt = self.next_settlement_at
+        while nxt <= now:
+            nxt = nxt + period
+        self.next_settlement_at = nxt
+
+    def record_settlement(self, *, settlement_id: EntityId, now: datetime) -> None:
+        self.last_settlement_id = settlement_id
+        self.advance_settlement_schedule(now)
+
     def __repr__(self) -> str:
         return f"Merchant(id={self.id!s}, name={self.display_name!r}, fee_bps={self.fee_bps})"
 
 
-__all__ = ["Merchant", "MerchantStatus"]
+__all__ = ["Merchant", "MerchantStatus", "SettlementFrequency"]

@@ -18,6 +18,7 @@ from flash.domain.merchants.ports import (
     MerchantChargeRepository,
     MerchantPaymentRepository,
     MerchantRepository,
+    MerchantSettlementRepository,
 )
 from flash.domain.operators.ports import OperatorTransferRepository
 from flash.domain.payments.ports import PaymentRequestRepository
@@ -60,6 +61,9 @@ class WorkUnitOfWork(Protocol):
 
     @property
     def merchant_payments(self) -> MerchantPaymentRepository: ...
+
+    @property
+    def merchant_settlements(self) -> MerchantSettlementRepository: ...
 
     @property
     def vaults(self) -> VaultRepository: ...

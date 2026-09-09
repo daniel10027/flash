@@ -229,6 +229,19 @@ class TestMerchantPayment:
         with pytest.raises(InvalidAccountState, match="ne peut pas être remboursé"):
             payment.refund(reversal_transaction_id=TXN, now=T0)
 
+    def test_attach_settlement_marks_not_settleable(self) -> None:
+        payment = _payment()
+        assert payment.is_settleable is True
+        payment.attach_settlement(EntityId(str(UUID(int=42))))
+        assert payment.settlement_id == EntityId(str(UUID(int=42)))
+        assert payment.is_settleable is False
+
+    def test_attach_settlement_twice_rejected(self) -> None:
+        payment = _payment()
+        payment.attach_settlement(EntityId(str(UUID(int=42))))
+        with pytest.raises(InvalidAccountState, match="déjà rattaché"):
+            payment.attach_settlement(EntityId(str(UUID(int=43))))
+
 
 def _payment(*, amount: Money | None = None, fee: Money | None = None) -> MerchantPayment:
     return MerchantPayment(

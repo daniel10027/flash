@@ -1,7 +1,7 @@
 # Flash — Map de développement
 
 > **Dernière mise à jour : 2026-09-09**
-> **Phases 1-3 complètes · Phase 4 : BE-061→063 + BE-064→067 (interop opérateurs)**
+> **Phases 1-3 complètes · Phase 4 : BE-061→063 + BE-064→067 (interop opérateurs) + BE-068 (partiel) / BE-070 (règlements marchands)**
 > (auth, numéros, wallets, transfert + **annulation**, **demandes de paiement**,
 > **paiement marchand QR** + **remboursement**, **dépôt & retrait cash agent**,
 > relevé + **reçu détaillé**, **KYC**, **notifications** + **flux SSE**, **jobs
@@ -45,11 +45,11 @@
 > `/v1/notifications` (liste + curseur + `unread`, `/<id>/read`, `/read-all`) et
 > **SSE `/v1/notifications/stream`** (`RedisNotificationBus` pub/sub, rattrapage
 > `Last-Event-ID` depuis le journal, keep-alive).
-> **77 chemins** : `auth` (6), `phones` (5), `wallets` (2), `transfers` (2),
-> `payment-requests` (4), `merchant` (4), `merchant-payments` (1), `statement` (1),
+> **82 chemins** : `auth` (6), `phones` (5), `wallets` (2), `transfers` (2),
+> `payment-requests` (4), `merchant` (8), `merchant-payments` (1), `statement` (1),
 > `receipts` (1), `notifications` (4), `withdrawals` (2), `agent` (2), `kyc` (4),
 > `vault` (6), `savings` (5), `cards` (8), `cards/authorizations` (4), `operators` (3) +
-> `operators/callbacks` (1), `reference` (2), `admin/kyc` (1), `admin` ops (5),
+> `operators/callbacks` (1), `reference` (2), `admin/kyc` (1), `admin` ops (6),
 > `admin/reference` (5) + `admin/audit` (1) + `/health*`, `/openapi.json`, `/docs`, `/redoc`.
 > **Tout vérifié end-to-end via docker compose** : cash, KYC, demandes de paiement,
 > paiement marchand, annulation / remboursement (soldes restaurés, rejeu → 409),
@@ -131,11 +131,23 @@
 > (`require_operator_webhook` HMAC ; idempotent par `reference` ; `SUCCEEDED` →
 > `settle_reservation`/`credit(amount-fee)` + écriture ; `FAILED` → `release`). Grille
 > payout 1,5 % / collect 1 % par pays. Table `operator_transfers`.
-> **77 chemins.** 957 tests unit + 24 d'intégration (Postgres réel), couverture 100 %
+> **Règlements marchands (BE-070)** : port `BankGateway` (`transfer` → `BankAck`
+> synchrone) + `SandboxBankGateway` ; `Merchant.configure_settlement` (compte
+> `BankAccount`, fréquence MANUAL/DAILY/WEEKLY/MONTHLY, `next_settlement_at`) ; agrégat
+> `MerchantSettlement` (PENDING → PAID/FAILED) ; `LedgerTransaction.merchant_settlement`
+> (`MERCHANT_PAYABLE` ↓ / `BANK_SETTLEMENT` ↓). `settle_merchant` agrège le net des
+> `MerchantPayment` non réglés, vire, rattache les paiements, avance l'échéance ; échec
+> banque → règlement FAILED, paiements rendus au cycle suivant. Routes
+> `PUT /v1/merchant/settlement`, `POST|GET /v1/merchant/settlements`,
+> `GET /v1/merchant/settlements/{id}` (relevé) ; job `SettleDueMerchants`
+> (`flash run-jobs` + `POST /v1/admin/jobs/merchants/settle`) ; notifications `SETTLEMENT`.
+> Table `merchant_settlements`, migration `c7d2f4a91b38`.
+> **82 chemins.** 1019 tests unit + 24 d'intégration (Postgres réel), couverture 100 %
 > domain+application, ruff + mypy stricts.
 > **Phases 1-3 terminées. Phase 4 en cours** : `BE-061` → `BE-067` livrés (référentiel,
-> CRUD + audit chaîné, grille multi-pays, interop opérateurs). Migrations
-> `f4b7c2109ea3`, `a8e3d5f10c47`, `b6c1e9d47f20`.
+> CRUD + audit chaîné, grille multi-pays, interop opérateurs) ; `BE-070` (règlements
+> marchands) + `BE-068` partiel. Migrations `f4b7c2109ea3`, `a8e3d5f10c47`,
+> `b6c1e9d47f20`, `c7d2f4a91b38`.
 
 Ce fichier est la vue d'ensemble. Le détail (une ligne = une tâche cochable) est dans
 `docs/tasks/`. On avance **dans l'ordre des identifiants** à l'intérieur de chaque lot,
@@ -228,12 +240,18 @@ charge, revue sécurité (OWASP ASVS, secrets, rate‑limit), doc API publiée, 
 par hachage** — fondation de `BE-078`). Migrations `f4b7c2109ea3`, `a8e3d5f10c47`.
 Reste de `BE-062` : rendre `pricing_rules` / `limits` éditables (tables + repos DB).
 
-Prochaine : `BE-068` → `BE-071` (comptes marchands enrichis : `Merchant` avec catégorie,
-comptes de règlement, sous-comptes ; onboarding + KYB + QR imprimable ; job
-`settle_merchants` → virement `BANK_SETTLEMENT` via port `BankGateway` + sandbox ; API
-marchande publique `/merchant/v1/…`). Puis `BE-072` → `BE-078` (réseau d'agents enrichi,
-back-office RBAC nominatif, conformité AML, exports réglementaires, registre d'audit
-consultable). Reste de `BE-062` : `pricing_rules` / `limits` éditables (tables + repos).
+`BE-070` **livré** (règlements marchands : port `BankGateway` + `SandboxBankGateway`,
+agrégat `MerchantSettlement`, `LedgerTransaction.merchant_settlement`, `settle_merchant`
+partagé, routes config/déclenchement/historique/relevé, job `SettleDueMerchants`,
+notifications `SETTLEMENT`, migration `c7d2f4a91b38`). `BE-068` **partiel** (VO
+`BankAccount`, `SettlementFrequency`, planification d'échéance sur `Merchant`).
+
+Prochaine : `BE-068` *reste* (sous-comptes caisses/employés, frais négociés par canal) +
+`BE-069` (onboarding marchand + KYB, QR imprimable PDF, clés API marchand) + `BE-071`
+(API marchande publique `/merchant/v1/…` + webhooks marchand signés). Puis `BE-072` →
+`BE-078` (réseau d'agents enrichi, back-office RBAC nominatif, conformité AML, exports
+réglementaires, registre d'audit consultable). Reste de `BE-062` : `pricing_rules` /
+`limits` éditables (tables + repos).
 
 ✅ Phase 2 livrée : `BE-029` (KYC), `BE-032` (demandes de paiement), `BE-033` (marchand
 QR), `BE-034` → `BE-036` (cash agent), `BE-037` (annulation / remboursement), `BE-038`

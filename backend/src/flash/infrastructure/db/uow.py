@@ -30,6 +30,7 @@ from flash.infrastructure.db.repositories import (
     SqlAlchemyMerchantChargeRepository,
     SqlAlchemyMerchantPaymentRepository,
     SqlAlchemyMerchantRepository,
+    SqlAlchemyMerchantSettlementRepository,
     SqlAlchemyOperatorTransferRepository,
     SqlAlchemyPaymentRequestRepository,
     SqlAlchemySavingsPlanRepository,
@@ -65,6 +66,7 @@ class SqlAlchemyUnitOfWork:
         self.merchants = SqlAlchemyMerchantRepository(self._session, self)
         self.merchant_charges = SqlAlchemyMerchantChargeRepository(self._session, self)
         self.merchant_payments = SqlAlchemyMerchantPaymentRepository(self._session, self)
+        self.merchant_settlements = SqlAlchemyMerchantSettlementRepository(self._session, self)
         self.vaults = SqlAlchemyVaultRepository(self._session, self)
         self.savings = SqlAlchemySavingsPlanRepository(self._session, self)
         self.cards = SqlAlchemyCardRepository(self._session, self)

@@ -517,6 +517,33 @@ class LedgerTransaction:
         )
 
     @classmethod
+    def merchant_settlement(
+        cls,
+        *,
+        id: EntityId,
+        occurred_at: datetime,
+        reference: str,
+        merchant_payable_account_id: EntityId,
+        bank_settlement_account_id: EntityId,
+        amount: Money,
+        metadata: Mapping[str, Any] | None = None,
+    ) -> LedgerTransaction:
+        """Règlement marchand : la dette de Flash envers le marchand est soldée par un
+        virement bancaire (``MERCHANT_PAYABLE`` ↓, trésorerie ``BANK_SETTLEMENT`` ↓)."""
+        return LedgerTransaction(
+            id=id,
+            kind=TransactionKind.MERCHANT_SETTLEMENT,
+            postings=(
+                _debit(merchant_payable_account_id, amount),
+                _credit(bank_settlement_account_id, amount),
+            ),
+            occurred_at=occurred_at,
+            reference=reference,
+            reason="Règlement périodique d'un marchand",
+            metadata=metadata or {},
+        )
+
+    @classmethod
     def operator_payout(
         cls,
         *,

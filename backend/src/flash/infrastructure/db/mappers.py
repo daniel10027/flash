@@ -24,9 +24,11 @@ from flash.domain.identity.kyc_case import (
 from flash.domain.identity.user import PhoneNumber, User, UserStatus
 from flash.domain.ledger.chart import Direction
 from flash.domain.ledger.transaction import LedgerTransaction, Posting, TransactionKind
+from flash.domain.merchants.bank_account import BankAccount
 from flash.domain.merchants.charge import MerchantCharge, MerchantChargeStatus
-from flash.domain.merchants.merchant import Merchant, MerchantStatus
+from flash.domain.merchants.merchant import Merchant, MerchantStatus, SettlementFrequency
 from flash.domain.merchants.payment import MerchantPayment, MerchantPaymentStatus
+from flash.domain.merchants.settlement import MerchantSettlement, MerchantSettlementStatus
 from flash.domain.operators.transfer import (
     OperatorTransfer,
     OperatorTransferDirection,
@@ -51,6 +53,7 @@ from flash.infrastructure.db.models import (
     MerchantChargeModel,
     MerchantModel,
     MerchantPaymentModel,
+    MerchantSettlementModel,
     OperatorModel,
     OperatorTransferModel,
     PaymentRequestModel,
@@ -417,6 +420,11 @@ def kyc_case_to_model(case: KycCase) -> KycCaseModel:
 
 
 def merchant_to_domain(model: MerchantModel) -> Merchant:
+    bank_account = (
+        BankAccount(holder=model.bank_holder, iban=model.bank_iban, bank_name=model.bank_name)
+        if model.bank_iban and model.bank_holder and model.bank_name
+        else None
+    )
     return Merchant(
         id=EntityId(model.id),
         user_id=EntityId(model.user_id),
@@ -426,10 +434,17 @@ def merchant_to_domain(model: MerchantModel) -> Merchant:
         fee_bps=model.fee_bps,
         created_at=model.created_at,
         status=MerchantStatus(model.status),
+        settlement_frequency=SettlementFrequency(model.settlement_frequency),
+        bank_account=bank_account,
+        next_settlement_at=model.next_settlement_at,
+        last_settlement_id=(
+            EntityId(model.last_settlement_id) if model.last_settlement_id else None
+        ),
     )
 
 
 def merchant_to_model(merchant: Merchant) -> MerchantModel:
+    account = merchant.bank_account
     return MerchantModel(
         id=str(merchant.id),
         user_id=str(merchant.user_id),
@@ -438,7 +453,54 @@ def merchant_to_model(merchant: Merchant) -> MerchantModel:
         currency=merchant.currency.code,
         fee_bps=merchant.fee_bps,
         status=merchant.status.value,
+        settlement_frequency=merchant.settlement_frequency.value,
+        bank_holder=account.holder if account else None,
+        bank_iban=account.iban if account else None,
+        bank_name=account.bank_name if account else None,
+        next_settlement_at=merchant.next_settlement_at,
+        last_settlement_id=(
+            str(merchant.last_settlement_id) if merchant.last_settlement_id else None
+        ),
         created_at=merchant.created_at,
+    )
+
+
+def merchant_settlement_to_domain(model: MerchantSettlementModel) -> MerchantSettlement:
+    currency = Currency.of(model.currency)
+    return MerchantSettlement(
+        id=EntityId(model.id),
+        merchant_id=EntityId(model.merchant_id),
+        user_id=EntityId(model.user_id),
+        amount=Money(model.amount_minor, currency),
+        payment_count=model.payment_count,
+        status=MerchantSettlementStatus(model.status),
+        created_at=model.created_at,
+        currency_code=model.currency,
+        bank_reference=model.bank_reference,
+        failure_reason=model.failure_reason,
+        settled_at=model.settled_at,
+        ledger_transaction_id=(
+            EntityId(model.ledger_transaction_id) if model.ledger_transaction_id else None
+        ),
+    )
+
+
+def merchant_settlement_to_model(settlement: MerchantSettlement) -> MerchantSettlementModel:
+    return MerchantSettlementModel(
+        id=str(settlement.id),
+        merchant_id=str(settlement.merchant_id),
+        user_id=str(settlement.user_id),
+        amount_minor=settlement.amount.amount_minor,
+        currency=settlement.currency_code,
+        payment_count=settlement.payment_count,
+        status=settlement.status.value,
+        bank_reference=settlement.bank_reference,
+        failure_reason=settlement.failure_reason,
+        created_at=settlement.created_at,
+        settled_at=settlement.settled_at,
+        ledger_transaction_id=(
+            str(settlement.ledger_transaction_id) if settlement.ledger_transaction_id else None
+        ),
     )
 
 
@@ -491,6 +553,7 @@ def merchant_payment_to_domain(model: MerchantPaymentModel) -> MerchantPayment:
         ledger_transaction_id=EntityId(model.ledger_transaction_id),
         created_at=model.created_at,
         charge_id=EntityId(model.charge_id) if model.charge_id else None,
+        settlement_id=EntityId(model.settlement_id) if model.settlement_id else None,
     )
 
 
@@ -506,6 +569,7 @@ def merchant_payment_to_model(payment: MerchantPayment) -> MerchantPaymentModel:
         reference=payment.reference,
         status=payment.status.value,
         ledger_transaction_id=str(payment.ledger_transaction_id),
+        settlement_id=str(payment.settlement_id) if payment.settlement_id else None,
         created_at=payment.created_at,
     )
 
@@ -759,6 +823,8 @@ __all__ = [
     "merchant_charge_to_model",
     "merchant_payment_to_domain",
     "merchant_payment_to_model",
+    "merchant_settlement_to_domain",
+    "merchant_settlement_to_model",
     "merchant_to_domain",
     "merchant_to_model",
     "operator_to_model",

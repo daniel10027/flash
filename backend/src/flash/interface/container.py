@@ -15,6 +15,7 @@ from flash.application.auth.tokens import TokenService
 from flash.application.card.ports import CardIssuer
 from flash.application.cash.ports import WithdrawalCodes
 from flash.application.identity.documents import DocumentStore
+from flash.application.merchants.bank import BankGateway
 from flash.application.notifications.dispatcher import NotificationDispatcher
 from flash.application.notifications.ports import NotificationBus, NotificationRepository
 from flash.application.operators.ports import OperatorGateway
@@ -26,6 +27,7 @@ from flash.domain.country.reference import ReferenceDirectory, ReferenceEditor
 from flash.domain.identity.pin import PinHasher
 from flash.domain.limits.limits import KycPolicy, LimitPolicy
 from flash.domain.pricing.pricing import PricingService
+from flash.infrastructure.bank_gateway import SandboxBankGateway
 from flash.infrastructure.cache.idempotency import RedisIdempotencyStore
 from flash.infrastructure.cache.redis import get_redis
 from flash.infrastructure.card_issuer import SandboxCardIssuer
@@ -90,6 +92,7 @@ class Deps:
     card_monthly_limit_minor: int
     operator_gateway: OperatorGateway
     operator_webhook_secret: str
+    bank_gateway: BankGateway
 
 
 def build_app_services(settings: Settings) -> AppServices:
@@ -166,6 +169,7 @@ def build_deps(settings: Settings, *, tokens: TokenService) -> Deps:
         card_monthly_limit_minor=settings.card_monthly_limit_minor,
         operator_gateway=SandboxOperatorGateway(pepper=settings.secret_key),
         operator_webhook_secret=settings.operator_webhook_secret,
+        bank_gateway=SandboxBankGateway(pepper=settings.secret_key),
     )
 
 

@@ -6,6 +6,7 @@ from flask import Blueprint, Response, jsonify
 
 from flash.application.jobs.card_reconcile import ReconcileCardSettlements
 from flash.application.jobs.expire import ExpireStaleOperations
+from flash.application.jobs.merchant_settle import SettleDueMerchants
 from flash.application.jobs.reconcile import ReconcileWalletBalances
 from flash.application.jobs.savings import AccrueSavingsInterest, RunScheduledSavings
 from flash.interface.container import deps
@@ -60,6 +61,20 @@ def run_scheduled_savings() -> tuple[Response, int]:
 )
 def run_savings_interest() -> tuple[Response, int]:
     report = AccrueSavingsInterest(services=deps().services).execute()
+    return jsonify(report.to_dict()), 200
+
+
+@bp.post("/jobs/merchants/settle")
+@require_admin
+@document(
+    summary="Back-office : régler les marchands dont l'échéance est atteinte",
+    tags=["admin"],
+    secured=False,
+)
+def run_merchant_settle() -> tuple[Response, int]:
+    report = SettleDueMerchants(
+        services=deps().services, bank=deps().bank_gateway
+    ).execute()
     return jsonify(report.to_dict()), 200
 
 

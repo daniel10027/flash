@@ -58,6 +58,41 @@ class MerchantPaymentRefunded(DomainEvent):
     reversal_transaction_id: str
 
 
+@dataclass(frozen=True, slots=True, kw_only=True)
+class MerchantSettlementConfigured(DomainEvent):
+    user_id: str
+    merchant_id: str
+    frequency: str
+    bank_iban_masked: str
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class MerchantSettlementOpened(DomainEvent):
+    user_id: str
+    merchant_id: str
+    amount_minor: int
+    currency: str
+    payment_count: int
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class MerchantSettlementPaid(DomainEvent):
+    user_id: str
+    merchant_id: str
+    amount_minor: int
+    currency: str
+    bank_reference: str
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class MerchantSettlementFailed(DomainEvent):
+    user_id: str
+    merchant_id: str
+    amount_minor: int
+    currency: str
+    reason: str
+
+
 __all__ = [
     "MerchantChargeCancelled",
     "MerchantChargeExpired",
@@ -65,5 +100,9 @@ __all__ = [
     "MerchantEnrolled",
     "MerchantPaymentCompleted",
     "MerchantPaymentRefunded",
+    "MerchantSettlementConfigured",
+    "MerchantSettlementFailed",
+    "MerchantSettlementOpened",
+    "MerchantSettlementPaid",
     "MerchantSuspended",
 ]

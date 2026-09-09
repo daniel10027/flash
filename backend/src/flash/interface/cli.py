@@ -65,12 +65,16 @@ def run_jobs() -> None:
     opérations en attente + réconciliation des soldes."""
     from flash.application.jobs.card_reconcile import ReconcileCardSettlements
     from flash.application.jobs.expire import ExpireStaleOperations
+    from flash.application.jobs.merchant_settle import SettleDueMerchants
     from flash.application.jobs.reconcile import ReconcileWalletBalances
     from flash.application.jobs.savings import AccrueSavingsInterest, RunScheduledSavings
+    from flash.infrastructure.bank_gateway import SandboxBankGateway
     from flash.infrastructure.config import get_settings
     from flash.interface.container import build_app_services
 
-    services = build_app_services(get_settings())
+    settings = get_settings()
+    services = build_app_services(settings)
+    bank = SandboxBankGateway(pepper=settings.secret_key)
 
     expired = ExpireStaleOperations(services=services).execute()
     click.echo(
@@ -89,6 +93,13 @@ def run_jobs() -> None:
     click.echo(
         f"intérêts d'épargne : {interest.capitalised_minor} capitalisés "
         f"sur {interest.capitalised_plans} plan(s) ({interest.checked} vérifiés)"
+    )
+
+    settlement = SettleDueMerchants(services=services, bank=bank).execute()
+    click.echo(
+        f"règlements marchands : {settlement.settled} réglés "
+        f"({settlement.settled_minor} minor), {settlement.skipped} sans encours, "
+        f"{settlement.failed} en échec (sur {settlement.checked} échus)"
     )
 
     card_report = ReconcileCardSettlements(services=services).execute()

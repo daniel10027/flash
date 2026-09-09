@@ -8,6 +8,7 @@ from flash.application.notifications.dispatcher import NotificationDispatcher
 from flash.application.services import AppServices
 from flash.domain.limits.limits import KycPolicy, LimitPolicy
 from flash.domain.pricing.pricing import PricingService
+from flash.infrastructure.bank_gateway import SandboxBankGateway
 from flash.infrastructure.card_issuer import SandboxCardIssuer
 from flash.infrastructure.codes import PepperedWithdrawalCodes
 from flash.infrastructure.documents import InMemoryDocumentStore
@@ -95,6 +96,7 @@ def build_test_deps(
         card_monthly_limit_minor=5_000_000,
         operator_gateway=SandboxOperatorGateway(pepper="test-operator-pepper"),
         operator_webhook_secret=operator_webhook_secret,
+        bank_gateway=SandboxBankGateway(pepper="test-bank-pepper"),
     )
 
 

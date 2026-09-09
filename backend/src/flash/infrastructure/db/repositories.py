@@ -24,6 +24,7 @@ from flash.domain.ledger.transaction import LedgerTransaction
 from flash.domain.merchants.charge import MerchantCharge
 from flash.domain.merchants.merchant import Merchant
 from flash.domain.merchants.payment import MerchantPayment
+from flash.domain.merchants.settlement import MerchantSettlement
 from flash.domain.operators.transfer import OperatorTransfer
 from flash.domain.payments.request import PaymentRequest
 from flash.domain.savings.plan import SavingsPlan
@@ -46,6 +47,7 @@ from flash.infrastructure.db.models import (
     MerchantChargeModel,
     MerchantModel,
     MerchantPaymentModel,
+    MerchantSettlementModel,
     OperatorTransferModel,
     PaymentRequestModel,
     PhoneNumberModel,
@@ -428,6 +430,34 @@ class SqlAlchemyMerchantRepository:
         stmt = select(MerchantModel).where(MerchantModel.user_id == str(user_id))
         return self._load(self._session.scalars(stmt).first())
 
+    def get_for_update(self, merchant_id: EntityId) -> Merchant:
+        stmt = (
+            select(MerchantModel).where(MerchantModel.id == str(merchant_id)).with_for_update()
+        )
+        model = self._session.scalars(stmt).first()
+        if model is None:
+            raise KeyError(merchant_id)
+        loaded = self._load(model)
+        assert loaded is not None
+        return loaded
+
+    def list_due_for_settlement(
+        self, now: datetime, *, limit: int = 500
+    ) -> list[Merchant]:
+        stmt = (
+            select(MerchantModel)
+            .where(
+                MerchantModel.status == "ACTIVE",
+                MerchantModel.bank_iban.is_not(None),
+                MerchantModel.next_settlement_at.is_not(None),
+                MerchantModel.next_settlement_at <= now,
+            )
+            .order_by(MerchantModel.next_settlement_at.asc())
+            .limit(limit)
+            .with_for_update()
+        )
+        return [m for m in (self._load(x) for x in self._session.scalars(stmt)) if m is not None]
+
     def add(self, merchant: Merchant) -> None:
         self._session.add(mappers.merchant_to_model(merchant))
         self._tracker.track(merchant)
@@ -523,6 +553,27 @@ class SqlAlchemyMerchantPaymentRepository:
         )
         return [p for p in (self._load(m) for m in self._session.scalars(stmt)) if p is not None]
 
+    def list_settleable(self, merchant_id: EntityId) -> list[MerchantPayment]:
+        stmt = (
+            select(MerchantPaymentModel)
+            .where(
+                MerchantPaymentModel.merchant_id == str(merchant_id),
+                MerchantPaymentModel.status == "COMPLETED",
+                MerchantPaymentModel.settlement_id.is_(None),
+            )
+            .order_by(MerchantPaymentModel.created_at.asc())
+            .with_for_update()
+        )
+        return [p for p in (self._load(m) for m in self._session.scalars(stmt)) if p is not None]
+
+    def list_for_settlement(self, settlement_id: EntityId) -> list[MerchantPayment]:
+        stmt = (
+            select(MerchantPaymentModel)
+            .where(MerchantPaymentModel.settlement_id == str(settlement_id))
+            .order_by(MerchantPaymentModel.created_at.asc())
+        )
+        return [p for p in (self._load(m) for m in self._session.scalars(stmt)) if p is not None]
+
     def add(self, payment: MerchantPayment) -> None:
         self._session.add(mappers.merchant_payment_to_model(payment))
         self._tracker.track(payment)
@@ -530,6 +581,38 @@ class SqlAlchemyMerchantPaymentRepository:
     def save(self, payment: MerchantPayment) -> None:
         self._session.merge(mappers.merchant_payment_to_model(payment))
         self._tracker.track(payment)
+
+
+class SqlAlchemyMerchantSettlementRepository:
+    def __init__(self, session: Session, tracker: _AggregateTracker) -> None:
+        self._session = session
+        self._tracker = tracker
+
+    def _load(self, model: MerchantSettlementModel | None) -> MerchantSettlement | None:
+        if model is None:
+            return None
+        settlement = mappers.merchant_settlement_to_domain(model)
+        self._tracker.track(settlement)
+        return settlement
+
+    def get(self, settlement_id: EntityId) -> MerchantSettlement | None:
+        return self._load(self._session.get(MerchantSettlementModel, str(settlement_id)))
+
+    def list_for_merchant(self, merchant_id: EntityId) -> list[MerchantSettlement]:
+        stmt = (
+            select(MerchantSettlementModel)
+            .where(MerchantSettlementModel.merchant_id == str(merchant_id))
+            .order_by(MerchantSettlementModel.created_at.desc())
+        )
+        return [s for s in (self._load(m) for m in self._session.scalars(stmt)) if s is not None]
+
+    def add(self, settlement: MerchantSettlement) -> None:
+        self._session.add(mappers.merchant_settlement_to_model(settlement))
+        self._tracker.track(settlement)
+
+    def save(self, settlement: MerchantSettlement) -> None:
+        self._session.merge(mappers.merchant_settlement_to_model(settlement))
+        self._tracker.track(settlement)
 
 
 class SqlAlchemyVaultRepository:
@@ -834,6 +917,7 @@ __all__ = [
     "SqlAlchemyMerchantChargeRepository",
     "SqlAlchemyMerchantPaymentRepository",
     "SqlAlchemyMerchantRepository",
+    "SqlAlchemyMerchantSettlementRepository",
     "SqlAlchemyOperatorTransferRepository",
     "SqlAlchemyPaymentRequestRepository",
     "SqlAlchemySavingsPlanRepository",

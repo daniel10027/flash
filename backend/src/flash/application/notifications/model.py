@@ -20,6 +20,7 @@ class NotificationKind(StrEnum):
     SAVINGS = "SAVINGS"  # épargne : versement programmé, intérêts, clôture
     CARD = "CARD"  # carte : autorisation, refus, gel, remboursement
     OPERATOR = "OPERATOR"  # interop opérateur mobile money (envoi / rechargement)
+    SETTLEMENT = "SETTLEMENT"  # règlement marchand viré en banque
     SECURITY = "SECURITY"  # événement de sécurité (nouvel appareil…)
 
 

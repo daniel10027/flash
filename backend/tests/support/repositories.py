@@ -21,6 +21,7 @@ from flash.domain.ledger.transaction import LedgerTransaction
 from flash.domain.merchants.charge import MerchantCharge, MerchantChargeStatus
 from flash.domain.merchants.merchant import Merchant
 from flash.domain.merchants.payment import MerchantPayment
+from flash.domain.merchants.settlement import MerchantSettlement
 from flash.domain.operators.transfer import OperatorTransfer
 from flash.domain.payments.request import PaymentRequest, PaymentRequestStatus
 from flash.domain.savings.plan import SavingsPlan, SavingsPlanStatus
@@ -366,6 +367,22 @@ class InMemoryMerchantRepository(_Tracking):
                 return merchant
         return None
 
+    def get_for_update(self, merchant_id: EntityId) -> Merchant:
+        merchant = self._by_id.get(str(merchant_id))
+        if merchant is None:
+            raise KeyError(merchant_id)
+        self._track(merchant)
+        return merchant
+
+    def list_due_for_settlement(
+        self, now: datetime, *, limit: int = 500
+    ) -> list[Merchant]:
+        rows = [m for m in self._by_id.values() if m.due_for_settlement(now)]
+        rows.sort(key=lambda m: m.next_settlement_at or now)
+        for m in rows[:limit]:
+            self._track(m)
+        return rows[:limit]
+
     def add(self, merchant: Merchant) -> None:
         self._by_id[str(merchant.id)] = merchant
         self._track(merchant)
@@ -445,6 +462,24 @@ class InMemoryMerchantPaymentRepository(_Tracking):
             self._track(p)
         return rows
 
+    def list_settleable(self, merchant_id: EntityId) -> list[MerchantPayment]:
+        rows = [
+            p
+            for p in self._by_id.values()
+            if p.merchant_id == merchant_id and p.is_settleable
+        ]
+        rows.sort(key=lambda p: p.created_at)
+        for p in rows:
+            self._track(p)
+        return rows
+
+    def list_for_settlement(self, settlement_id: EntityId) -> list[MerchantPayment]:
+        rows = [p for p in self._by_id.values() if p.settlement_id == settlement_id]
+        rows.sort(key=lambda p: p.created_at)
+        for p in rows:
+            self._track(p)
+        return rows
+
     def add(self, payment: MerchantPayment) -> None:
         self._by_id[str(payment.id)] = payment
         self._track(payment)
@@ -452,6 +487,33 @@ class InMemoryMerchantPaymentRepository(_Tracking):
     def save(self, payment: MerchantPayment) -> None:
         self._by_id[str(payment.id)] = payment
         self._track(payment)
+
+
+class InMemoryMerchantSettlementRepository(_Tracking):
+    def __init__(self) -> None:
+        super().__init__()
+        self._by_id: dict[str, MerchantSettlement] = {}
+
+    def get(self, settlement_id: EntityId) -> MerchantSettlement | None:
+        settlement = self._by_id.get(str(settlement_id))
+        if settlement is not None:
+            self._track(settlement)
+        return settlement
+
+    def list_for_merchant(self, merchant_id: EntityId) -> list[MerchantSettlement]:
+        rows = [s for s in self._by_id.values() if s.merchant_id == merchant_id]
+        rows.sort(key=lambda s: s.created_at, reverse=True)
+        for s in rows:
+            self._track(s)
+        return rows
+
+    def add(self, settlement: MerchantSettlement) -> None:
+        self._by_id[str(settlement.id)] = settlement
+        self._track(settlement)
+
+    def save(self, settlement: MerchantSettlement) -> None:
+        self._by_id[str(settlement.id)] = settlement
+        self._track(settlement)
 
 
 class InMemoryVaultRepository(_Tracking):
@@ -701,6 +763,7 @@ class InMemoryUnitOfWork:
         merchants: InMemoryMerchantRepository | None = None,
         merchant_charges: InMemoryMerchantChargeRepository | None = None,
         merchant_payments: InMemoryMerchantPaymentRepository | None = None,
+        merchant_settlements: InMemoryMerchantSettlementRepository | None = None,
         vaults: InMemoryVaultRepository | None = None,
         savings: InMemorySavingsPlanRepository | None = None,
         cards: InMemoryCardRepository | None = None,
@@ -717,6 +780,9 @@ class InMemoryUnitOfWork:
         self.merchants = merchants or InMemoryMerchantRepository()
         self.merchant_charges = merchant_charges or InMemoryMerchantChargeRepository()
         self.merchant_payments = merchant_payments or InMemoryMerchantPaymentRepository()
+        self.merchant_settlements = (
+            merchant_settlements or InMemoryMerchantSettlementRepository()
+        )
         self.vaults = vaults or InMemoryVaultRepository()
         self.savings = savings or InMemorySavingsPlanRepository()
         self.cards = cards or InMemoryCardRepository()
@@ -758,6 +824,7 @@ class InMemoryUnitOfWork:
             *self.merchants.seen,
             *self.merchant_charges.seen,
             *self.merchant_payments.seen,
+            *self.merchant_settlements.seen,
             *self.vaults.seen,
             *self.savings.seen,
             *self.cards.seen,
@@ -780,6 +847,7 @@ __all__ = [
     "InMemoryMerchantChargeRepository",
     "InMemoryMerchantPaymentRepository",
     "InMemoryMerchantRepository",
+    "InMemoryMerchantSettlementRepository",
     "InMemoryOperatorTransferRepository",
     "InMemoryPaymentRequestRepository",
     "InMemorySavingsPlanRepository",

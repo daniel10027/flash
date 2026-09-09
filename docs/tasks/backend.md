@@ -263,12 +263,24 @@ Chaque tâche livrée : code complet + tests + doc, **zéro `TODO`**.
   brut, `OPERATOR_WEBHOOK_SECRET`). Idempotent par `reference` (rejeu → `applied:false`) ;
   refus 422 si opérateur ≠ émetteur ou référence inconnue. Table `operator_transfers`,
   migration `b6c1e9d47f20`.
-- [ ] **BE-068** · `domain/merchant/` : `Merchant` (catégorie, comptes de règlement,
-  frais négociés, sous‑comptes caisses/employés).
+- [~] **BE-068** · `domain/merchants/` enrichi : VO `BankAccount` (IBAN/RIB masqué),
+  `SettlementFrequency` (MANUAL/DAILY/WEEKLY/MONTHLY), `Merchant.configure_settlement`
+  (compte bancaire + échéance `next_settlement_at`), `due_for_settlement` /
+  `advance_settlement_schedule` / `record_settlement`. *Reste : sous‑comptes
+  caisses/employés, frais négociés par canal.*
 - [ ] **BE-069** · Onboarding marchand + KYB, génération QR marchand (statique + affiche
   imprimable PDF), clés API marchand.
-- [ ] **BE-070** · Règlements marchands : job `settle_merchants` (fréquence par marchand)
-  → virement `bank_settlement` (port `BankGateway` + sandbox), relevé de règlement.
+- [x] **BE-070** · Règlements marchands : port `application/merchants/bank.py::BankGateway`
+  (`transfer` → `BankAck` synchrone) + `SandboxBankGateway` déterministe. Agrégat
+  `MerchantSettlement` (PENDING → PAID / FAILED), `LedgerTransaction.merchant_settlement`
+  (`MERCHANT_PAYABLE` ↓ / `BANK_SETTLEMENT` ↓). `settle_merchant` agrège le net des
+  `MerchantPayment` COMPLETED non réglés, vire, rattache les paiements, avance l'échéance.
+  `ConfigureMerchantSettlement` (`PUT /v1/merchant/settlement`), `SettleMerchantNow`
+  (`POST /v1/merchant/settlements`), `ListMerchantSettlements`, `GetSettlementStatement`
+  (relevé détaillé). Job `SettleDueMerchants` (`flash run-jobs` +
+  `POST /v1/admin/jobs/merchants/settle`), notifications `SETTLEMENT`. Table
+  `merchant_settlements` + colonnes règlement sur `merchants` / `merchant_payments`,
+  migration `c7d2f4a91b38`.
 - [ ] **BE-071** · API marchande publique (`/merchant/v1/…`) : créer une demande de
   paiement, statut, remboursement, webhooks marchand signés. Doc séparée.
 - [ ] **BE-072** · `domain/agent/` : `Agent` (float, plafonds, grille de commission,

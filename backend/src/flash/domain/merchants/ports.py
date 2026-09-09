@@ -8,6 +8,7 @@ from typing import Protocol, runtime_checkable
 from flash.domain.merchants.charge import MerchantCharge
 from flash.domain.merchants.merchant import Merchant
 from flash.domain.merchants.payment import MerchantPayment
+from flash.domain.merchants.settlement import MerchantSettlement
 from flash.domain.shared.identifiers import EntityId
 
 
@@ -16,6 +17,16 @@ class MerchantRepository(Protocol):
     def get(self, merchant_id: EntityId) -> Merchant | None: ...
 
     def get_by_user_id(self, user_id: EntityId) -> Merchant | None: ...
+
+    def get_for_update(self, merchant_id: EntityId) -> Merchant:
+        """Marchand avec verrou pessimiste. Lève ``KeyError`` si absent."""
+        ...
+
+    def list_due_for_settlement(
+        self, now: datetime, *, limit: int = 500
+    ) -> list[Merchant]:
+        """Marchands ``ACTIVE`` avec compte bancaire dont ``next_settlement_at`` est échu."""
+        ...
 
     def add(self, merchant: Merchant) -> None: ...
 
@@ -49,13 +60,31 @@ class MerchantPaymentRepository(Protocol):
 
     def list_for_merchant(self, merchant_id: EntityId) -> list[MerchantPayment]: ...
 
+    def list_settleable(self, merchant_id: EntityId) -> list[MerchantPayment]:
+        """Paiements ``COMPLETED`` non encore rattachés à un règlement."""
+        ...
+
+    def list_for_settlement(self, settlement_id: EntityId) -> list[MerchantPayment]: ...
+
     def add(self, payment: MerchantPayment) -> None: ...
 
     def save(self, payment: MerchantPayment) -> None: ...
+
+
+@runtime_checkable
+class MerchantSettlementRepository(Protocol):
+    def get(self, settlement_id: EntityId) -> MerchantSettlement | None: ...
+
+    def list_for_merchant(self, merchant_id: EntityId) -> list[MerchantSettlement]: ...
+
+    def add(self, settlement: MerchantSettlement) -> None: ...
+
+    def save(self, settlement: MerchantSettlement) -> None: ...
 
 
 __all__ = [
     "MerchantChargeRepository",
     "MerchantPaymentRepository",
     "MerchantRepository",
+    "MerchantSettlementRepository",
 ]

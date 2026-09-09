@@ -442,11 +442,26 @@ class MerchantModel(Base):
     currency: Mapped[str] = mapped_column(_CCY, nullable=False)
     fee_bps: Mapped[int] = mapped_column(SmallInteger, nullable=False, default=0)
     status: Mapped[str] = mapped_column(String(16), nullable=False, default="ACTIVE")
+    settlement_frequency: Mapped[str] = mapped_column(
+        String(8), nullable=False, default="MANUAL"
+    )
+    bank_holder: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    bank_iban: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    bank_name: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    next_settlement_at: Mapped[datetime | None] = mapped_column(TZDateTime, nullable=True)
+    last_settlement_id: Mapped[str | None] = mapped_column(_UUID, nullable=True)
     created_at: Mapped[datetime] = mapped_column(TZDateTime, nullable=False)
 
     __table_args__ = (
         UniqueConstraint("user_id"),
         CheckConstraint("fee_bps >= 0 AND fee_bps <= 1000", name="fee_bps_bounds"),
+        Index(
+            "ix_merchants_settlement_due",
+            "next_settlement_at",
+            postgresql_where=text(
+                "status = 'ACTIVE' AND next_settlement_at IS NOT NULL AND bank_iban IS NOT NULL"
+            ),
+        ),
     )
 
 
@@ -489,9 +504,37 @@ class MerchantPaymentModel(Base):
     reference: Mapped[str] = mapped_column(String(80), nullable=False)
     status: Mapped[str] = mapped_column(String(12), nullable=False)
     ledger_transaction_id: Mapped[str] = mapped_column(_UUID, nullable=False, unique=True)
+    settlement_id: Mapped[str | None] = mapped_column(_UUID, nullable=True)
     created_at: Mapped[datetime] = mapped_column(TZDateTime, nullable=False)
 
-    __table_args__ = (Index("ix_merchant_payments_merchant_id", "merchant_id"),)
+    __table_args__ = (
+        Index("ix_merchant_payments_merchant_id", "merchant_id"),
+        Index("ix_merchant_payments_settlement_id", "settlement_id"),
+    )
+
+
+class MerchantSettlementModel(Base):
+    __tablename__ = "merchant_settlements"
+
+    id: Mapped[str] = mapped_column(_UUID, primary_key=True)
+    merchant_id: Mapped[str] = mapped_column(
+        ForeignKey("merchants.id", ondelete="RESTRICT"), nullable=False
+    )
+    user_id: Mapped[str] = mapped_column(_UUID, nullable=False)
+    amount_minor: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    currency: Mapped[str] = mapped_column(_CCY, nullable=False)
+    payment_count: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    status: Mapped[str] = mapped_column(String(12), nullable=False)
+    bank_reference: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    failure_reason: Mapped[str | None] = mapped_column(String(160), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(TZDateTime, nullable=False)
+    settled_at: Mapped[datetime | None] = mapped_column(TZDateTime, nullable=True)
+    ledger_transaction_id: Mapped[str | None] = mapped_column(_UUID, nullable=True)
+
+    __table_args__ = (
+        CheckConstraint("amount_minor > 0", name="merchant_settlement_amount_positive"),
+        Index("ix_merchant_settlements_merchant_id", "merchant_id"),
+    )
 
 
 class PaymentRequestModel(Base):
@@ -628,6 +671,7 @@ __all__ = [
     "MerchantChargeModel",
     "MerchantModel",
     "MerchantPaymentModel",
+    "MerchantSettlementModel",
     "NotificationModel",
     "OperatorModel",
     "OperatorTransferModel",

@@ -21,6 +21,16 @@ from flash.application.merchants.refund import (
     RefundMerchantPayment,
     RefundMerchantPaymentCommand,
 )
+from flash.application.merchants.settlement import (
+    ConfigureMerchantSettlement,
+    ConfigureMerchantSettlementCommand,
+    GetSettlementStatement,
+    GetSettlementStatementCommand,
+    ListMerchantSettlements,
+    ListMerchantSettlementsCommand,
+    SettleMerchantNow,
+    SettleMerchantNowCommand,
+)
 from flash.interface.container import deps
 from flash.interface.http.schemas import ApiModel
 from flash.interface.openapi import document
@@ -111,6 +121,76 @@ def refund_merchant_payment(payment_id: str) -> tuple[Response, int]:
         )
     )
     return jsonify(receipt.to_dict()), 200
+
+
+# ------------------------------------------------------------------ règlements
+class ConfigureSettlementRequest(ApiModel):
+    holder: str = Field(min_length=1, max_length=140, examples=["SARL Chez Awa"])
+    iban: str = Field(min_length=8, max_length=40, examples=["CI93CI0080111301134291200589"])
+    bank_name: str = Field(min_length=1, max_length=120, examples=["Ecobank CI"])
+    frequency: str = Field(default="MANUAL", examples=["WEEKLY"])
+
+
+@merchant_bp.put("/settlement")
+@require_auth
+@rate_limit(name="merchant-settlement-config", limit=20, per_seconds=60, subject="user")
+@document(
+    summary="Configurer le compte bancaire et la fréquence de règlement",
+    tags=["merchants"],
+    request_schema=ConfigureSettlementRequest.model_json_schema(),
+)
+def configure_settlement() -> tuple[Response, int]:
+    body = ConfigureSettlementRequest.model_validate(_json())
+    view = ConfigureMerchantSettlement(services=deps().services).execute(
+        ConfigureMerchantSettlementCommand(
+            merchant_user_id=str(current_principal().user_id),
+            holder=body.holder,
+            iban=body.iban,
+            bank_name=body.bank_name,
+            frequency=body.frequency,
+        )
+    )
+    return jsonify(view.to_dict()), 200
+
+
+@merchant_bp.post("/settlements")
+@require_auth
+@rate_limit(name="merchant-settle-now", limit=10, per_seconds=60, subject="user")
+@document(
+    summary="Déclencher immédiatement un règlement du net accumulé",
+    tags=["merchants"],
+    status_code=200,
+)
+def settle_now() -> tuple[Response, int]:
+    view = SettleMerchantNow(services=deps().services, bank=deps().bank_gateway).execute(
+        SettleMerchantNowCommand(merchant_user_id=str(current_principal().user_id))
+    )
+    if view is None:
+        return jsonify({"settlement": None, "detail": "Aucun paiement à régler."}), 200
+    return jsonify({"settlement": view.to_dict()}), 200
+
+
+@merchant_bp.get("/settlements")
+@require_auth
+@document(summary="Historique des règlements du marchand", tags=["merchants"])
+def list_settlements() -> tuple[Response, int]:
+    views = ListMerchantSettlements(services=deps().services).execute(
+        ListMerchantSettlementsCommand(merchant_user_id=str(current_principal().user_id))
+    )
+    return jsonify({"settlements": [v.to_dict() for v in views]}), 200
+
+
+@merchant_bp.get("/settlements/<settlement_id>")
+@require_auth
+@document(summary="Relevé détaillé d'un règlement (paiements couverts)", tags=["merchants"])
+def settlement_statement(settlement_id: str) -> tuple[Response, int]:
+    statement = GetSettlementStatement(services=deps().services).execute(
+        GetSettlementStatementCommand(
+            merchant_user_id=str(current_principal().user_id),
+            settlement_id=settlement_id,
+        )
+    )
+    return jsonify(statement.to_dict()), 200
 
 
 # ------------------------------------------------------------------ payeur

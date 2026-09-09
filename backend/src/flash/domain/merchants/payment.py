@@ -35,6 +35,7 @@ class MerchantPayment(EventRecorder):
         ledger_transaction_id: EntityId,
         created_at: datetime,
         charge_id: EntityId | None = None,
+        settlement_id: EntityId | None = None,
     ) -> None:
         super().__init__()
         if amount.currency.code != currency_code or fee.currency.code != currency_code:
@@ -54,6 +55,7 @@ class MerchantPayment(EventRecorder):
         self.ledger_transaction_id = ledger_transaction_id
         self.created_at = created_at
         self.charge_id = charge_id
+        self.settlement_id = settlement_id
 
     @classmethod
     def record(
@@ -119,6 +121,15 @@ class MerchantPayment(EventRecorder):
     @property
     def net_to_merchant(self) -> Money:
         return self.amount - self.fee
+
+    @property
+    def is_settleable(self) -> bool:
+        return self.status is MerchantPaymentStatus.COMPLETED and self.settlement_id is None
+
+    def attach_settlement(self, settlement_id: EntityId) -> None:
+        if self.settlement_id is not None:
+            raise InvalidAccountState("Ce paiement est déjà rattaché à un règlement.")
+        self.settlement_id = settlement_id
 
     def __repr__(self) -> str:
         return (

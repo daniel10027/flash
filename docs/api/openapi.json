@@ -2217,6 +2217,170 @@
         ]
       }
     },
+    "/v1/merchant/settlement": {
+      "put": {
+        "summary": "Configurer le compte bancaire et la fréquence de règlement",
+        "tags": [
+          "merchants"
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès"
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "holder": {
+                    "examples": [
+                      "SARL Chez Awa"
+                    ],
+                    "maxLength": 140,
+                    "minLength": 1,
+                    "title": "Holder",
+                    "type": "string"
+                  },
+                  "iban": {
+                    "examples": [
+                      "CI93CI0080111301134291200589"
+                    ],
+                    "maxLength": 40,
+                    "minLength": 8,
+                    "title": "Iban",
+                    "type": "string"
+                  },
+                  "bank_name": {
+                    "examples": [
+                      "Ecobank CI"
+                    ],
+                    "maxLength": 120,
+                    "minLength": 1,
+                    "title": "Bank Name",
+                    "type": "string"
+                  },
+                  "frequency": {
+                    "default": "MANUAL",
+                    "examples": [
+                      "WEEKLY"
+                    ],
+                    "title": "Frequency",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "holder",
+                  "iban",
+                  "bank_name"
+                ],
+                "title": "ConfigureSettlementRequest",
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/merchant/settlements": {
+      "post": {
+        "summary": "Déclencher immédiatement un règlement du net accumulé",
+        "tags": [
+          "merchants"
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès"
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "get": {
+        "summary": "Historique des règlements du marchand",
+        "tags": [
+          "merchants"
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès"
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/v1/merchant/settlements/{settlement_id}": {
+      "get": {
+        "summary": "Relevé détaillé d'un règlement (paiements couverts)",
+        "tags": [
+          "merchants"
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès"
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
     "/v1/merchant-payments": {
       "post": {
         "summary": "Payer un marchand (QR statique avec montant, ou QR dynamique)",
@@ -4534,6 +4698,29 @@
     "/v1/admin/jobs/savings/interest": {
       "post": {
         "summary": "Back-office : accroître et capitaliser les intérêts d'épargne",
+        "tags": [
+          "admin"
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès"
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/jobs/merchants/settle": {
+      "post": {
+        "summary": "Back-office : régler les marchands dont l'échéance est atteinte",
         "tags": [
           "admin"
         ],

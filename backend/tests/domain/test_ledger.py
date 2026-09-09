@@ -386,6 +386,38 @@ class TestOperatorInterop:
         assert collect.is_balanced and len(collect.postings) == 2
 
 
+class TestMerchantSettlementFactory:
+    def test_balanced_payable_down_bank_down(self) -> None:
+        txn = LedgerTransaction.merchant_settlement(
+            id=_id(1),
+            occurred_at=T0,
+            reference="MSET-1",
+            merchant_payable_account_id=_id(600),
+            bank_settlement_account_id=_id(601),
+            amount=xof(45_000),
+            metadata={"merchant_name": "Chez Awa", "payment_count": 3},
+        )
+        assert txn.kind is TransactionKind.MERCHANT_SETTLEMENT
+        assert txn.is_balanced and sum_postings(txn.postings) == {"XOF": 0}
+        debit = next(p for p in txn.postings if p.direction is Direction.DEBIT)
+        credit = next(p for p in txn.postings if p.direction is Direction.CREDIT)
+        assert debit.account_id == _id(600) and debit.amount == xof(45_000)
+        assert credit.account_id == _id(601) and credit.amount == xof(45_000)
+        assert txn.metadata["payment_count"] == 3
+
+    def test_metadata_defaults_to_empty(self) -> None:
+        txn = LedgerTransaction.merchant_settlement(
+            id=_id(2),
+            occurred_at=T0,
+            reference="MSET-2",
+            merchant_payable_account_id=_id(600),
+            bank_settlement_account_id=_id(601),
+            amount=xof(1_000),
+        )
+        assert txn.metadata == {}
+        assert len(txn.postings) == 2
+
+
 class TestReversal:
     def _transfer(self) -> LedgerTransaction:
         return LedgerTransaction.transfer(

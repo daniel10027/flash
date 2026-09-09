@@ -16,7 +16,12 @@ from flash.domain.card.events import (
 )
 from flash.domain.cash.events import CashDepositCompleted, CashWithdrawalConfirmed
 from flash.domain.identity.events import KycCaseApproved, KycCaseRejected
-from flash.domain.merchants.events import MerchantPaymentCompleted, MerchantPaymentRefunded
+from flash.domain.merchants.events import (
+    MerchantPaymentCompleted,
+    MerchantPaymentRefunded,
+    MerchantSettlementFailed,
+    MerchantSettlementPaid,
+)
 from flash.domain.operators.events import (
     OperatorTransferFailed,
     OperatorTransferSucceeded,
@@ -153,6 +158,40 @@ def test_merchant_events_notify_payer(
     )
     kinds = [n.kind for n in notifier.for_user("u-payer")]
     assert kinds == [NotificationKind.MERCHANT_PAYMENT, NotificationKind.REVERSAL]
+
+
+def test_settlement_events_notify_merchant(
+    dispatcher: NotificationDispatcher, notifier: RecordingNotifier
+) -> None:
+    dispatcher.handle(
+        [
+            MerchantSettlementPaid(
+                occurred_at=T0,
+                aggregate_id="set-1",
+                user_id="u-merchant",
+                merchant_id="m-1",
+                amount_minor=24_750,
+                currency="XOF",
+                bank_reference="bank_ref_001",
+            ),
+            MerchantSettlementFailed(
+                occurred_at=T0,
+                aggregate_id="set-2",
+                user_id="u-merchant",
+                merchant_id="m-1",
+                amount_minor=24_750,
+                currency="XOF",
+                reason="Compte clos",
+            ),
+        ]
+    )
+    notes = notifier.for_user("u-merchant")
+    assert [n.kind for n in notes] == [
+        NotificationKind.SETTLEMENT,
+        NotificationKind.SETTLEMENT,
+    ]
+    assert "bank_ref_001" in notes[0].data["bank_reference"]
+    assert "Compte clos" in notes[1].body
 
 
 def test_kyc_events_notify_user(

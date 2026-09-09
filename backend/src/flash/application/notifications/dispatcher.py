@@ -19,7 +19,12 @@ from flash.domain.card.events import (
 )
 from flash.domain.cash.events import CashDepositCompleted, CashWithdrawalConfirmed
 from flash.domain.identity.events import KycCaseApproved, KycCaseRejected
-from flash.domain.merchants.events import MerchantPaymentCompleted, MerchantPaymentRefunded
+from flash.domain.merchants.events import (
+    MerchantPaymentCompleted,
+    MerchantPaymentRefunded,
+    MerchantSettlementFailed,
+    MerchantSettlementPaid,
+)
 from flash.domain.operators.events import (
     OperatorTransferFailed,
     OperatorTransferSucceeded,
@@ -268,6 +273,31 @@ def _operator_failed(e: OperatorTransferFailed) -> list[_Spec]:
     ]
 
 
+def _settlement_paid(e: MerchantSettlementPaid) -> list[_Spec]:
+    return [
+        (
+            e.user_id,
+            NotificationKind.SETTLEMENT,
+            "Règlement viré",
+            f"{_money(e.amount_minor, e.currency)} ont été virés sur votre compte bancaire.",
+            {"settlement_id": e.aggregate_id, "bank_reference": e.bank_reference},
+        )
+    ]
+
+
+def _settlement_failed(e: MerchantSettlementFailed) -> list[_Spec]:
+    return [
+        (
+            e.user_id,
+            NotificationKind.SETTLEMENT,
+            "Règlement en échec",
+            f"Le virement de {_money(e.amount_minor, e.currency)} a échoué ({e.reason}). "
+            "Les encaissements restent à régler au prochain cycle.",
+            {"settlement_id": e.aggregate_id},
+        )
+    ]
+
+
 def _card_authorized(e: CardPaymentAuthorized) -> list[_Spec]:
     where = f" chez {e.merchant_name}" if e.merchant_name else ""
     return [
@@ -348,6 +378,8 @@ _BUILDERS: dict[type[DomainEvent], Callable[[Any], list[_Spec]]] = {
     CashWithdrawalConfirmed: _cash_withdrawal,
     MerchantPaymentCompleted: _merchant_payment,
     MerchantPaymentRefunded: _merchant_refund,
+    MerchantSettlementPaid: _settlement_paid,
+    MerchantSettlementFailed: _settlement_failed,
     KycCaseApproved: _kyc_approved,
     KycCaseRejected: _kyc_rejected,
     VaultPocketDeposited: _vault_deposited,
