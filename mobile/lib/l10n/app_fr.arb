@@ -1,0 +1,53 @@
+{
+  "@@locale": "fr",
+  "appName": "Flash",
+
+  "onboardTitle1": "Envoyez en un éclair",
+  "onboardBody1": "De l'argent à un proche, à un numéro, à un contact — reçu en quelques secondes.",
+  "onboardTitle2": "Payez sans contact",
+  "onboardBody2": "Scannez le QR d'un marchand, réglez, repartez. Zéro frais pour vous.",
+  "onboardTitle3": "Faites grandir votre argent",
+  "onboardBody3": "Coffres, plans d'épargne, carte virtuelle : tout Flash, dans une seule app.",
+  "onboardSkip": "Passer",
+  "onboardNext": "Suivant",
+  "onboardStart": "Commencer",
+
+  "actionContinue": "Continuer",
+  "actionBack": "Retour",
+  "actionRetry": "Réessayer",
+  "actionCancel": "Annuler",
+
+  "navHome": "Accueil",
+  "navHistory": "Historique",
+  "navScan": "Payer",
+  "navCard": "Carte",
+  "navProfile": "Profil",
+
+  "lockTitle": "Déverrouillez Flash",
+  "lockSubtitle": "Saisissez votre code secret",
+  "lockUseBiometrics": "Utiliser la biométrie",
+  "lockWrongPin": "Code incorrect",
+
+  "authPhone": "Numéro de téléphone",
+  "authCountry": "Pays",
+  "authPin": "Code secret",
+  "authSignIn": "Se connecter",
+  "authCreateAccount": "Créer un compte",
+  "authForgotPin": "Code secret oublié ?",
+  "authOtp": "Code de vérification",
+  "authResendOtp": "Renvoyer le code",
+
+  "balanceTitle": "Solde disponible",
+  "balanceHidden": "••••••",
+
+  "quickSend": "Envoyer",
+  "quickPay": "Payer",
+  "quickWithdraw": "Retirer",
+  "quickTopUp": "Ajouter",
+
+  "errorOffline": "Vous êtes hors ligne",
+  "errorOfflineBody": "Vérifiez votre connexion, les dernières données restent consultables.",
+  "errorGeneric": "Une erreur est survenue",
+
+  "comingSoon": "Bientôt disponible"
+}

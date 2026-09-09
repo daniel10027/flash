@@ -1,0 +1,53 @@
+{
+  "@@locale": "en",
+  "appName": "Flash",
+
+  "onboardTitle1": "Send in a flash",
+  "onboardBody1": "Money to a friend, a number, a contact — received in seconds.",
+  "onboardTitle2": "Pay contactless",
+  "onboardBody2": "Scan a merchant QR, pay, walk away. Zero fees for you.",
+  "onboardTitle3": "Grow your money",
+  "onboardBody3": "Vaults, savings plans, a virtual card: all of Flash, in one app.",
+  "onboardSkip": "Skip",
+  "onboardNext": "Next",
+  "onboardStart": "Get started",
+
+  "actionContinue": "Continue",
+  "actionBack": "Back",
+  "actionRetry": "Retry",
+  "actionCancel": "Cancel",
+
+  "navHome": "Home",
+  "navHistory": "History",
+  "navScan": "Pay",
+  "navCard": "Card",
+  "navProfile": "Profile",
+
+  "lockTitle": "Unlock Flash",
+  "lockSubtitle": "Enter your secret code",
+  "lockUseBiometrics": "Use biometrics",
+  "lockWrongPin": "Wrong code",
+
+  "authPhone": "Phone number",
+  "authCountry": "Country",
+  "authPin": "Secret code",
+  "authSignIn": "Sign in",
+  "authCreateAccount": "Create account",
+  "authForgotPin": "Forgot your code?",
+  "authOtp": "Verification code",
+  "authResendOtp": "Resend code",
+
+  "balanceTitle": "Available balance",
+  "balanceHidden": "••••••",
+
+  "quickSend": "Send",
+  "quickPay": "Pay",
+  "quickWithdraw": "Withdraw",
+  "quickTopUp": "Top up",
+
+  "errorOffline": "You are offline",
+  "errorOfflineBody": "Check your connection; your latest data stays available.",
+  "errorGeneric": "Something went wrong",
+
+  "comingSoon": "Coming soon"
+}
