@@ -164,3 +164,62 @@ class TestKycEndpoints:
         client.post(f"/v1/kyc/submissions/{case_id}/withdraw", headers=auth)
         body = client.get("/v1/kyc/submissions", headers=auth).get_json()
         assert [c["status"] for c in body["submissions"]] == ["WITHDRAWN"]
+
+
+class TestKycBackOfficeQueue:
+    def test_queue_lists_pending_and_detail_carries_documents(
+        self, client: FlaskClient, auth: dict[str, str]
+    ) -> None:
+        case_id = _submit(client, auth)["case_id"]
+
+        queue = client.get("/v1/admin/kyc/submissions", headers=ADMIN_HEADERS)
+        assert queue.status_code == 200
+        assert [c["case_id"] for c in queue.get_json()["submissions"]] == [case_id]
+
+        detail = client.get(
+            f"/v1/admin/kyc/submissions/{case_id}", headers=ADMIN_HEADERS
+        ).get_json()
+        assert detail["case_id"] == case_id
+        assert {d["kind"] for d in detail["documents"]} == {"ID_FRONT", "SELFIE"}
+
+    def test_queue_filters_by_status(
+        self, client: FlaskClient, auth: dict[str, str]
+    ) -> None:
+        case_id = _submit(client, auth)["case_id"]
+        client.post(f"/v1/kyc/submissions/{case_id}/withdraw", headers=auth)
+
+        assert client.get(
+            "/v1/admin/kyc/submissions", headers=ADMIN_HEADERS
+        ).get_json()["submissions"] == []
+        withdrawn = client.get(
+            "/v1/admin/kyc/submissions?status=WITHDRAWN", headers=ADMIN_HEADERS
+        ).get_json()
+        assert [c["case_id"] for c in withdrawn["submissions"]] == [case_id]
+
+    def test_document_bytes_are_served_without_cache(
+        self, client: FlaskClient, auth: dict[str, str]
+    ) -> None:
+        case_id = _submit(client, auth)["case_id"]
+        resp = client.get(
+            f"/v1/admin/kyc/submissions/{case_id}/documents/ID_FRONT", headers=ADMIN_HEADERS
+        )
+        assert resp.status_code == 200
+        assert resp.mimetype == "image/png"
+        assert resp.headers["Cache-Control"] == "no-store"
+        assert resp.data == base64.b64decode(PNG)
+
+    def test_unknown_document_kind_is_422(
+        self, client: FlaskClient, auth: dict[str, str]
+    ) -> None:
+        case_id = _submit(client, auth)["case_id"]
+        resp = client.get(
+            f"/v1/admin/kyc/submissions/{case_id}/documents/ID_BACK", headers=ADMIN_HEADERS
+        )
+        assert resp.status_code == 422
+
+    def test_queue_requires_admin_key(self, client: FlaskClient) -> None:
+        assert client.get("/v1/admin/kyc/submissions").status_code == 403
+        assert (
+            client.get("/v1/admin/kyc/submissions", headers={"X-Admin-Key": "nope"}).status_code
+            == 403
+        )

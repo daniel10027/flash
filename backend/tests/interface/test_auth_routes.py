@@ -218,6 +218,157 @@ class TestActivationAndLogin:
         assert resp.get_json()["code"] == "INVALID_CREDENTIALS"
 
 
+def _activate(client: FlaskClient, *, device_id: str = "dev-1") -> dict[str, str]:
+    _register(client)
+    tokens = client.post(
+        "/v1/auth/verify-otp",
+        json={
+            "phone_number": _BODY["phone_number"],
+            "country": "CI",
+            "code": "000000",
+            "device_id": device_id,
+        },
+    ).get_json()
+    return {"Authorization": f"Bearer {tokens['access_token']}"}
+
+
+class TestDevices:
+    def test_list_devices_marks_current(self, client: FlaskClient) -> None:
+        auth = _activate(client, device_id="dev-1")
+        client.post("/v1/auth/login", json={**_BODY, "device_id": "dev-2"})
+
+        body = client.get("/v1/auth/devices", headers=auth).get_json()
+        by_id = {d["device_id"]: d for d in body["devices"]}
+        assert set(by_id) == {"dev-1", "dev-2"}
+        assert by_id["dev-1"]["current"] is True
+        assert by_id["dev-2"]["current"] is False
+
+    def test_revoke_device_kills_its_refresh_token(self, client: FlaskClient) -> None:
+        auth = _activate(client, device_id="dev-1")
+        other = client.post(
+            "/v1/auth/login", json={**_BODY, "device_id": "dev-2"}
+        ).get_json()
+
+        resp = client.delete("/v1/auth/devices/dev-2", headers=auth)
+        assert resp.status_code == 204
+
+        replay = client.post(
+            "/v1/auth/refresh", json={"refresh_token": other["refresh_token"]}
+        )
+        assert replay.status_code == 401
+
+    def test_devices_requires_auth(self, client: FlaskClient) -> None:
+        assert client.get("/v1/auth/devices").status_code == 401
+
+
+class TestChangePin:
+    def test_change_pin_then_login_with_new_pin(self, client: FlaskClient) -> None:
+        auth = _activate(client)
+        resp = client.post(
+            "/v1/auth/change-pin",
+            headers=auth,
+            json={"current_pin": "1397", "new_pin": "2468"},
+        )
+        assert resp.status_code == 204
+        assert (
+            client.post("/v1/auth/login", json={**_BODY, "device_id": "d"}).status_code == 401
+        )
+        assert (
+            client.post(
+                "/v1/auth/login", json={**_BODY, "pin": "2468", "device_id": "d"}
+            ).status_code
+            == 200
+        )
+
+    def test_wrong_current_pin_is_401(self, client: FlaskClient) -> None:
+        auth = _activate(client)
+        resp = client.post(
+            "/v1/auth/change-pin",
+            headers=auth,
+            json={"current_pin": "9753", "new_pin": "2468"},
+        )
+        assert resp.status_code == 401
+        assert resp.get_json()["code"] == "INVALID_CREDENTIALS"
+
+    def test_requires_auth(self, client: FlaskClient) -> None:
+        resp = client.post(
+            "/v1/auth/change-pin", json={"current_pin": "1397", "new_pin": "2468"}
+        )
+        assert resp.status_code == 401
+
+
+class TestPinReset:
+    def test_reset_flow_sets_new_pin_and_revokes_sessions(
+        self, client: FlaskClient, otp: RecordingOtpService
+    ) -> None:
+        auth = _activate(client)
+        login = client.post(
+            "/v1/auth/login", json={**_BODY, "device_id": "dev-2"}
+        ).get_json()
+
+        req = client.post(
+            "/v1/auth/reset-pin/request",
+            json={"phone_number": _BODY["phone_number"], "country": "CI"},
+        )
+        assert req.status_code == 200 and req.get_json()["requested"] is True
+
+        confirm = client.post(
+            "/v1/auth/reset-pin/confirm",
+            json={
+                "phone_number": _BODY["phone_number"],
+                "country": "CI",
+                "code": "000000",
+                "new_pin": "2468",
+            },
+        )
+        assert confirm.status_code == 204
+
+        # ancienne session invalidée
+        assert (
+            client.post(
+                "/v1/auth/refresh", json={"refresh_token": login["refresh_token"]}
+            ).status_code
+            == 401
+        )
+        # le nouveau code fonctionne
+        assert (
+            client.post(
+                "/v1/auth/login", json={**_BODY, "pin": "2468", "device_id": "d"}
+            ).status_code
+            == 200
+        )
+        # l'access token courant ne liste plus d'appareils
+        assert client.get("/v1/auth/devices", headers=auth).status_code == 200
+
+    def test_request_for_unknown_number_still_200_and_silent(
+        self, client: FlaskClient, otp: RecordingOtpService
+    ) -> None:
+        resp = client.post(
+            "/v1/auth/reset-pin/request",
+            json={"phone_number": "+2250788888888", "country": "CI"},
+        )
+        assert resp.status_code == 200
+        assert otp.issued == []
+
+    def test_confirm_with_wrong_code_is_422(self, client: FlaskClient) -> None:
+        _activate(client)
+        client.post(
+            "/v1/auth/reset-pin/request",
+            json={"phone_number": _BODY["phone_number"], "country": "CI"},
+        )
+        resp = client.post(
+            "/v1/auth/reset-pin/confirm",
+            json={
+                "phone_number": _BODY["phone_number"],
+                "country": "CI",
+                "code": "999999",
+                "new_pin": "2468",
+            },
+        )
+        assert resp.status_code == 422
+        assert resp.get_json()["code"] == "OTP_INVALID"
+
+
 class TestOpenApi:
     def test_auth_routes_documented(self, client: FlaskClient) -> None:
         paths = client.get("/openapi.json").get_json()["paths"]
@@ -228,7 +379,13 @@ class TestOpenApi:
             "/v1/auth/login",
             "/v1/auth/refresh",
             "/v1/auth/logout",
+            "/v1/auth/devices",
+            "/v1/auth/change-pin",
+            "/v1/auth/reset-pin/request",
+            "/v1/auth/reset-pin/confirm",
         ):
             assert route in paths
         assert "security" in paths["/v1/auth/logout"]["post"]
+        assert "security" in paths["/v1/auth/devices"]["get"]
         assert "security" not in paths["/v1/auth/login"]["post"]
+        assert "security" not in paths["/v1/auth/reset-pin/request"]["post"]

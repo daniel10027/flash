@@ -11,9 +11,15 @@ from pydantic import Field
 from werkzeug.exceptions import BadRequest
 
 from flash.application.identity.kyc import (
+    GetKycCase,
+    GetKycCaseCommand,
+    GetKycDocument,
+    GetKycDocumentCommand,
     GetKycStatus,
     GetKycStatusCommand,
     KycDocumentInput,
+    ListKycQueue,
+    ListKycQueueCommand,
     ListMyKycCases,
     ListMyKycCasesCommand,
     ReviewKyc,
@@ -117,6 +123,51 @@ def withdraw_kyc(case_id: str) -> tuple[Response, int]:
         WithdrawKycCommand(user_id=str(current_principal().user_id), case_id=case_id)
     )
     return Response(status=204), 204
+
+
+@admin_bp.get("/submissions")
+@require_admin
+@document(
+    summary="Back-office : file des dossiers KYC (par statut)",
+    tags=["kyc", "admin"],
+    secured=False,
+)
+def kyc_queue() -> tuple[Response, int]:
+    views = ListKycQueue(services=deps().services).execute(
+        ListKycQueueCommand(
+            status=request.args.get("status", "PENDING"),
+            limit=request.args.get("limit", default=200, type=int),
+        )
+    )
+    return jsonify({"submissions": [v.to_dict() for v in views]}), 200
+
+
+@admin_bp.get("/submissions/<case_id>")
+@require_admin
+@document(
+    summary="Back-office : détail d'un dossier KYC (pièces incluses)",
+    tags=["kyc", "admin"],
+    secured=False,
+)
+def kyc_case_detail(case_id: str) -> tuple[Response, int]:
+    view = GetKycCase(services=deps().services).execute(GetKycCaseCommand(case_id=case_id))
+    return jsonify(view.to_dict()), 200
+
+
+@admin_bp.get("/submissions/<case_id>/documents/<kind>")
+@require_admin
+@document(
+    summary="Back-office : octets d'une pièce justificative (jamais mis en cache)",
+    tags=["kyc", "admin"],
+    secured=False,
+)
+def kyc_document(case_id: str, kind: str) -> Response:
+    doc = GetKycDocument(services=deps().services, documents=deps().documents).execute(
+        GetKycDocumentCommand(case_id=case_id, kind=kind)
+    )
+    resp = Response(doc.data, mimetype=doc.content_type)
+    resp.headers["Cache-Control"] = "no-store"
+    return resp
 
 
 @admin_bp.post("/submissions/<case_id>/review")

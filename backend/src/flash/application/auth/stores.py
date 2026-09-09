@@ -11,16 +11,42 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Protocol, runtime_checkable
+
+
+@dataclass(frozen=True, slots=True)
+class DeviceRecord:
+    """Un appareil ayant une session vivante (refresh token en cours)."""
+
+    device_id: str
+    first_seen: str | None
+    last_seen: str | None
 
 
 @runtime_checkable
 class RefreshTokenStore(Protocol):
-    def remember(self, *, user_id: str, device_id: str, jti: str, ttl_seconds: int) -> None: ...
+    def remember(
+        self,
+        *,
+        user_id: str,
+        device_id: str,
+        jti: str,
+        ttl_seconds: int,
+        now: str | None = None,
+    ) -> None: ...
 
     def is_current(self, *, user_id: str, device_id: str, jti: str) -> bool: ...
 
     def forget(self, *, user_id: str, device_id: str) -> None: ...
+
+    def forget_all(self, *, user_id: str) -> None:
+        """Révoque toutes les sessions de l'utilisateur (réinitialisation du code secret)."""
+        ...
+
+    def list_devices(self, *, user_id: str) -> list[DeviceRecord]:
+        """Appareils avec une session vivante, du plus récemment vu au plus ancien."""
+        ...
 
 
 @runtime_checkable
@@ -35,4 +61,4 @@ class RateLimiter(Protocol):
     def hit(self, key: str, *, limit: int, per_seconds: int) -> bool: ...
 
 
-__all__ = ["AccessRevocationStore", "RateLimiter", "RefreshTokenStore"]
+__all__ = ["AccessRevocationStore", "DeviceRecord", "RateLimiter", "RefreshTokenStore"]

@@ -498,6 +498,264 @@
         ]
       }
     },
+    "/v1/auth/devices": {
+      "get": {
+        "summary": "Lister les appareils avec une session active",
+        "tags": [
+          "auth"
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès"
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/v1/auth/devices/{device_id}": {
+      "delete": {
+        "summary": "Déconnecter un appareil à distance",
+        "tags": [
+          "auth"
+        ],
+        "responses": {
+          "204": {
+            "description": "Succès"
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/v1/auth/change-pin": {
+      "post": {
+        "summary": "Changer son code secret (authentifié)",
+        "tags": [
+          "auth"
+        ],
+        "responses": {
+          "204": {
+            "description": "Succès"
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "current_pin": {
+                    "examples": [
+                      "1397"
+                    ],
+                    "maxLength": 6,
+                    "minLength": 4,
+                    "title": "Current Pin",
+                    "type": "string"
+                  },
+                  "new_pin": {
+                    "examples": [
+                      "1397"
+                    ],
+                    "maxLength": 6,
+                    "minLength": 4,
+                    "title": "New Pin",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "current_pin",
+                  "new_pin"
+                ],
+                "title": "ChangePinRequest",
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/auth/reset-pin/request": {
+      "post": {
+        "summary": "Demander un code de réinitialisation du code secret",
+        "tags": [
+          "auth"
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès"
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "phone_number": {
+                    "examples": [
+                      "+2250700000000"
+                    ],
+                    "maxLength": 24,
+                    "minLength": 6,
+                    "title": "Phone Number",
+                    "type": "string"
+                  },
+                  "country": {
+                    "examples": [
+                      "CI"
+                    ],
+                    "maxLength": 2,
+                    "minLength": 2,
+                    "title": "Country",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "phone_number",
+                  "country"
+                ],
+                "title": "ResetPinRequestBody",
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/auth/reset-pin/confirm": {
+      "post": {
+        "summary": "Fixer un nouveau code secret avec le code reçu par SMS",
+        "tags": [
+          "auth"
+        ],
+        "responses": {
+          "204": {
+            "description": "Succès"
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "phone_number": {
+                    "examples": [
+                      "+2250700000000"
+                    ],
+                    "maxLength": 24,
+                    "minLength": 6,
+                    "title": "Phone Number",
+                    "type": "string"
+                  },
+                  "country": {
+                    "examples": [
+                      "CI"
+                    ],
+                    "maxLength": 2,
+                    "minLength": 2,
+                    "title": "Country",
+                    "type": "string"
+                  },
+                  "code": {
+                    "examples": [
+                      "000000"
+                    ],
+                    "maxLength": 8,
+                    "minLength": 4,
+                    "title": "Code",
+                    "type": "string"
+                  },
+                  "new_pin": {
+                    "examples": [
+                      "1397"
+                    ],
+                    "maxLength": 6,
+                    "minLength": 4,
+                    "title": "New Pin",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "phone_number",
+                  "country",
+                  "code",
+                  "new_pin"
+                ],
+                "title": "ResetPinConfirmBody",
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/reference/countries": {
       "get": {
         "summary": "Pays pris en charge et leurs opérateurs mobile money",
@@ -2233,6 +2491,78 @@
             "bearerAuth": []
           }
         ]
+      }
+    },
+    "/v1/admin/kyc/submissions": {
+      "get": {
+        "summary": "Back-office : file des dossiers KYC (par statut)",
+        "tags": [
+          "kyc",
+          "admin"
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès"
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/kyc/submissions/{case_id}": {
+      "get": {
+        "summary": "Back-office : détail d'un dossier KYC (pièces incluses)",
+        "tags": [
+          "kyc",
+          "admin"
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès"
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/kyc/submissions/{case_id}/documents/{kind}": {
+      "get": {
+        "summary": "Back-office : octets d'une pièce justificative (jamais mis en cache)",
+        "tags": [
+          "kyc",
+          "admin"
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès"
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/v1/admin/kyc/submissions/{case_id}/review": {

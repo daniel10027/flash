@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 from flask import current_app
 
-from flash.application.auth.stores import RateLimiter
+from flash.application.auth.stores import RateLimiter, RefreshTokenStore
 from flash.application.auth.tokens import TokenService
 from flash.infrastructure.cache.redis import get_redis
 from flash.infrastructure.clock import SystemClock
@@ -25,19 +25,23 @@ _EXT_KEY = "flash_security"
 class SecurityBundle:
     tokens: TokenService
     rate_limiter: RateLimiter
+    refresh_store: RefreshTokenStore
 
 
 def build_security(settings: Settings) -> SecurityBundle:
     redis = get_redis()
     clock = SystemClock()
+    refresh_store = RedisRefreshTokenStore(redis)
     tokens = TokenService(
         codec=JwtTokenCodec(settings.secret_key, clock=clock),
         access_ttl_seconds=settings.jwt_access_ttl_seconds,
         refresh_ttl_seconds=settings.jwt_refresh_ttl_seconds,
-        refresh_store=RedisRefreshTokenStore(redis),
+        refresh_store=refresh_store,
         revocation_store=RedisAccessRevocationStore(redis),
     )
-    return SecurityBundle(tokens=tokens, rate_limiter=RedisRateLimiter(redis))
+    return SecurityBundle(
+        tokens=tokens, rate_limiter=RedisRateLimiter(redis), refresh_store=refresh_store
+    )
 
 
 def register_security(app: object, bundle: SecurityBundle) -> None:

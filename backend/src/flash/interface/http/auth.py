@@ -8,6 +8,18 @@ from pydantic import Field
 from werkzeug.exceptions import BadRequest
 
 from flash.application.auth.login import Login, LoginCommand
+from flash.application.auth.manage import (
+    ChangePin,
+    ChangePinCommand,
+    ConfirmPinReset,
+    ConfirmPinResetCommand,
+    ListDevices,
+    ListDevicesCommand,
+    RequestPinReset,
+    RequestPinResetCommand,
+    RevokeDevice,
+    RevokeDeviceCommand,
+)
 from flash.application.auth.verify_otp import (
     ResendOtp,
     ResendOtpCommand,
@@ -215,6 +227,115 @@ def refresh() -> tuple[Response, int]:
 @document(summary="Révoquer la session de l'appareil courant", tags=["auth"], status_code=204)
 def logout() -> tuple[Response, int]:
     security().tokens.logout(current_principal())
+    return Response(status=204), 204
+
+
+# ------------------------------------------------------------------ appareils
+@bp.get("/devices")
+@require_auth
+@document(summary="Lister les appareils avec une session active", tags=["auth"])
+def list_devices() -> tuple[Response, int]:
+    principal = current_principal()
+    views = ListDevices(refresh_store=security().refresh_store).execute(
+        ListDevicesCommand(
+            user_id=str(principal.user_id), current_device_id=principal.device_id
+        )
+    )
+    return jsonify({"devices": [v.to_dict() for v in views]}), 200
+
+
+@bp.delete("/devices/<device_id>")
+@require_auth
+@document(
+    summary="Déconnecter un appareil à distance", tags=["auth"], status_code=204
+)
+def revoke_device(device_id: str) -> tuple[Response, int]:
+    RevokeDevice(refresh_store=security().refresh_store).execute(
+        RevokeDeviceCommand(user_id=str(current_principal().user_id), device_id=device_id)
+    )
+    return Response(status=204), 204
+
+
+# ------------------------------------------------------------------ code secret
+class ChangePinRequest(ApiModel):
+    current_pin: str = _PIN
+    new_pin: str = _PIN
+
+
+@bp.post("/change-pin")
+@require_auth
+@rate_limit(name="change-pin", limit=5, per_seconds=600, subject="user")
+@document(
+    summary="Changer son code secret (authentifié)",
+    tags=["auth"],
+    status_code=204,
+    request_schema=ChangePinRequest.model_json_schema(),
+)
+def change_pin() -> tuple[Response, int]:
+    body = ChangePinRequest.model_validate(_json())
+    ChangePin(services=deps().services, pins=deps().pins).execute(
+        ChangePinCommand(
+            user_id=str(current_principal().user_id),
+            current_pin=body.current_pin,
+            new_pin=body.new_pin,
+        )
+    )
+    return Response(status=204), 204
+
+
+class ResetPinRequestBody(ApiModel):
+    phone_number: str = _PHONE
+    country: str = _COUNTRY
+
+
+class ResetPinConfirmBody(ApiModel):
+    phone_number: str = _PHONE
+    country: str = _COUNTRY
+    code: str = Field(min_length=4, max_length=8, examples=["000000"])
+    new_pin: str = _PIN
+
+
+@bp.post("/reset-pin/request")
+@rate_limit(name="reset-pin-request", limit=3, per_seconds=600, subject="ip+route")
+@document(
+    summary="Demander un code de réinitialisation du code secret",
+    tags=["auth"],
+    secured=False,
+    status_code=200,
+    request_schema=ResetPinRequestBody.model_json_schema(),
+)
+def reset_pin_request() -> tuple[Response, int]:
+    body = ResetPinRequestBody.model_validate(_json())
+    RequestPinReset(services=deps().services, otp=deps().otp).execute(
+        RequestPinResetCommand(phone_number=body.phone_number, country=body.country)
+    )
+    return jsonify({"requested": True}), 200
+
+
+@bp.post("/reset-pin/confirm")
+@rate_limit(name="reset-pin-confirm", limit=5, per_seconds=600, subject="ip+route")
+@document(
+    summary="Fixer un nouveau code secret avec le code reçu par SMS",
+    tags=["auth"],
+    secured=False,
+    status_code=204,
+    request_schema=ResetPinConfirmBody.model_json_schema(),
+)
+def reset_pin_confirm() -> tuple[Response, int]:
+    body = ResetPinConfirmBody.model_validate(_json())
+    ConfirmPinReset(
+        services=deps().services,
+        otp=deps().otp,
+        pins=deps().pins,
+        refresh_store=security().refresh_store,
+    ).execute(
+        ConfirmPinResetCommand(
+            phone_number=body.phone_number,
+            country=body.country,
+            code=body.code,
+            new_pin=body.new_pin,
+        )
+    )
     return Response(status=204), 204
 
 

@@ -26,6 +26,7 @@ from flash.application.use_case import Command, UseCase
 from flash.domain.identity.kyc import KycTier
 from flash.domain.identity.kyc_case import (
     KycCase,
+    KycCaseStatus,
     KycDocument,
     KycDocumentKind,
 )
@@ -305,12 +306,131 @@ class ReviewKyc(UseCase[ReviewKycCommand, KycCaseView]):
         return captured[0]
 
 
+# ------------------------------------------------------------------- back-office : file
+@dataclass(frozen=True, slots=True)
+class KycDocumentMeta:
+    kind: str
+    content_type: str
+    byte_size: int
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "kind": self.kind,
+            "content_type": self.content_type,
+            "byte_size": self.byte_size,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class KycCaseDetailView:
+    case: KycCaseView
+    documents: list[KycDocumentMeta]
+
+    def to_dict(self) -> dict[str, Any]:
+        return {**self.case.to_dict(), "documents": [d.to_dict() for d in self.documents]}
+
+    @classmethod
+    def of(cls, case: KycCase) -> KycCaseDetailView:
+        return cls(
+            case=KycCaseView.of(case),
+            documents=[
+                KycDocumentMeta(
+                    kind=d.kind.value,
+                    content_type=d.content_type,
+                    byte_size=d.byte_size,
+                )
+                for d in case.documents
+            ],
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class ListKycQueueCommand(Command):
+    status: str = "PENDING"
+    limit: int = 200
+
+
+class ListKycQueue(UseCase[ListKycQueueCommand, list[KycCaseView]]):
+    def __init__(self, *, services: AppServices) -> None:
+        self._services = services
+
+    def execute(self, command: ListKycQueueCommand) -> list[KycCaseView]:
+        try:
+            status = KycCaseStatus(command.status.upper())
+        except ValueError as exc:
+            raise InvalidInput(f"Statut KYC inconnu : {command.status!r}.") from exc
+        with self._services.uow() as uow:
+            cases = uow.kyc_cases.list_by_status(status, limit=max(1, command.limit))
+            return [KycCaseView.of(c) for c in cases]
+
+
+@dataclass(frozen=True, slots=True)
+class GetKycCaseCommand(Command):
+    case_id: str
+
+
+class GetKycCase(UseCase[GetKycCaseCommand, KycCaseDetailView]):
+    def __init__(self, *, services: AppServices) -> None:
+        self._services = services
+
+    def execute(self, command: GetKycCaseCommand) -> KycCaseDetailView:
+        with self._services.uow() as uow:
+            case = uow.kyc_cases.get(EntityId(command.case_id))
+            if case is None:
+                raise InvalidInput("Dossier KYC introuvable.")
+            return KycCaseDetailView.of(case)
+
+
+@dataclass(frozen=True, slots=True)
+class GetKycDocumentCommand(Command):
+    case_id: str
+    kind: str
+
+
+@dataclass(frozen=True, slots=True)
+class KycDocumentBytes:
+    data: bytes
+    content_type: str
+
+
+class GetKycDocument(UseCase[GetKycDocumentCommand, KycDocumentBytes]):
+    def __init__(self, *, services: AppServices, documents: DocumentStore) -> None:
+        self._services = services
+        self._documents = documents
+
+    def execute(self, command: GetKycDocumentCommand) -> KycDocumentBytes:
+        try:
+            kind = KycDocumentKind(command.kind.upper())
+        except ValueError as exc:
+            raise InvalidInput(f"Type de pièce inconnu : {command.kind!r}.") from exc
+        with self._services.uow() as uow:
+            case = uow.kyc_cases.get(EntityId(command.case_id))
+            if case is None:
+                raise InvalidInput("Dossier KYC introuvable.")
+            doc = next((d for d in case.documents if d.kind is kind), None)
+            if doc is None:
+                raise InvalidInput("Pièce absente de ce dossier.")
+        try:
+            data = self._documents.get(doc.storage_key)
+        except KeyError as exc:
+            raise InvalidInput("Pièce introuvable dans le stockage.") from exc
+        return KycDocumentBytes(data=data, content_type=doc.content_type)
+
+
 __all__ = [
+    "GetKycCase",
+    "GetKycCaseCommand",
+    "GetKycDocument",
+    "GetKycDocumentCommand",
     "GetKycStatus",
     "GetKycStatusCommand",
+    "KycCaseDetailView",
     "KycCaseView",
+    "KycDocumentBytes",
     "KycDocumentInput",
     "KycStatusView",
+    "ListKycQueue",
+    "ListKycQueueCommand",
     "ListMyKycCases",
     "ListMyKycCasesCommand",
     "ReviewKyc",

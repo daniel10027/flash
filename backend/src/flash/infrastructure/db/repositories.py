@@ -18,7 +18,7 @@ from flash.domain.card.authorization import CardAuthorization
 from flash.domain.card.card import Card
 from flash.domain.cash.order import CashOrder
 from flash.domain.compliance.alert import ComplianceAlert
-from flash.domain.identity.kyc_case import KycCase
+from flash.domain.identity.kyc_case import KycCase, KycCaseStatus
 from flash.domain.identity.user import User
 from flash.domain.ledger.account import LedgerAccount
 from flash.domain.ledger.chart import AccountType
@@ -415,6 +415,17 @@ class SqlAlchemyKycCaseRepository:
             select(KycCaseModel)
             .where(KycCaseModel.user_id == str(user_id))
             .order_by(KycCaseModel.submitted_at.desc())
+        )
+        return [c for c in (self._load(m) for m in self._session.scalars(stmt)) if c is not None]
+
+    def list_by_status(
+        self, status: KycCaseStatus, *, limit: int = 200
+    ) -> list[KycCase]:
+        stmt = (
+            select(KycCaseModel)
+            .where(KycCaseModel.status == status.value)
+            .order_by(KycCaseModel.submitted_at.asc())
+            .limit(min(max(limit, 1), 500))
         )
         return [c for c in (self._load(m) for m in self._session.scalars(stmt)) if c is not None]
 

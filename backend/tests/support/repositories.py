@@ -348,6 +348,15 @@ class InMemoryKycCaseRepository(_Tracking):
             self._track(case)
         return cases
 
+    def list_by_status(
+        self, status: KycCaseStatus, *, limit: int = 200
+    ) -> list[KycCase]:
+        cases = [c for c in self._by_id.values() if c.status is status]
+        cases.sort(key=lambda c: c.submitted_at)
+        for case in cases[:limit]:
+            self._track(case)
+        return cases[:limit]
+
     def add(self, case: KycCase) -> None:
         self._by_id[str(case.id)] = case
         self._track(case)

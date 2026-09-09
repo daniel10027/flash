@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
 
-from flash.domain.identity.kyc_case import KycCase
+from flash.domain.identity.kyc_case import KycCase, KycCaseStatus
 from flash.domain.identity.user import User
 from flash.domain.shared.identifiers import EntityId, Msisdn
 
@@ -38,6 +38,12 @@ class KycCaseRepository(Protocol):
     def get_pending_for_user(self, user_id: EntityId) -> KycCase | None: ...
 
     def list_for_user(self, user_id: EntityId) -> list[KycCase]: ...
+
+    def list_by_status(
+        self, status: KycCaseStatus, *, limit: int = 200
+    ) -> list[KycCase]:
+        """File back-office : dossiers d'un statut, du plus ancien au plus récent."""
+        ...
 
     def add(self, case: KycCase) -> None: ...
 
