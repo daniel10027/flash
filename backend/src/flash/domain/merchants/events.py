@@ -124,6 +124,27 @@ class MerchantApiKeyRevoked(DomainEvent):
     key_prefix: str
 
 
+@dataclass(frozen=True, slots=True, kw_only=True)
+class MerchantWebhookConfigured(DomainEvent):
+    merchant_id: str
+    endpoint: str
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class MerchantWebhookDelivered(DomainEvent):
+    merchant_id: str
+    event_type: str
+    attempts: int
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class MerchantWebhookExhausted(DomainEvent):
+    merchant_id: str
+    event_type: str
+    attempts: int
+    last_error: str
+
+
 __all__ = [
     "MerchantApiKeyIssued",
     "MerchantApiKeyRevoked",
@@ -141,4 +162,7 @@ __all__ = [
     "MerchantSettlementOpened",
     "MerchantSettlementPaid",
     "MerchantSuspended",
+    "MerchantWebhookConfigured",
+    "MerchantWebhookDelivered",
+    "MerchantWebhookExhausted",
 ]

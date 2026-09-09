@@ -20,6 +20,7 @@ from flash.domain.merchants.ports import (
     MerchantPaymentRepository,
     MerchantRepository,
     MerchantSettlementRepository,
+    MerchantWebhookDeliveryRepository,
 )
 from flash.domain.operators.ports import OperatorTransferRepository
 from flash.domain.payments.ports import PaymentRequestRepository
@@ -68,6 +69,9 @@ class WorkUnitOfWork(Protocol):
 
     @property
     def merchant_api_keys(self) -> MerchantApiKeyRepository: ...
+
+    @property
+    def merchant_webhooks(self) -> MerchantWebhookDeliveryRepository: ...
 
     @property
     def vaults(self) -> VaultRepository: ...

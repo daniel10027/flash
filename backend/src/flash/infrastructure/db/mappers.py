@@ -35,6 +35,10 @@ from flash.domain.merchants.merchant import (
 )
 from flash.domain.merchants.payment import MerchantPayment, MerchantPaymentStatus
 from flash.domain.merchants.settlement import MerchantSettlement, MerchantSettlementStatus
+from flash.domain.merchants.webhook import (
+    MerchantWebhookDelivery,
+    MerchantWebhookStatus,
+)
 from flash.domain.operators.transfer import (
     OperatorTransfer,
     OperatorTransferDirection,
@@ -61,6 +65,7 @@ from flash.infrastructure.db.models import (
     MerchantModel,
     MerchantPaymentModel,
     MerchantSettlementModel,
+    MerchantWebhookDeliveryModel,
     OperatorModel,
     OperatorTransferModel,
     PaymentRequestModel,
@@ -450,6 +455,8 @@ def merchant_to_domain(model: MerchantModel) -> Merchant:
         kyb_status=KybStatus(model.kyb_status),
         kyb_reviewed_at=model.kyb_reviewed_at,
         kyb_reason=model.kyb_reason,
+        webhook_url=model.webhook_url,
+        webhook_secret=model.webhook_secret,
     )
 
 
@@ -474,7 +481,45 @@ def merchant_to_model(merchant: Merchant) -> MerchantModel:
         kyb_status=merchant.kyb_status.value,
         kyb_reviewed_at=merchant.kyb_reviewed_at,
         kyb_reason=merchant.kyb_reason,
+        webhook_url=merchant.webhook_url,
+        webhook_secret=merchant.webhook_secret,
         created_at=merchant.created_at,
+    )
+
+
+def merchant_webhook_delivery_to_domain(
+    model: MerchantWebhookDeliveryModel,
+) -> MerchantWebhookDelivery:
+    return MerchantWebhookDelivery(
+        id=EntityId(model.id),
+        merchant_id=EntityId(model.merchant_id),
+        source_id=EntityId(model.source_id),
+        event_type=model.event_type,
+        payload=model.payload,
+        status=MerchantWebhookStatus(model.status),
+        attempts=model.attempts,
+        created_at=model.created_at,
+        next_attempt_at=model.next_attempt_at,
+        delivered_at=model.delivered_at,
+        last_error=model.last_error,
+    )
+
+
+def merchant_webhook_delivery_to_model(
+    delivery: MerchantWebhookDelivery,
+) -> MerchantWebhookDeliveryModel:
+    return MerchantWebhookDeliveryModel(
+        id=str(delivery.id),
+        merchant_id=str(delivery.merchant_id),
+        source_id=str(delivery.source_id),
+        event_type=delivery.event_type,
+        payload=delivery.payload,
+        status=delivery.status.value,
+        attempts=delivery.attempts,
+        created_at=delivery.created_at,
+        next_attempt_at=delivery.next_attempt_at,
+        delivered_at=delivery.delivered_at,
+        last_error=delivery.last_error,
     )
 
 
@@ -868,6 +913,8 @@ __all__ = [
     "merchant_settlement_to_model",
     "merchant_to_domain",
     "merchant_to_model",
+    "merchant_webhook_delivery_to_domain",
+    "merchant_webhook_delivery_to_model",
     "operator_to_model",
     "operator_transfer_to_domain",
     "operator_transfer_to_model",

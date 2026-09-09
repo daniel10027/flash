@@ -185,6 +185,12 @@ class OperatorTransferNotResolvable(DomainError):
     message = "Ce transfert opérateur n'est plus en attente."
 
 
+# ------------------------------------------------------------------ API marchande
+class MerchantApiKeyInvalid(DomainError):
+    code = "MERCHANT_API_KEY_INVALID"
+    message = "Clé d'API marchande invalide, révoquée ou marchand non habilité."
+
+
 # -------------------------------------------------------------------------- carte
 class CardNotActive(DomainError):
     code = "CARD_NOT_ACTIVE"

@@ -44,6 +44,12 @@ from flash.application.merchants.settlement import (
     SettleMerchantNow,
     SettleMerchantNowCommand,
 )
+from flash.application.merchants.webhooks import (
+    ClearMerchantWebhook,
+    ClearMerchantWebhookCommand,
+    ConfigureMerchantWebhook,
+    ConfigureMerchantWebhookCommand,
+)
 from flash.interface.container import deps
 from flash.interface.http.schemas import ApiModel
 from flash.interface.openapi import document
@@ -163,6 +169,42 @@ def revoke_merchant_api_key(key_id: str) -> tuple[Response, int]:
         RevokeMerchantApiKeyCommand(
             merchant_user_id=str(current_principal().user_id), key_id=key_id
         )
+    )
+    return jsonify(view.to_dict()), 200
+
+
+# ------------------------------------------------------------------ webhooks
+class ConfigureWebhookRequest(ApiModel):
+    url: str = Field(max_length=300, examples=["https://shop.example.com/flash/webhook"])
+    secret: str = Field(min_length=16, max_length=128)
+
+
+@merchant_bp.put("/webhook")
+@require_auth
+@rate_limit(name="merchant-webhook-config", limit=20, per_seconds=60, subject="user")
+@document(
+    summary="Configurer l'URL + le secret des webhooks marchand signés",
+    tags=["merchants"],
+    request_schema=ConfigureWebhookRequest.model_json_schema(),
+)
+def configure_merchant_webhook() -> tuple[Response, int]:
+    body = ConfigureWebhookRequest.model_validate(_json())
+    view = ConfigureMerchantWebhook(services=deps().services).execute(
+        ConfigureMerchantWebhookCommand(
+            merchant_user_id=str(current_principal().user_id),
+            url=body.url,
+            secret=body.secret,
+        )
+    )
+    return jsonify(view.to_dict()), 200
+
+
+@merchant_bp.delete("/webhook")
+@require_auth
+@document(summary="Désactiver les webhooks marchand", tags=["merchants"])
+def clear_merchant_webhook() -> tuple[Response, int]:
+    view = ClearMerchantWebhook(services=deps().services).execute(
+        ClearMerchantWebhookCommand(merchant_user_id=str(current_principal().user_id))
     )
     return jsonify(view.to_dict()), 200
 

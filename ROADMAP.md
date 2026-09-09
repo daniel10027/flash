@@ -1,7 +1,7 @@
 # Flash — Map de développement
 
 > **Dernière mise à jour : 2026-09-09**
-> **Phases 1-3 complètes · Phase 4 : BE-061→067 + BE-068 (partiel) / BE-069 (KYB, clés API, affiche) / BE-070 (règlements marchands)**
+> **Phases 1-3 complètes · Phase 4 : BE-061→071 (interop opérateurs, marchands : KYB, clés API, affiche, règlements, API publique + webhooks) — BE-068 partiel**
 > (auth, numéros, wallets, transfert + **annulation**, **demandes de paiement**,
 > **paiement marchand QR** + **remboursement**, **dépôt & retrait cash agent**,
 > relevé + **reçu détaillé**, **KYC**, **notifications** + **flux SSE**, **jobs
@@ -45,13 +45,14 @@
 > `/v1/notifications` (liste + curseur + `unread`, `/<id>/read`, `/read-all`) et
 > **SSE `/v1/notifications/stream`** (`RedisNotificationBus` pub/sub, rattrapage
 > `Last-Event-ID` depuis le journal, keep-alive).
-> **87 chemins** : `auth` (6), `phones` (5), `wallets` (2), `transfers` (2),
-> `payment-requests` (4), `merchant` (13), `merchant-payments` (1), `statement` (1),
-> `receipts` (1), `notifications` (4), `withdrawals` (2), `agent` (2), `kyc` (4),
-> `vault` (6), `savings` (5), `cards` (8), `cards/authorizations` (4), `operators` (3) +
-> `operators/callbacks` (1), `reference` (2), `admin/kyc` (1), `admin` ops (6),
-> `admin/merchants` (1), `admin/reference` (5) + `admin/audit` (1) + `/health*`,
-> `/openapi.json`, `/docs`, `/redoc`.
+> **94 chemins** : `auth` (6), `phones` (5), `wallets` (2), `transfers` (2),
+> `payment-requests` (4), `merchant` (15), `merchant-payments` (1), `merchant/v1`
+> (public, 4), `statement` (1), `receipts` (1), `notifications` (4), `withdrawals` (2),
+> `agent` (2), `kyc` (4), `vault` (6), `savings` (5), `cards` (8),
+> `cards/authorizations` (4), `operators` (3) + `operators/callbacks` (1),
+> `reference` (2), `admin/kyc` (1), `admin` ops (7), `admin/merchants` (1),
+> `admin/reference` (5) + `admin/audit` (1) + `/health*`, `/openapi.json`, `/docs`,
+> `/redoc`.
 > **Tout vérifié end-to-end via docker compose** : cash, KYC, demandes de paiement,
 > paiement marchand, annulation / remboursement (soldes restaurés, rejeu → 409),
 > reçus (out/in, 404 pour un tiers, REVERSED) ; un transfert génère « Argent reçu » /
@@ -153,12 +154,27 @@
 > `GET /v1/merchant/settlements/{id}` (relevé) ; job `SettleDueMerchants`
 > (`flash run-jobs` + `POST /v1/admin/jobs/merchants/settle`) ; notifications `SETTLEMENT`.
 > Table `merchant_settlements`, migration `c7d2f4a91b38`.
-> **87 chemins.** 1069 tests unit + 25 d'intégration (Postgres réel), couverture 100 %
+> **API marchande publique (BE-071)** : `Blueprint /merchant/v1` authentifié par clé
+> d'API (`Authorization: Bearer mk_…` ou `X-Merchant-Key`) → `AuthenticateMerchantApiKey`
+> (401 si clé inconnue/révoquée, marchand suspendu ou KYB non validé ; horodate la clé).
+> `POST /merchant/v1/charges` (crée un QR dynamique), `GET /merchant/v1/charges/{id}`
+> (état + paiement lié), `POST /merchant/v1/charges/{id}/refund`, `GET
+> /merchant/v1/payments`. Webhooks signés : `Merchant.configure_webhook` (URL http(s) +
+> secret ≥ 16) via `PUT|DELETE /v1/merchant/webhook` ; `MerchantWebhookEnqueuer`
+> (consommateur d'événements chaîné après le dispatcher) met en file une
+> `MerchantWebhookDelivery` sur `MerchantPaymentCompleted`/`Refunded` si un webhook est
+> configuré, idempotent par `(event_type, payment_id)` ; job `DispatchMerchantWebhooks`
+> (`flash run-jobs` + `POST /v1/admin/jobs/merchants/webhooks`) POST le corps JSON signé
+> `X-Flash-Signature: sha256=HMAC(secret, body)` via `HttpMerchantWebhookSender`, backoff
+> exponentiel sur 6 tentatives puis `FAILED`. Table `merchant_webhook_deliveries` +
+> colonnes `webhook_url`/`webhook_secret`, migration `e1f4b7c92a05`.
+> **94 chemins.** 1118 tests unit + 27 d'intégration (Postgres réel), couverture 100 %
 > domain+application, ruff + mypy stricts.
 > **Phases 1-3 terminées. Phase 4 en cours** : `BE-061` → `BE-067` livrés (référentiel,
 > CRUD + audit chaîné, grille multi-pays, interop opérateurs) ; `BE-069` (KYB + clés
-> d'API + affiche) + `BE-070` (règlements marchands) + `BE-068` partiel. Migrations
-> `f4b7c2109ea3`, `a8e3d5f10c47`, `b6c1e9d47f20`, `c7d2f4a91b38`, `d4e8a1c6b923`.
+> d'API + affiche) + `BE-070` (règlements marchands) + `BE-071` (API marchande publique
+> + webhooks) + `BE-068` partiel. Migrations `f4b7c2109ea3`, `a8e3d5f10c47`,
+> `b6c1e9d47f20`, `c7d2f4a91b38`, `d4e8a1c6b923`, `e1f4b7c92a05`.
 
 Ce fichier est la vue d'ensemble. Le détail (une ligne = une tâche cochable) est dans
 `docs/tasks/`. On avance **dans l'ordre des identifiants** à l'intérieur de chaque lot,
@@ -260,11 +276,14 @@ entité `MerchantApiKey` + `Sha256MerchantApiKeyVault` ; `POST/GET/DELETE
 `c7d2f4a91b38`). `BE-068` **partiel** (VO `BankAccount`, `SettlementFrequency`,
 `KybStatus`, planification d'échéance).
 
-Prochaine : `BE-071` (API marchande publique `/merchant/v1/…` authentifiée par clé
-d'API + webhooks marchand signés). Puis `BE-072` → `BE-078` (réseau d'agents enrichi,
-back-office RBAC nominatif, conformité AML, exports réglementaires, registre d'audit
-consultable). Reste de `BE-068` (sous-comptes caisses/employés). Reste de `BE-062` :
-`pricing_rules` / `limits` éditables (tables + repos).
+`BE-071` **livré** (API marchande publique `/merchant/v1/…` par clé d'API +
+`AuthenticateMerchantApiKey`, webhooks signés `MerchantWebhookDelivery` +
+`DispatchMerchantWebhooks`, migration `e1f4b7c92a05`).
+
+Prochaine : `BE-072` → `BE-078` (réseau d'agents enrichi : float/plafonds/commissions +
+espace agent API ; back-office RBAC nominatif ; conformité AML ; exports réglementaires ;
+registre d'audit consultable). Reste de `BE-068` (sous-comptes caisses/employés). Reste
+de `BE-062` : `pricing_rules` / `limits` éditables (tables + repos).
 
 ✅ Phase 2 livrée : `BE-029` (KYC), `BE-032` (demandes de paiement), `BE-033` (marchand
 QR), `BE-034` → `BE-036` (cash agent), `BE-037` (annulation / remboursement), `BE-038`

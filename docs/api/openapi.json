@@ -2282,6 +2282,92 @@
         ]
       }
     },
+    "/v1/merchant/webhook": {
+      "put": {
+        "summary": "Configurer l'URL + le secret des webhooks marchand signés",
+        "tags": [
+          "merchants"
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès"
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "url": {
+                    "examples": [
+                      "https://shop.example.com/flash/webhook"
+                    ],
+                    "maxLength": 300,
+                    "title": "Url",
+                    "type": "string"
+                  },
+                  "secret": {
+                    "maxLength": 128,
+                    "minLength": 16,
+                    "title": "Secret",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "url",
+                  "secret"
+                ],
+                "title": "ConfigureWebhookRequest",
+                "type": "object"
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Désactiver les webhooks marchand",
+        "tags": [
+          "merchants"
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès"
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
     "/v1/merchant/poster": {
       "get": {
         "summary": "Affiche imprimable (PNG) portant le QR statique du marchand",
@@ -2633,6 +2719,152 @@
             }
           }
         ]
+      }
+    },
+    "/merchant/v1/charges": {
+      "post": {
+        "summary": "API marchande : créer une demande de paiement (QR dynamique)",
+        "tags": [
+          "merchant-api"
+        ],
+        "responses": {
+          "201": {
+            "description": "Succès"
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "amount_minor": {
+                    "examples": [
+                      25000
+                    ],
+                    "exclusiveMinimum": 0,
+                    "title": "Amount Minor",
+                    "type": "integer"
+                  },
+                  "reference": {
+                    "examples": [
+                      "Commande #4821"
+                    ],
+                    "maxLength": 80,
+                    "minLength": 1,
+                    "title": "Reference",
+                    "type": "string"
+                  },
+                  "ttl_minutes": {
+                    "default": 60,
+                    "maximum": 1440,
+                    "minimum": 1,
+                    "title": "Ttl Minutes",
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "amount_minor",
+                  "reference"
+                ],
+                "title": "CreateChargeBody",
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/merchant/v1/charges/{charge_id}": {
+      "get": {
+        "summary": "API marchande : état d'une demande de paiement",
+        "tags": [
+          "merchant-api"
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès"
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/merchant/v1/charges/{charge_id}/refund": {
+      "post": {
+        "summary": "API marchande : rembourser le paiement d'une demande",
+        "tags": [
+          "merchant-api"
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès"
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 255
+            }
+          }
+        ]
+      }
+    },
+    "/merchant/v1/payments": {
+      "get": {
+        "summary": "API marchande : encaissements récents",
+        "tags": [
+          "merchant-api"
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès"
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/v1/notifications": {
@@ -4882,6 +5114,29 @@
     "/v1/admin/jobs/merchants/settle": {
       "post": {
         "summary": "Back-office : régler les marchands dont l'échéance est atteinte",
+        "tags": [
+          "admin"
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès"
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/jobs/merchants/webhooks": {
+      "post": {
+        "summary": "Back-office : livrer les webhooks marchand en attente",
         "tags": [
           "admin"
         ],

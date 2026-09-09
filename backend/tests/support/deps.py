@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import timedelta
 
+from flash.application.merchants.webhooks import MerchantWebhookEnqueuer
 from flash.application.notifications.dispatcher import NotificationDispatcher
 from flash.application.services import AppServices
 from flash.domain.limits.limits import KycPolicy, LimitPolicy
@@ -37,6 +38,7 @@ from tests.support.notifications import (
 from tests.support.otp import RecordingOtpService
 from tests.support.repositories import InMemoryUnitOfWork
 from tests.support.security import build_test_security
+from tests.support.webhooks import RecordingMerchantWebhookSender
 
 
 def build_test_deps(
@@ -60,11 +62,14 @@ def build_test_deps(
         clock=the_clock,
         ids=ids,
     )
+    enqueuer = MerchantWebhookEnqueuer(uow_factory=lambda: uow, ids=ids, clock=the_clock)
     services = AppServices(
         uow=lambda: uow,
         clock=the_clock,
         ids=ids,
-        events=NotifyingEventPublisher(RecordingEventPublisher(), dispatcher),
+        events=NotifyingEventPublisher(
+            NotifyingEventPublisher(RecordingEventPublisher(), dispatcher), enqueuer
+        ),
         idempotency=InMemoryIdempotencyStore(),
     )
     reference = MutableReferenceDirectory()
@@ -101,6 +106,7 @@ def build_test_deps(
         bank_gateway=SandboxBankGateway(pepper="test-bank-pepper"),
         merchant_api_key_vault=Sha256MerchantApiKeyVault("test-merchant-key-pepper"),
         merchant_poster=PillowMerchantPosterRenderer(),
+        merchant_webhook_sender=RecordingMerchantWebhookSender(),
     )
 
 

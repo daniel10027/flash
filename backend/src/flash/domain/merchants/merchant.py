@@ -21,6 +21,7 @@ from flash.domain.merchants.events import (
     MerchantKybSubmitted,
     MerchantSettlementConfigured,
     MerchantSuspended,
+    MerchantWebhookConfigured,
 )
 from flash.domain.shared.errors import InvalidAccountState, InvalidInput
 from flash.domain.shared.events import EventRecorder
@@ -77,6 +78,8 @@ class Merchant(EventRecorder):
         kyb_status: KybStatus = KybStatus.PENDING,
         kyb_reviewed_at: datetime | None = None,
         kyb_reason: str | None = None,
+        webhook_url: str | None = None,
+        webhook_secret: str | None = None,
     ) -> None:
         super().__init__()
         if not display_name.strip():
@@ -98,6 +101,8 @@ class Merchant(EventRecorder):
         self.kyb_status = kyb_status
         self.kyb_reviewed_at = kyb_reviewed_at
         self.kyb_reason = kyb_reason
+        self.webhook_url = webhook_url
+        self.webhook_secret = webhook_secret
 
     @classmethod
     def enroll(
@@ -206,6 +211,36 @@ class Merchant(EventRecorder):
                 "La vérification du marchand (KYB) n'est pas validée.",
                 status=self.kyb_status.value,
             )
+
+    # ------------------------------------------------------------------ webhooks
+    def configure_webhook(self, *, url: str, secret: str, now: datetime) -> None:
+        cleaned = url.strip()
+        if not cleaned.startswith(("http://", "https://")):
+            raise InvalidInput("L'URL de webhook doit être en http(s).")
+        if len(secret) < 16:
+            raise InvalidInput("Le secret de webhook doit faire au moins 16 caractères.")
+        self.webhook_url = cleaned
+        self.webhook_secret = secret
+        self.record_event(
+            MerchantWebhookConfigured(
+                occurred_at=now, aggregate_id=str(self.id), merchant_id=str(self.id),
+                endpoint=cleaned,
+            )
+        )
+
+    def clear_webhook(self, now: datetime) -> None:
+        self.webhook_url = None
+        self.webhook_secret = None
+        self.record_event(
+            MerchantWebhookConfigured(
+                occurred_at=now, aggregate_id=str(self.id), merchant_id=str(self.id),
+                endpoint="",
+            )
+        )
+
+    @property
+    def has_webhook(self) -> bool:
+        return bool(self.webhook_url and self.webhook_secret)
 
     # ------------------------------------------------------------------ règlement
     def configure_settlement(

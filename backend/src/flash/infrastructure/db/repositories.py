@@ -26,6 +26,7 @@ from flash.domain.merchants.charge import MerchantCharge
 from flash.domain.merchants.merchant import Merchant
 from flash.domain.merchants.payment import MerchantPayment
 from flash.domain.merchants.settlement import MerchantSettlement
+from flash.domain.merchants.webhook import MerchantWebhookDelivery
 from flash.domain.operators.transfer import OperatorTransfer
 from flash.domain.payments.request import PaymentRequest
 from flash.domain.savings.plan import SavingsPlan
@@ -50,6 +51,7 @@ from flash.infrastructure.db.models import (
     MerchantModel,
     MerchantPaymentModel,
     MerchantSettlementModel,
+    MerchantWebhookDeliveryModel,
     OperatorTransferModel,
     PaymentRequestModel,
     PhoneNumberModel,
@@ -653,6 +655,58 @@ class SqlAlchemyMerchantApiKeyRepository:
         self._tracker.track(api_key)
 
 
+class SqlAlchemyMerchantWebhookDeliveryRepository:
+    def __init__(self, session: Session, tracker: _AggregateTracker) -> None:
+        self._session = session
+        self._tracker = tracker
+
+    def _load(
+        self, model: MerchantWebhookDeliveryModel | None
+    ) -> MerchantWebhookDelivery | None:
+        if model is None:
+            return None
+        delivery = mappers.merchant_webhook_delivery_to_domain(model)
+        self._tracker.track(delivery)
+        return delivery
+
+    def get(self, delivery_id: EntityId) -> MerchantWebhookDelivery | None:
+        return self._load(
+            self._session.get(MerchantWebhookDeliveryModel, str(delivery_id))
+        )
+
+    def exists_for_source(self, event_type: str, source_id: EntityId) -> bool:
+        stmt = select(MerchantWebhookDeliveryModel.id).where(
+            MerchantWebhookDeliveryModel.event_type == event_type,
+            MerchantWebhookDeliveryModel.source_id == str(source_id),
+        )
+        return self._session.scalars(stmt).first() is not None
+
+    def list_due(
+        self, now: datetime, *, limit: int = 200
+    ) -> list[MerchantWebhookDelivery]:
+        stmt = (
+            select(MerchantWebhookDeliveryModel)
+            .where(
+                MerchantWebhookDeliveryModel.status == "PENDING",
+                MerchantWebhookDeliveryModel.next_attempt_at <= now,
+            )
+            .order_by(MerchantWebhookDeliveryModel.next_attempt_at)
+            .limit(limit)
+            .with_for_update(skip_locked=True)
+        )
+        return [
+            d for d in (self._load(m) for m in self._session.scalars(stmt)) if d is not None
+        ]
+
+    def add(self, delivery: MerchantWebhookDelivery) -> None:
+        self._session.add(mappers.merchant_webhook_delivery_to_model(delivery))
+        self._tracker.track(delivery)
+
+    def save(self, delivery: MerchantWebhookDelivery) -> None:
+        self._session.merge(mappers.merchant_webhook_delivery_to_model(delivery))
+        self._tracker.track(delivery)
+
+
 class SqlAlchemyVaultRepository:
     """Le coffre est l'ensemble des lignes ``vault_pockets`` d'un portefeuille."""
 
@@ -957,6 +1011,7 @@ __all__ = [
     "SqlAlchemyMerchantPaymentRepository",
     "SqlAlchemyMerchantRepository",
     "SqlAlchemyMerchantSettlementRepository",
+    "SqlAlchemyMerchantWebhookDeliveryRepository",
     "SqlAlchemyOperatorTransferRepository",
     "SqlAlchemyPaymentRequestRepository",
     "SqlAlchemySavingsPlanRepository",

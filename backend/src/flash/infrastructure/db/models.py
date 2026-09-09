@@ -453,6 +453,8 @@ class MerchantModel(Base):
     kyb_status: Mapped[str] = mapped_column(String(10), nullable=False, default="PENDING")
     kyb_reviewed_at: Mapped[datetime | None] = mapped_column(TZDateTime, nullable=True)
     kyb_reason: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    webhook_url: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    webhook_secret: Mapped[str | None] = mapped_column(String(128), nullable=True)
     created_at: Mapped[datetime] = mapped_column(TZDateTime, nullable=False)
 
     __table_args__ = (
@@ -555,6 +557,33 @@ class MerchantApiKeyModel(Base):
     revoked_at: Mapped[datetime | None] = mapped_column(TZDateTime, nullable=True)
 
     __table_args__ = (Index("ix_merchant_api_keys_merchant_id", "merchant_id"),)
+
+
+class MerchantWebhookDeliveryModel(Base):
+    __tablename__ = "merchant_webhook_deliveries"
+
+    id: Mapped[str] = mapped_column(_UUID, primary_key=True)
+    merchant_id: Mapped[str] = mapped_column(
+        ForeignKey("merchants.id", ondelete="RESTRICT"), nullable=False
+    )
+    source_id: Mapped[str] = mapped_column(_UUID, nullable=False)
+    event_type: Mapped[str] = mapped_column(String(40), nullable=False)
+    payload: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    status: Mapped[str] = mapped_column(String(12), nullable=False, default="PENDING")
+    attempts: Mapped[int] = mapped_column(SmallInteger, nullable=False, default=0)
+    created_at: Mapped[datetime] = mapped_column(TZDateTime, nullable=False)
+    next_attempt_at: Mapped[datetime] = mapped_column(TZDateTime, nullable=False)
+    delivered_at: Mapped[datetime | None] = mapped_column(TZDateTime, nullable=True)
+    last_error: Mapped[str | None] = mapped_column(String(200), nullable=True)
+
+    __table_args__ = (
+        UniqueConstraint("event_type", "source_id", name="uq_merchant_webhook_source"),
+        Index(
+            "ix_merchant_webhook_deliveries_due",
+            "next_attempt_at",
+            postgresql_where=text("status = 'PENDING'"),
+        ),
+    )
 
 
 class PaymentRequestModel(Base):
@@ -693,6 +722,7 @@ __all__ = [
     "MerchantModel",
     "MerchantPaymentModel",
     "MerchantSettlementModel",
+    "MerchantWebhookDeliveryModel",
     "NotificationModel",
     "OperatorModel",
     "OperatorTransferModel",

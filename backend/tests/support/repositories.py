@@ -23,6 +23,7 @@ from flash.domain.merchants.charge import MerchantCharge, MerchantChargeStatus
 from flash.domain.merchants.merchant import Merchant
 from flash.domain.merchants.payment import MerchantPayment
 from flash.domain.merchants.settlement import MerchantSettlement
+from flash.domain.merchants.webhook import MerchantWebhookDelivery
 from flash.domain.operators.transfer import OperatorTransfer
 from flash.domain.payments.request import PaymentRequest, PaymentRequestStatus
 from flash.domain.savings.plan import SavingsPlan, SavingsPlanStatus
@@ -551,6 +552,41 @@ class InMemoryMerchantApiKeyRepository(_Tracking):
         self._track(api_key)
 
 
+class InMemoryMerchantWebhookDeliveryRepository(_Tracking):
+    def __init__(self) -> None:
+        super().__init__()
+        self._by_id: dict[str, MerchantWebhookDelivery] = {}
+
+    def get(self, delivery_id: EntityId) -> MerchantWebhookDelivery | None:
+        delivery = self._by_id.get(str(delivery_id))
+        if delivery is not None:
+            self._track(delivery)
+        return delivery
+
+    def exists_for_source(self, event_type: str, source_id: EntityId) -> bool:
+        return any(
+            d.event_type == event_type and d.source_id == source_id
+            for d in self._by_id.values()
+        )
+
+    def list_due(
+        self, now: datetime, *, limit: int = 200
+    ) -> list[MerchantWebhookDelivery]:
+        rows = [d for d in self._by_id.values() if d.due(now)]
+        rows.sort(key=lambda d: d.next_attempt_at)
+        for d in rows[:limit]:
+            self._track(d)
+        return rows[:limit]
+
+    def add(self, delivery: MerchantWebhookDelivery) -> None:
+        self._by_id[str(delivery.id)] = delivery
+        self._track(delivery)
+
+    def save(self, delivery: MerchantWebhookDelivery) -> None:
+        self._by_id[str(delivery.id)] = delivery
+        self._track(delivery)
+
+
 class InMemoryVaultRepository(_Tracking):
     def __init__(self) -> None:
         super().__init__()
@@ -800,6 +836,7 @@ class InMemoryUnitOfWork:
         merchant_payments: InMemoryMerchantPaymentRepository | None = None,
         merchant_settlements: InMemoryMerchantSettlementRepository | None = None,
         merchant_api_keys: InMemoryMerchantApiKeyRepository | None = None,
+        merchant_webhooks: InMemoryMerchantWebhookDeliveryRepository | None = None,
         vaults: InMemoryVaultRepository | None = None,
         savings: InMemorySavingsPlanRepository | None = None,
         cards: InMemoryCardRepository | None = None,
@@ -821,6 +858,9 @@ class InMemoryUnitOfWork:
         )
         self.merchant_api_keys = (
             merchant_api_keys or InMemoryMerchantApiKeyRepository()
+        )
+        self.merchant_webhooks = (
+            merchant_webhooks or InMemoryMerchantWebhookDeliveryRepository()
         )
         self.vaults = vaults or InMemoryVaultRepository()
         self.savings = savings or InMemorySavingsPlanRepository()
@@ -865,6 +905,7 @@ class InMemoryUnitOfWork:
             *self.merchant_payments.seen,
             *self.merchant_settlements.seen,
             *self.merchant_api_keys.seen,
+            *self.merchant_webhooks.seen,
             *self.vaults.seen,
             *self.savings.seen,
             *self.cards.seen,

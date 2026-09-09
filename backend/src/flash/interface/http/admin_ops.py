@@ -9,6 +9,7 @@ from flash.application.jobs.expire import ExpireStaleOperations
 from flash.application.jobs.merchant_settle import SettleDueMerchants
 from flash.application.jobs.reconcile import ReconcileWalletBalances
 from flash.application.jobs.savings import AccrueSavingsInterest, RunScheduledSavings
+from flash.application.merchants.webhooks import DispatchMerchantWebhooks
 from flash.interface.container import deps
 from flash.interface.openapi import document
 from flash.interface.security.admin import require_admin
@@ -74,6 +75,20 @@ def run_savings_interest() -> tuple[Response, int]:
 def run_merchant_settle() -> tuple[Response, int]:
     report = SettleDueMerchants(
         services=deps().services, bank=deps().bank_gateway
+    ).execute()
+    return jsonify(report.to_dict()), 200
+
+
+@bp.post("/jobs/merchants/webhooks")
+@require_admin
+@document(
+    summary="Back-office : livrer les webhooks marchand en attente",
+    tags=["admin"],
+    secured=False,
+)
+def run_merchant_webhooks() -> tuple[Response, int]:
+    report = DispatchMerchantWebhooks(
+        services=deps().services, sender=deps().merchant_webhook_sender
     ).execute()
     return jsonify(report.to_dict()), 200
 

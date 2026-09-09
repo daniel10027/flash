@@ -10,6 +10,7 @@ from flash.domain.merchants.charge import MerchantCharge
 from flash.domain.merchants.merchant import Merchant
 from flash.domain.merchants.payment import MerchantPayment
 from flash.domain.merchants.settlement import MerchantSettlement
+from flash.domain.merchants.webhook import MerchantWebhookDelivery
 from flash.domain.shared.identifiers import EntityId
 
 
@@ -96,10 +97,32 @@ class MerchantApiKeyRepository(Protocol):
     def save(self, api_key: MerchantApiKey) -> None: ...
 
 
+@runtime_checkable
+class MerchantWebhookDeliveryRepository(Protocol):
+    def get(self, delivery_id: EntityId) -> MerchantWebhookDelivery | None: ...
+
+    def exists_for_source(self, event_type: str, source_id: EntityId) -> bool:
+        """Vrai si une livraison existe déjà pour ce couple (type, agrégat source).
+
+        ``source_id`` = id du paiement marchand qui a produit l'événement ; garantit
+        l'idempotence de la mise en file par le job de scan.
+        """
+        ...
+
+    def list_due(
+        self, now: datetime, *, limit: int = 200
+    ) -> list[MerchantWebhookDelivery]: ...
+
+    def add(self, delivery: MerchantWebhookDelivery) -> None: ...
+
+    def save(self, delivery: MerchantWebhookDelivery) -> None: ...
+
+
 __all__ = [
     "MerchantApiKeyRepository",
     "MerchantChargeRepository",
     "MerchantPaymentRepository",
     "MerchantRepository",
     "MerchantSettlementRepository",
+    "MerchantWebhookDeliveryRepository",
 ]

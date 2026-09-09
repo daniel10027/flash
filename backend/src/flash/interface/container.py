@@ -18,6 +18,10 @@ from flash.application.identity.documents import DocumentStore
 from flash.application.merchants.api_keys import MerchantApiKeyVault
 from flash.application.merchants.bank import BankGateway
 from flash.application.merchants.poster import MerchantPosterRenderer
+from flash.application.merchants.webhooks import (
+    MerchantWebhookEnqueuer,
+    MerchantWebhookSender,
+)
 from flash.application.notifications.dispatcher import NotificationDispatcher
 from flash.application.notifications.ports import NotificationBus, NotificationRepository
 from flash.application.operators.ports import OperatorGateway
@@ -46,6 +50,7 @@ from flash.infrastructure.ids import Uuid7Generator
 from flash.infrastructure.limits import NullLimitCounter, build_limit_repository
 from flash.infrastructure.merchant_api_keys import Sha256MerchantApiKeyVault
 from flash.infrastructure.merchant_poster import PillowMerchantPosterRenderer
+from flash.infrastructure.merchant_webhooks import HttpMerchantWebhookSender
 from flash.infrastructure.notification_bus import RedisNotificationBus
 from flash.infrastructure.notifications import (
     BusChannel,
@@ -99,6 +104,7 @@ class Deps:
     bank_gateway: BankGateway
     merchant_api_key_vault: MerchantApiKeyVault
     merchant_poster: MerchantPosterRenderer
+    merchant_webhook_sender: MerchantWebhookSender
 
 
 def build_app_services(settings: Settings) -> AppServices:
@@ -119,11 +125,19 @@ def build_app_services(settings: Settings) -> AppServices:
     )
     dispatcher = NotificationDispatcher(notifier=notifier, clock=clock, ids=ids)
 
+    def uow_factory() -> SqlAlchemyUnitOfWork:
+        return SqlAlchemyUnitOfWork(session_factory, clock)
+
+    webhook_enqueuer = MerchantWebhookEnqueuer(uow_factory=uow_factory, ids=ids, clock=clock)
+
     return AppServices(
-        uow=lambda: SqlAlchemyUnitOfWork(session_factory, clock),
+        uow=uow_factory,
         clock=clock,
         ids=ids,
-        events=NotifyingEventPublisher(LoggingEventPublisher(), dispatcher),
+        events=NotifyingEventPublisher(
+            NotifyingEventPublisher(LoggingEventPublisher(), dispatcher),
+            webhook_enqueuer,
+        ),
         idempotency=RedisIdempotencyStore(get_redis()),
     )
 
@@ -178,6 +192,7 @@ def build_deps(settings: Settings, *, tokens: TokenService) -> Deps:
         bank_gateway=SandboxBankGateway(pepper=settings.secret_key),
         merchant_api_key_vault=Sha256MerchantApiKeyVault(settings.secret_key),
         merchant_poster=PillowMerchantPosterRenderer(),
+        merchant_webhook_sender=HttpMerchantWebhookSender(),
     )
 
 

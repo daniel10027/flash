@@ -473,6 +473,62 @@ class TestMerchantRoundtrip:
             revoked = uow.merchant_api_keys.get(key_id)
             assert revoked is not None and revoked.is_active is False
 
+    def test_merchant_webhook_config_and_delivery_persist(
+        self, session_factory: sessionmaker[Session]
+    ) -> None:
+        from flash.domain.merchants.merchant import Merchant
+        from flash.domain.merchants.webhook import (
+            MerchantWebhookDelivery,
+            MerchantWebhookStatus,
+        )
+
+        clock = FixedClock(T0)
+        owner = _new_user("+2250700000062")
+        merchant = Merchant.enroll(
+            merchant_id=EntityId(str(uuid7())),
+            user_id=owner.id,
+            display_name="Chez Awa",
+            category="RESTAURANT",
+            currency=XOF,
+            fee_bps=100,
+            now=T0,
+        )
+        merchant.configure_webhook(
+            url="https://shop.example.com/hook",
+            secret="merchant-webhook-secret-32chars!!",
+            now=T0,
+        )
+        source_id = EntityId(str(uuid7()))
+        delivery = MerchantWebhookDelivery.enqueue(
+            delivery_id=EntityId(str(uuid7())),
+            merchant_id=merchant.id,
+            source_id=source_id,
+            event_type="payment.completed",
+            payload={"type": "payment.completed", "data": {"amount_minor": 25_000}},
+            now=T0,
+        )
+        with SqlAlchemyUnitOfWork(session_factory, clock) as uow:
+            uow.users.add(owner)
+            uow.merchants.add(merchant)
+            uow.merchant_webhooks.add(delivery)
+            uow.commit()
+
+        with SqlAlchemyUnitOfWork(session_factory, clock) as uow:
+            again = uow.merchants.get(merchant.id)
+            assert again is not None and again.has_webhook
+            assert again.webhook_url == "https://shop.example.com/hook"
+            assert uow.merchant_webhooks.exists_for_source("payment.completed", source_id)
+            [due] = uow.merchant_webhooks.list_due(T0)
+            due.record_success(T0)
+            uow.merchant_webhooks.save(due)
+            uow.commit()
+
+        with SqlAlchemyUnitOfWork(session_factory, clock) as uow:
+            settled = uow.merchant_webhooks.get(delivery.id)
+            assert settled is not None
+            assert settled.status is MerchantWebhookStatus.DELIVERED
+            assert uow.merchant_webhooks.list_due(T0) == []
+
 
 class TestNotificationRepository:
     def test_add_list_count_and_mark_read(self, session_factory: sessionmaker[Session]) -> None:

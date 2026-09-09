@@ -292,8 +292,21 @@ Chaque tâche livrée : code complet + tests + doc, **zéro `TODO`**.
   `POST /v1/admin/jobs/merchants/settle`), notifications `SETTLEMENT`. Table
   `merchant_settlements` + colonnes règlement sur `merchants` / `merchant_payments`,
   migration `c7d2f4a91b38`.
-- [ ] **BE-071** · API marchande publique (`/merchant/v1/…`) : créer une demande de
-  paiement, statut, remboursement, webhooks marchand signés. Doc séparée.
+- [x] **BE-071** · API marchande publique `Blueprint /merchant/v1` authentifiée par clé
+  d'API (`Authorization: Bearer mk_…` ou `X-Merchant-Key`) → `AuthenticateMerchantApiKey`
+  (401 si clé inconnue / révoquée, marchand suspendu ou KYB non validé ; horodate la
+  clé). `POST /charges`, `GET /charges/<id>` (état + `payment_id` lié),
+  `POST /charges/<id>/refund`, `GET /payments`. Webhooks marchand signés :
+  `Merchant.configure_webhook` (URL http(s) + secret ≥ 16) via
+  `PUT|DELETE /v1/merchant/webhook` ; agrégat `MerchantWebhookDelivery`
+  (PENDING → DELIVERED / FAILED, backoff exponentiel, 6 tentatives) ;
+  `MerchantWebhookEnqueuer` (consommateur d'événements chaîné, idempotent par
+  `(event_type, payment_id)`) met en file sur `MerchantPaymentCompleted`/`Refunded` ;
+  job `DispatchMerchantWebhooks` (`flash run-jobs` +
+  `POST /v1/admin/jobs/merchants/webhooks`) POST le corps JSON signé
+  `X-Flash-Signature: sha256=HMAC(secret, body)` via `HttpMerchantWebhookSender`. Table
+  `merchant_webhook_deliveries` + colonnes `webhook_url`/`webhook_secret` sur
+  `merchants`, migration `e1f4b7c92a05`.
 - [ ] **BE-072** · `domain/agent/` : `Agent` (float, plafonds, grille de commission,
   hiérarchie master/sous‑agent), `AgentFloatTopUp` / `AgentFloatWithdraw`.
 - [ ] **BE-073** · Commissions agent : calcul par opération, cumul, versement périodique

@@ -68,8 +68,10 @@ def run_jobs() -> None:
     from flash.application.jobs.merchant_settle import SettleDueMerchants
     from flash.application.jobs.reconcile import ReconcileWalletBalances
     from flash.application.jobs.savings import AccrueSavingsInterest, RunScheduledSavings
+    from flash.application.merchants.webhooks import DispatchMerchantWebhooks
     from flash.infrastructure.bank_gateway import SandboxBankGateway
     from flash.infrastructure.config import get_settings
+    from flash.infrastructure.merchant_webhooks import HttpMerchantWebhookSender
     from flash.interface.container import build_app_services
 
     settings = get_settings()
@@ -100,6 +102,14 @@ def run_jobs() -> None:
         f"règlements marchands : {settlement.settled} réglés "
         f"({settlement.settled_minor} minor), {settlement.skipped} sans encours, "
         f"{settlement.failed} en échec (sur {settlement.checked} échus)"
+    )
+
+    webhooks = DispatchMerchantWebhooks(
+        services=services, sender=HttpMerchantWebhookSender()
+    ).execute()
+    click.echo(
+        f"webhooks marchands : {webhooks.delivered} livrés, {webhooks.retried} à retenter, "
+        f"{webhooks.exhausted} abandonnés (sur {webhooks.due} échus)"
     )
 
     card_report = ReconcileCardSettlements(services=services).execute()
