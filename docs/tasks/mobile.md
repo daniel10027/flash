@@ -36,18 +36,15 @@ test + integration_test, golden tests.
 - [ ] **MOB-019** · Demander de l'argent : créer, partager (lien/QR), listes reçues/émises.
 - [x] **MOB-020** · `ScanPage` (onglet Payer) — `mobile_scanner` + cadre de visée + saisie manuelle `flash://pay?m=…&c=…`, QR statique/dynamique, `POST /v1/merchant-payments`.
 - [x] **MOB-021** · `ReceivePage` — `QrImageView` de `flash://pay?u=<id>&amount=<minor>`, partage `share_plus`, montant optionnel.
-- [ ] **MOB-022** · Retrait cash : générer le code, compte à rebours, annuler, statut.
-- [ ] **MOB-023** · Dépôt cash : mon QR/identifiant à présenter à l'agent, notif à
-  réception.
+- [x] **MOB-022** · `WithdrawPage` — `POST /v1/withdrawals`, code plein écran + compte à rebours (`Timer`), annulation `/cancel`.
+- [x] **MOB-023** · `DepositPage` — QR `flash://deposit?w=<id>` + identifiant sélectionnable à présenter à l'agent.
 - [ ] **MOB-024** · Retrait/dépôt compte opérateur : choix opérateur, numéro, montant,
   frais, suivi asynchrone.
 - [x] **MOB-025** · `HistoryPage` — `GET /v1/statement` paginé (cursor), scroll infini, regroupé par jour (`intl` fr), pull-to-refresh, skeleton/EmptyState/erreur+retry.
 - [ ] **MOB-026** · Détail + reçu : partage image/PDF, signaler, annuler si éligible.
-- [ ] **MOB-027** · Coffre : poches, créer/renommer/supprimer, déplacer, poche verrouillée.
-- [ ] **MOB-028** · Épargne : ouvrir un plan, progression, intérêts, versement manuel,
-  clôture.
-- [ ] **MOB-029** · Carte : demander, afficher (masqué + révéler sécurisé), geler/dégeler,
-  plafonds, canaux, opérations.
+- [x] **MOB-027** · `VaultPage` — `GET /v1/vault`, créer une poche, alimenter / retirer (`promptAmount`), verrouiller / déverrouiller.
+- [x] **MOB-028** · `SavingsPage` — `GET /v1/savings/plans`, ouvrir un plan (objectif + taux), progression (`LinearProgressIndicator`), verser / retirer / clôturer.
+- [x] **MOB-029** · `CardPage` — visuel carte dégradé, émettre, **révéler PAN/CVV 30 s** (`POST .../sensitive` + `Timer`), geler / dégeler.
 - [x] **MOB-030** · `PhonesPage` — `GET /v1/phones`, ajout numéro + OTP (`POST /v1/phones` puis `/verify`), définir principal, supprimer ; « 5 max ».
 - [x] **MOB-031** · `ProfilePage` — en-tête (avatar + id), carte KYC (palier + statut, upload **pièce + selfie** via `image_picker`, base64 → `POST /v1/kyc/submissions`), accès numéros / notifications / sécurité / paramètres / à propos, déconnexion.
 - [x] **MOB-032** · `NotificationsPage` — `GET /v1/notifications`, marquage lu (`/read`, `/read-all`), pull-to-refresh, EmptyState.

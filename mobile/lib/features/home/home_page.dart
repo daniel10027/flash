@@ -102,6 +102,8 @@ class _HomePageState extends ConsumerState<HomePage> {
                     payKey: _payKey,
                   ),
                   const SizedBox(height: 20),
+                  const _Services(),
+                  const SizedBox(height: 20),
                   kyc.maybeWhen(
                     data: (k) => k.tier == 0
                         ? const _KycBanner().animate().fadeIn(delay: 150.ms)
@@ -323,6 +325,52 @@ class _Action extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _Services extends StatelessWidget {
+  const _Services();
+
+  static const _tiles = [
+    (Icons.south_west, 'Retirer', '/withdraw'),
+    (Icons.add_card, 'Déposer', '/deposit'),
+    (Icons.lock_outline, 'Coffre', '/vault'),
+    (Icons.trending_up, 'Épargne', '/savings'),
+    (Icons.credit_card, 'Carte', '/card'),
+    (Icons.qr_code_2, 'Recevoir', '/receive'),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return GridView.count(
+      crossAxisCount: 3,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      mainAxisSpacing: 12,
+      crossAxisSpacing: 12,
+      childAspectRatio: 1.4,
+      children: [
+        for (final (icon, label, route) in _tiles)
+          Pressable(
+            onTap: () =>
+                route == '/card' ? context.go(route) : context.push(route),
+            child: Container(
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(FlashRadii.md),
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(icon, color: Theme.of(context).colorScheme.primary),
+                  const SizedBox(height: 6),
+                  Text(label, style: Theme.of(context).textTheme.labelMedium),
+                ],
+              ),
+            ),
+          ),
+      ],
     );
   }
 }
