@@ -12,6 +12,7 @@ import '../../shared/tutorial/coach_marks.dart';
 import '../../shared/widgets/common.dart';
 import '../../shared/widgets/money_text.dart';
 import '../../shared/widgets/pressable.dart';
+import '../notifications/notification_stream.dart';
 import '../wallet/wallet_models.dart';
 import '../wallet/wallet_providers.dart';
 
@@ -83,7 +84,13 @@ class _HomePageState extends ConsumerState<HomePage> {
                 ),
                 IconButton(
                   onPressed: () => context.push('/profile/notifications'),
-                  icon: const Icon(Icons.notifications_none),
+                  icon: Badge(
+                    isLabelVisible:
+                        (ref.watch(unreadCountProvider).valueOrNull ?? 0) > 0,
+                    label: Text(
+                        '${ref.watch(unreadCountProvider).valueOrNull ?? 0}'),
+                    child: const Icon(Icons.notifications_none),
+                  ),
                 ),
               ],
             ),
@@ -309,6 +316,7 @@ class _Action extends StatelessWidget {
     return Expanded(
       child: Pressable(
         onTap: onTap,
+        semanticLabel: label,
         child: Column(
           children: [
             Container(
@@ -335,6 +343,8 @@ class _Services extends StatelessWidget {
   static const _tiles = [
     (Icons.south_west, 'Retirer', '/withdraw'),
     (Icons.add_card, 'Déposer', '/deposit'),
+    (Icons.request_quote_outlined, 'Demander', '/request'),
+    (Icons.sim_card_outlined, 'Opérateur', '/operator'),
     (Icons.lock_outline, 'Coffre', '/vault'),
     (Icons.trending_up, 'Épargne', '/savings'),
     (Icons.credit_card, 'Carte', '/card'),
@@ -353,6 +363,7 @@ class _Services extends StatelessWidget {
       children: [
         for (final (icon, label, route) in _tiles)
           Pressable(
+            semanticLabel: label,
             onTap: () =>
                 route == '/card' ? context.go(route) : context.push(route),
             child: Container(

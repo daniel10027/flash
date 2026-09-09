@@ -37,6 +37,11 @@ class Prefs {
 
   bool get hideBalances => _sp.getBool(_kHideBalances) ?? false;
   Future<void> setHideBalances(bool v) => _sp.setBool(_kHideBalances, v);
+
+  // ---- cache lecture seule hors-ligne (MOB-014) : JSON brut par clé.
+  String? cacheGet(String key) => _sp.getString('flash.cache.$key');
+  Future<void> cacheSet(String key, String json) =>
+      _sp.setString('flash.cache.$key', json);
 }
 
 /// Résolu au démarrage dans `bootstrap.dart` puis injecté par override.

@@ -7,6 +7,7 @@ import '../../l10n/generated/app_localizations.dart';
 import '../../shared/widgets/common.dart';
 import '../../shared/widgets/money_text.dart';
 import '../wallet/wallet_models.dart';
+import 'op_detail_sheet.dart';
 
 /// Historique paginé (`GET /v1/statement`), regroupé par jour, scroll infini.
 class HistoryPage extends ConsumerStatefulWidget {
@@ -183,6 +184,9 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
                       withSign: true,
                       style: Theme.of(context).textTheme.titleSmall,
                     ),
+                    onTap: op.reference.isEmpty
+                        ? null
+                        : () => showOpDetail(context, op.reference),
                   ),
               ],
             );

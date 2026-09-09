@@ -9,6 +9,7 @@ import '../../core/network/api_client.dart';
 import '../../l10n/generated/app_localizations.dart';
 import '../../shared/widgets/app_snackbar.dart';
 import '../../shared/widgets/common.dart';
+import '../agent/agent_page.dart';
 import '../auth/auth_controller.dart';
 import '../wallet/wallet_providers.dart';
 
@@ -132,6 +133,12 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
           ),
           const SizedBox(height: 8),
 
+          if (ref.watch(isAgentProvider).valueOrNull ?? false)
+            _NavTile(
+              icon: Icons.badge_outlined,
+              label: 'Espace agent',
+              onTap: () => context.push('/agent'),
+            ),
           _NavTile(
             icon: Icons.phone_iphone,
             label: 'Mes numéros',

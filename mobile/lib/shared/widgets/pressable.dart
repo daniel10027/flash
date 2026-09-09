@@ -10,6 +10,7 @@ class Pressable extends StatefulWidget {
     this.onTap,
     this.scale = 0.96,
     this.borderRadius,
+    this.semanticLabel,
     super.key,
   });
 
@@ -17,6 +18,7 @@ class Pressable extends StatefulWidget {
   final VoidCallback? onTap;
   final double scale;
   final BorderRadius? borderRadius;
+  final String? semanticLabel;
 
   @override
   State<Pressable> createState() => _PressableState();
@@ -32,16 +34,21 @@ class _PressableState extends State<Pressable> {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTapDown: (_) => _set(true),
-      onTapUp: (_) => _set(false),
-      onTapCancel: () => _set(false),
-      onTap: widget.onTap,
-      child: AnimatedScale(
-        scale: _down ? widget.scale : 1,
-        duration: Motion.fast,
-        curve: Motion.standard,
-        child: widget.child,
+    return Semantics(
+      button: widget.onTap != null,
+      label: widget.semanticLabel,
+      excludeSemantics: widget.semanticLabel != null,
+      child: GestureDetector(
+        onTapDown: (_) => _set(true),
+        onTapUp: (_) => _set(false),
+        onTapCancel: () => _set(false),
+        onTap: widget.onTap,
+        child: AnimatedScale(
+          scale: _down ? widget.scale : 1,
+          duration: Motion.fast,
+          curve: Motion.standard,
+          child: widget.child,
+        ),
       ),
     );
   }

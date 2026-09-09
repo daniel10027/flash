@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../features/agent/agent_page.dart';
 import '../../features/auth/auth_controller.dart';
 import '../../features/auth/pin_lock_page.dart';
 import '../../features/auth/register_page.dart';
@@ -14,10 +15,12 @@ import '../../features/home/home_page.dart';
 import '../../features/home/home_shell.dart';
 import '../../features/notifications/notifications_page.dart';
 import '../../features/onboarding/onboarding_page.dart';
+import '../../features/operator/operator_page.dart';
 import '../../features/pay/scan_page.dart';
 import '../../features/profile/phones_page.dart';
 import '../../features/profile/profile_page.dart';
 import '../../features/receive/receive_page.dart';
+import '../../features/request/request_money_page.dart';
 import '../../features/savings/savings_page.dart';
 import '../../features/settings/about_page.dart';
 import '../../features/settings/security_page.dart';
@@ -66,6 +69,9 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/withdraw', builder: (_, __) => const WithdrawPage()),
       GoRoute(path: '/deposit', builder: (_, __) => const DepositPage()),
       GoRoute(path: '/vault', builder: (_, __) => const VaultPage()),
+      GoRoute(path: '/request', builder: (_, __) => const RequestMoneyPage()),
+      GoRoute(path: '/operator', builder: (_, __) => const OperatorPage()),
+      GoRoute(path: '/agent', builder: (_, __) => const AgentPage()),
       GoRoute(path: '/savings', builder: (_, __) => const SavingsPage()),
       GoRoute(
         path: '/profile/security',

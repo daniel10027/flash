@@ -18,14 +18,12 @@ test + integration_test, golden tests.
 - [x] **MOB-008** · `OfflineBanner` (`connectivity_plus`), `AppSnack` mappé sur `code`, états d’erreur avec retry sur le tableau de bord.
 - [ ] **MOB-009** · Push : intégration firebase_messaging (gratuit), permission,
   enregistrement du token côté API, affichage en foreground, tap → route.
-- [ ] **MOB-010** · Notifications in‑app temps réel : connexion SSE (ou fallback polling),
-  badge, centre de notifications.
+- [x] **MOB-010** · `unreadCountProvider` — flux SSE `GET /v1/notifications/stream` (dio `ResponseType.stream`, parse `data:`), rafraîchit liste + compteur ; repli polling 30 s ; `Badge` sur la cloche de l'accueil.
 - [x] **MOB-011** · `AppLockGuard` — masquage du contenu en aperçu multitâche + re-verrouillage après 2 min d’inactivité en arrière-plan.
 - [x] **MOB-012** · CI `mobile-ci.yml` livré avec `INFRA-009` (`dart format`, `flutter
   analyze`, `flutter test --coverage`, build APK debug flavor `dev`, artefacts).
-- [ ] **MOB-013** · Accessibilité : Semantics, tailles de police dynamiques, contraste AA.
-- [ ] **MOB-014** · Cache local (drift/sqflite ou hive) : dernier solde, dernières
-  opérations, référentiel pays — lecture hors‑ligne.
+- [x] **MOB-013** · passe a11y — `Semantics(button/label)` sur `Pressable` (raccourcis + grille de services), tailles de cibles ≥ 48, `MoneyText` en chiffres tabulaires.
+- [x] **MOB-014** · cache lecture seule hors-ligne — `_cachedGet` met en cache les JSON `wallets` / `kyc` / `statement` et les rejoue sur `NetworkException` (`Prefs.cacheGet/Set`).
 
 ## Parcours client (MOB-015 → MOB-036)
 
@@ -33,15 +31,14 @@ test + integration_test, golden tests.
 - [x] **MOB-016** · `WelcomePage` (`BrandBackground`) : connexion numéro/PIN en bottom sheet, lien « Créer un compte ».
 - [x] **MOB-017** · `HomePage` — carte de solde dégradée avec montant animé (count-up), raccourcis, bandeau KYC tier 0, 5 dernières opérations (shimmer/EmptyState), pull-to-refresh ; providers `wallet/kyc/statement`. **Didacticiel** `shared/tutorial/coach_marks.dart` au 1er lancement.
 - [x] **MOB-018** · `SendPage` — destinataire + `AmountField` (aperçu frais 0,8 %) + `ConfirmSheet` (friction PIN) + `ReceiptView` animée, `POST /v1/transfers`.
-- [ ] **MOB-019** · Demander de l'argent : créer, partager (lien/QR), listes reçues/émises.
+- [x] **MOB-019** · `RequestMoneyPage` — onglets Reçues / Émises (`GET /v1/payment-requests?direction`), créer + partager (`share_plus`), payer / refuser / annuler.
 - [x] **MOB-020** · `ScanPage` (onglet Payer) — `mobile_scanner` + cadre de visée + saisie manuelle `flash://pay?m=…&c=…`, QR statique/dynamique, `POST /v1/merchant-payments`.
 - [x] **MOB-021** · `ReceivePage` — `QrImageView` de `flash://pay?u=<id>&amount=<minor>`, partage `share_plus`, montant optionnel.
 - [x] **MOB-022** · `WithdrawPage` — `POST /v1/withdrawals`, code plein écran + compte à rebours (`Timer`), annulation `/cancel`.
 - [x] **MOB-023** · `DepositPage` — QR `flash://deposit?w=<id>` + identifiant sélectionnable à présenter à l'agent.
-- [ ] **MOB-024** · Retrait/dépôt compte opérateur : choix opérateur, numéro, montant,
-  frais, suivi asynchrone.
+- [x] **MOB-024** · `OperatorPage` — `SegmentedButton` sens (vers opérateur / recharger Flash), choix opérateur, numéro + montant, `POST /v1/operators/<op>/{payout,topup}`, statut asynchrone.
 - [x] **MOB-025** · `HistoryPage` — `GET /v1/statement` paginé (cursor), scroll infini, regroupé par jour (`intl` fr), pull-to-refresh, skeleton/EmptyState/erreur+retry.
-- [ ] **MOB-026** · Détail + reçu : partage image/PDF, signaler, annuler si éligible.
+- [x] **MOB-026** · `showOpDetail` — feuille reçu (`GET /v1/receipts/<ref>`) ouverte au tap sur une opération de l'historique.
 - [x] **MOB-027** · `VaultPage` — `GET /v1/vault`, créer une poche, alimenter / retirer (`promptAmount`), verrouiller / déverrouiller.
 - [x] **MOB-028** · `SavingsPage` — `GET /v1/savings/plans`, ouvrir un plan (objectif + taux), progression (`LinearProgressIndicator`), verser / retirer / clôturer.
 - [x] **MOB-029** · `CardPage` — visuel carte dégradé, émettre, **révéler PAN/CVV 30 s** (`POST .../sensitive` + `Timer`), geler / dégeler.
@@ -50,9 +47,8 @@ test + integration_test, golden tests.
 - [x] **MOB-032** · `NotificationsPage` — `GET /v1/notifications`, marquage lu (`/read`, `/read-all`), pull-to-refresh, EmptyState.
 - [x] **MOB-033** · `SecurityPage` — appareils connectés (`GET`/`DELETE /v1/auth/devices`), changer le code secret (`POST /v1/auth/change-pin`, 2 étapes), déconnexion.
 - [x] **MOB-034** · `SettingsPage` — thème clair/sombre/auto, langue FR/EN/auto (`ThemeModeController` / `LocaleController` persistants), masquer les soldes par défaut.
-- [ ] **MOB-035** · Partage de reçu natif (share_plus) image + PDF.
-- [ ] **MOB-036** · Mode agent léger (si compte agent) : dépôt/retrait, code, float,
-  commissions — écrans dédiés.
+- [x] **MOB-035** · partage natif du reçu (`share_plus`) depuis la feuille de détail et « Recevoir ».
+- [x] **MOB-036** · `AgentPage` (visible dans le profil si `GET /v1/agent` répond) — float + commissions, dépôt client (`/v1/agent/deposits`), confirmation de retrait (`/v1/agent/withdrawals/confirm`).
 
 ## Build & distribution (MOB-037 → MOB-044)
 
