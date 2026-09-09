@@ -6,6 +6,7 @@ from collections.abc import Iterable
 from datetime import datetime
 from typing import Protocol, runtime_checkable
 
+from flash.domain.ledger.account import LedgerAccount
 from flash.domain.ledger.chart import AccountType
 from flash.domain.ledger.transaction import LedgerTransaction
 from flash.domain.shared.identifiers import EntityId
@@ -49,6 +50,17 @@ class LedgerRepository(Protocol):
         self, since: datetime, *, limit: int = 5_000
     ) -> list[LedgerTransaction]:
         """Toutes les transactions dont ``occurred_at`` ≥ ``since`` (analyse AML, exports)."""
+        ...
+
+    def list_between(
+        self, start: datetime, end: datetime, *, limit: int = 100_000
+    ) -> list[LedgerTransaction]:
+        """Transactions dont ``occurred_at`` ∈ ``[start, end)`` — ordre chronologique
+        croissant (journal comptable, exports réglementaires)."""
+        ...
+
+    def list_accounts(self) -> list[LedgerAccount]:
+        """Tous les comptes du plan (balance générale)."""
         ...
 
     def ensure_account(

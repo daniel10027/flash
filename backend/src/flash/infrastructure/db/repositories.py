@@ -20,6 +20,7 @@ from flash.domain.cash.order import CashOrder
 from flash.domain.compliance.alert import ComplianceAlert
 from flash.domain.identity.kyc_case import KycCase
 from flash.domain.identity.user import User
+from flash.domain.ledger.account import LedgerAccount
 from flash.domain.ledger.chart import AccountType
 from flash.domain.ledger.transaction import LedgerTransaction
 from flash.domain.merchants.api_key import MerchantApiKey
@@ -222,6 +223,34 @@ class SqlAlchemyLedgerRepository:
             .limit(limit)
         )
         return [mappers.ledger_transaction_to_domain(m) for m in self._session.scalars(stmt)]
+
+    def list_between(
+        self, start: datetime, end: datetime, *, limit: int = 100_000
+    ) -> list[LedgerTransaction]:
+        stmt = (
+            select(LedgerTransactionModel)
+            .where(
+                LedgerTransactionModel.occurred_at >= start,
+                LedgerTransactionModel.occurred_at < end,
+            )
+            .order_by(LedgerTransactionModel.occurred_at.asc(), LedgerTransactionModel.id.asc())
+            .limit(limit)
+        )
+        return [mappers.ledger_transaction_to_domain(m) for m in self._session.scalars(stmt)]
+
+    def list_accounts(self) -> list[LedgerAccount]:
+        stmt = select(LedgerAccountModel).order_by(
+            LedgerAccountModel.type, LedgerAccountModel.currency
+        )
+        return [
+            LedgerAccount(
+                id=EntityId(m.id),
+                type=AccountType(m.type),
+                currency=Currency.of(m.currency),
+                owner_ref=m.owner_ref,
+            )
+            for m in self._session.scalars(stmt)
+        ]
 
     def ensure_account(
         self,

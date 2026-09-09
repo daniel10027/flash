@@ -354,8 +354,16 @@ Chaque tâche livrée : code complet + tests + doc, **zéro `TODO`**.
   ?start&end` → CSV, colonnes fixes). Chaque revue / ouverture manuelle est auditée
   (`aml.alert.manual` / `aml.alert.clear` / `aml.alert.escalate`). RBAC `compliance` /
   `admin`. Table `compliance_alerts`, migration `b8d1f6a2c904`.
-- [ ] **BE-077** · Exports réglementaires & compta : balance des comptes du ledger à une
-  date, journal, export mensuel par pays. Vérif : la balance est équilibrée.
+- [x] **BE-077** · Exports réglementaires & compta. `application/reporting/ledger_reports.py` :
+  `GetTrialBalance` (`GET /v1/admin/reports/trial-balance?as_of=` — balance générale à une
+  date : par compte mouvementé du plan, cumul débit / crédit + solde signé dans le sens
+  normal ; **contrôle : par devise Σ débits = Σ crédits**, `balanced:false` → HTTP 409),
+  `GetLedgerJournal` (`GET …/journal?start&end&limit` — journal chronologique croissant des
+  écritures + postings sur `[start, end)`), `ExportMonthlyLedger` (`GET …/monthly?year&month
+  &currency=` — CSV d'un mois calendaire, une ligne par posting, filtre devise = proxy de
+  zone XOF/XAF, `Content-Disposition: attachment`). Lectures seules, RBAC `finance` / `admin`.
+  Ports ledger `list_between(start, end, *, limit)` + `list_accounts()` ajoutés (repo SQL +
+  in-memory + round-trip Postgres). Pas de migration.
 - [ ] **BE-078** · Registre d'audit consultable (qui/quoi/quand/avant‑après) pour toutes
   les actions sensibles, immuable (append‑only + hash chaîné).
 

@@ -5,7 +5,7 @@ Nécessite un PostgreSQL réel (``FLASH_TEST_DATABASE_URL``).
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from sqlalchemy import func, select
@@ -150,6 +150,16 @@ class TestLedgerAndWalletRoundtrip:
             assert stored[0].is_balanced
             history = uow.ledger.list_for_wallet(sender_wallet.id)
             assert [t.reference for t in history] == ["TRX-INT-1"]
+
+            # BE-077 : list_accounts + list_between alimentent la balance générale
+            accounts = {a.type for a in uow.ledger.list_accounts()}
+            assert AccountType.CLIENT_LIABILITY in accounts
+            assert AccountType.FLASH_FEE_INCOME in accounts
+            window = uow.ledger.list_between(
+                T0 - timedelta(days=1), T0 + timedelta(days=1)
+            )
+            assert [t.reference for t in window] == ["TRX-INT-1"]
+            assert uow.ledger.list_between(T0 + timedelta(days=1), T0 + timedelta(days=2)) == []
 
     def test_ensure_account_is_idempotent(self, session_factory: sessionmaker[Session]) -> None:
         clock = FixedClock(T0)

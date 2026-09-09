@@ -37,6 +37,7 @@ from flash.interface.http import operators as operator_routes
 from flash.interface.http import payment_requests as payment_request_routes
 from flash.interface.http import phones as phones_routes
 from flash.interface.http import reference as reference_routes
+from flash.interface.http import reporting as reporting_routes
 from flash.interface.http import savings as savings_routes
 from flash.interface.http import statement as statement_routes
 from flash.interface.http import transfers as transfers_routes
@@ -106,6 +107,7 @@ def create_app(
     app.register_blueprint(backoffice_routes.bp)
     app.register_blueprint(compliance_routes.bp)
     app.register_blueprint(compliance_routes.jobs_bp)
+    app.register_blueprint(reporting_routes.bp)
     return app
 
 

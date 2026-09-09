@@ -6326,6 +6326,75 @@
           }
         }
       }
+    },
+    "/v1/admin/reports/trial-balance": {
+      "get": {
+        "summary": "Compta : balance générale du ledger à une date (contrôle d'équilibre)",
+        "tags": [
+          "admin"
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès"
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/reports/journal": {
+      "get": {
+        "summary": "Compta : journal chronologique des écritures sur une période",
+        "tags": [
+          "admin"
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès"
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/reports/monthly": {
+      "get": {
+        "summary": "Compta : export CSV d'un mois du ledger (filtrable par devise/zone)",
+        "tags": [
+          "admin"
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès"
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {

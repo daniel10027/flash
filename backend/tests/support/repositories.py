@@ -17,6 +17,7 @@ from flash.domain.cash.order import CashOrder, CashOrderStatus, CashOrderType
 from flash.domain.compliance.alert import ComplianceAlert
 from flash.domain.identity.kyc_case import KycCase, KycCaseStatus
 from flash.domain.identity.user import User
+from flash.domain.ledger.account import LedgerAccount
 from flash.domain.ledger.chart import AccountType
 from flash.domain.ledger.transaction import LedgerTransaction
 from flash.domain.merchants.api_key import MerchantApiKey
@@ -185,6 +186,26 @@ class InMemoryLedgerRepository:
         rows = [t for t in self._by_id.values() if t.occurred_at >= since]
         rows.sort(key=lambda t: t.occurred_at, reverse=True)
         return rows[:limit]
+
+    def list_between(
+        self, start: datetime, end: datetime, *, limit: int = 100_000
+    ) -> list[LedgerTransaction]:
+        rows = [t for t in self._by_id.values() if start <= t.occurred_at < end]
+        rows.sort(key=lambda t: (t.occurred_at, str(t.id)))
+        return rows[:limit]
+
+    def list_accounts(self) -> list[LedgerAccount]:
+        return [
+            LedgerAccount(
+                id=account_id,
+                type=AccountType(type_value),
+                currency=Currency.of(currency_code),
+                owner_ref=owner_ref,
+            )
+            for (type_value, currency_code, owner_ref), account_id in sorted(
+                self._accounts.items()
+            )
+        ]
 
     def ensure_account(
         self,
