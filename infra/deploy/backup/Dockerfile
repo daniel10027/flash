@@ -1,6 +1,6 @@
 # INFRA-018 — conteneur de sauvegarde Postgres : pg_dump chiffré GPG, cron,
 # rétention 7/4/6, copie hors-site optionnelle via rclone.
-FROM alpine:3.20
+FROM alpine:3.24
 
 RUN apk add --no-cache postgresql16-client gnupg rclone tzdata
 
