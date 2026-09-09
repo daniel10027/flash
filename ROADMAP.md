@@ -264,7 +264,7 @@ mais les lots Backend / Infra avancent en priorité car Web et Mobile en dépend
 | Fondations & docs | ce fichier | 6 / 6 |
 | Backend (BE) | [docs/tasks/backend.md](docs/tasks/backend.md) | 70 / 78 + transverses BE-T1→T6 |
 | Web (WEB) | [docs/tasks/frontend-web.md](docs/tasks/frontend-web.md) | 49 / 49 ✅ (socle, client, agent, back-office, transverse) |
-| Mobile (MOB) | [docs/tasks/mobile.md](docs/tasks/mobile.md) | 0 / 44 |
+| Mobile (MOB) | [docs/tasks/mobile.md](docs/tasks/mobile.md) | 14 / 47 (socle + onboarding + accueil) |
 | Infra & CI/CD (INFRA) | [docs/tasks/infra.md](docs/tasks/infra.md) | 24 / 24 ✅ |
 | Design & marque (DSN) | [docs/tasks/design.md](docs/tasks/design.md) | 0 / 10 |
 

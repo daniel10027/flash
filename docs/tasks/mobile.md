@@ -8,39 +8,30 @@ test + integration_test, golden tests.
 
 ## Socle (MOB-001 → MOB-014)
 
-- [ ] **MOB-001** · Init projet Flutter, organisation `lib/` (`core/`, `features/`,
-  `shared/`), flavors `dev` / `staging` / `prod`, `--dart-define` pour `API_BASE_URL`.
-- [ ] **MOB-002** · Thème : couleurs bordeaux + secondaire, typo, `ThemeData` clair/sombre
-  générés depuis les tokens, composants Material 3 adaptés.
-- [ ] **MOB-003** · Widgets de base : PrimaryButton, PinPad, AmountField, MoneyText,
-  BottomSheet, SnackBar, Skeleton, EmptyState, ListRow, Avatar.
-- [ ] **MOB-004** · Client API généré + intercepteurs dio (`Idempotency-Key`,
-  `request_id`, refresh token, mapping `DomainError`), gestion hors‑ligne.
-- [ ] **MOB-005** · Auth : stockage sécurisé des tokens, refresh, `authState` Riverpod,
-  redirections go_router, verrouillage par PIN/biométrie à l'ouverture.
-- [ ] **MOB-006** · Navigation : shell avec bottom nav (Accueil, Historique, QR, Carte,
-  Profil), deep links (`flash://pay?...`, liens universels).
-- [ ] **MOB-007** · i18n intl, FR par défaut, extraction ARB, formats monétaires/date.
-- [ ] **MOB-008** · Gestion d'erreurs : widget d'erreur, retry, toasts mappés depuis
-  `code`, écran hors‑ligne.
+- [x] **MOB-001** · projet `flutter create` (org `ci.flash`), `lib/{core,shared,features}`, flavors dev/staging/prod via `--dart-define` (`core/env/flavor.dart`).
+- [x] **MOB-002** · thème Material 3 depuis `design/tokens.json` (bordeaux, clair+sombre, police Inter via `google_fonts`, transitions fade-through) — `core/theme/{tokens,app_theme,motion}.dart`.
+- [x] **MOB-003** · widgets — `PrimaryButton` (press+loading), `PinPad` (haptique, shake d’erreur, biométrie), `AmountField` (aperçu frais 0,8 %), `MoneyText`, `GlassCard`, `BrandBackground` (aurore CustomPaint), `Skeleton/EmptyState/ListRow/Avatar`, `AppSnack`, `OfflineBanner`, `Pressable`.
+- [x] **MOB-004** · `ApiClient` (dio) — `X-Request-ID`, `Idempotency-Key` auto, refresh 401 unique, mapping `ApiException`/`NetworkException`.
+- [x] **MOB-005** · `AuthController` (unknown/signedOut/locked/signedIn) + `flutter_secure_storage`, `PinLockPage` (biométrie `local_auth` + code), déverrouillage via refresh token, redirections go_router.
+- [x] **MOB-006** · `go_router` — `ShellRoute` bottom-nav 5 onglets, redirections onboarding/auth/lock.
+- [x] **MOB-007** · `gen-l10n` FR (défaut) + EN (`l10n.yaml`, `lib/l10n/*.arb`).
+- [x] **MOB-008** · `OfflineBanner` (`connectivity_plus`), `AppSnack` mappé sur `code`, états d’erreur avec retry sur le tableau de bord.
 - [ ] **MOB-009** · Push : intégration firebase_messaging (gratuit), permission,
   enregistrement du token côté API, affichage en foreground, tap → route.
 - [ ] **MOB-010** · Notifications in‑app temps réel : connexion SSE (ou fallback polling),
   badge, centre de notifications.
-- [ ] **MOB-011** · Sécurité : détection appareil rooté/jailbreak (best effort), masquage
-  du contenu en aperçu multitâche, timeout d'inactivité.
-- [ ] **MOB-012** · Config CI build (voir `infra`) : `flutter analyze`, tests, build APK
-  debug ; signatures et stores dans la phase INFRA.
+- [x] **MOB-011** · `AppLockGuard` — masquage du contenu en aperçu multitâche + re-verrouillage après 2 min d’inactivité en arrière-plan.
+- [x] **MOB-012** · CI `mobile-ci.yml` livré avec `INFRA-009` (`dart format`, `flutter
+  analyze`, `flutter test --coverage`, build APK debug flavor `dev`, artefacts).
 - [ ] **MOB-013** · Accessibilité : Semantics, tailles de police dynamiques, contraste AA.
 - [ ] **MOB-014** · Cache local (drift/sqflite ou hive) : dernier solde, dernières
   opérations, référentiel pays — lecture hors‑ligne.
 
 ## Parcours client (MOB-015 → MOB-036)
 
-- [ ] **MOB-015** · Onboarding : numéro + pays, création PIN, OTP, écran succès.
-- [ ] **MOB-016** · Connexion : numéro + PIN, biométrie, OTP nouvel appareil, PIN oublié.
-- [ ] **MOB-017** · Accueil : solde(s) masquable, raccourcis (Envoyer, Payer, Retirer,
-  Ajouter), dernières opérations, bandeau KYC.
+- [x] **MOB-015** · `RegisterPage` — numéro → code → confirmation → OTP → succès, barre de progression, transitions slide/fade, animation de succès, câblé `/v1/auth/register` + `verify-otp`.
+- [x] **MOB-016** · `WelcomePage` (`BrandBackground`) : connexion numéro/PIN en bottom sheet, lien « Créer un compte ».
+- [x] **MOB-017** · `HomePage` — carte de solde dégradée avec montant animé (count-up), raccourcis, bandeau KYC tier 0, 5 dernières opérations (shimmer/EmptyState), pull-to-refresh ; providers `wallet/kyc/statement`. **Didacticiel** `shared/tutorial/coach_marks.dart` au 1er lancement.
 - [ ] **MOB-018** · Envoyer : destinataire (contacts device + favoris + saisie), montant,
   aperçu frais 0,8 % + total, confirmation PIN/biométrie, reçu partageable.
 - [ ] **MOB-019** · Demander de l'argent : créer, partager (lien/QR), listes reçues/émises.
@@ -71,8 +62,7 @@ test + integration_test, golden tests.
 
 ## Build & distribution (MOB-037 → MOB-044)
 
-- [ ] **MOB-037** · Icône & splash Flash (flutter_native_splash, flutter_launcher_icons)
-  aux couleurs bordeaux.
+- [x] **MOB-037** · icône (éclair bordeaux généré) + splash via `flutter_launcher_icons` / `flutter_native_splash`.
 - [ ] **MOB-038** · Android : `applicationId`, permissions minimales, ProGuard, build
   release AAB.
 - [ ] **MOB-039** · Signature Android (keystore via secrets CI), `key.properties` non

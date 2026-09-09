@@ -6,10 +6,14 @@ import '../../features/auth/auth_controller.dart';
 import '../../features/auth/pin_lock_page.dart';
 import '../../features/auth/register_page.dart';
 import '../../features/auth/welcome_page.dart';
+import '../../features/history/history_page.dart';
 import '../../features/home/home_page.dart';
 import '../../features/home/home_shell.dart';
 import '../../features/home/placeholder_page.dart';
 import '../../features/onboarding/onboarding_page.dart';
+import '../../features/pay/scan_page.dart';
+import '../../features/receive/receive_page.dart';
+import '../../features/transfer/send_page.dart';
 import '../../l10n/generated/app_localizations.dart';
 import '../storage/prefs.dart';
 
@@ -48,16 +52,19 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/welcome', builder: (_, __) => const WelcomePage()),
       GoRoute(path: '/register', builder: (_, __) => const RegisterPage()),
       GoRoute(path: '/lock', builder: (_, __) => const PinLockPage()),
+      GoRoute(path: '/send', builder: (_, __) => const SendPage()),
+      GoRoute(path: '/receive', builder: (_, __) => const ReceivePage()),
       ShellRoute(
         builder: (_, __, child) => HomeShell(child: child),
         routes: [
           GoRoute(path: '/', builder: (_, __) => const HomePage()),
-          GoRoute(
-              path: '/history', builder: (_, __) => const _Tab('navHistory')),
-          GoRoute(path: '/scan', builder: (_, __) => const _Tab('navScan')),
+          GoRoute(path: '/history', builder: (_, __) => const HistoryPage()),
+          GoRoute(path: '/scan', builder: (_, __) => const ScanPage()),
           GoRoute(path: '/card', builder: (_, __) => const _Tab('navCard')),
           GoRoute(
-              path: '/profile', builder: (_, __) => const _Tab('navProfile')),
+            path: '/profile',
+            builder: (_, __) => const _Tab('navProfile'),
+          ),
         ],
       ),
     ],

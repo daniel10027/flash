@@ -267,7 +267,7 @@ class _QuickActions extends StatelessWidget {
           key: sendKey,
           icon: Icons.north_east,
           label: l.quickSend,
-          onTap: () => context.go('/scan'),
+          onTap: () => context.push('/send'),
         ),
         _Action(
           key: payKey,
@@ -283,7 +283,7 @@ class _QuickActions extends StatelessWidget {
         _Action(
           icon: Icons.add,
           label: l.quickTopUp,
-          onTap: () => context.go('/scan'),
+          onTap: () => context.push('/receive'),
         ),
       ],
     );
