@@ -5,12 +5,12 @@
 # Contexte de build : ./web. Le client API typé (src/shared/api/schema.d.ts) est
 # versionné ; régénérer avec `npm run gen:api` après une évolution de l'API.
 
-FROM node:22-alpine AS deps
+FROM node:26-alpine AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 
-FROM node:22-alpine AS dev
+FROM node:26-alpine AS dev
 WORKDIR /app
 ENV NODE_ENV=development
 COPY --from=deps /app/node_modules ./node_modules
@@ -18,7 +18,7 @@ COPY . .
 EXPOSE 5173
 CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
 
-FROM node:22-alpine AS build
+FROM node:26-alpine AS build
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
