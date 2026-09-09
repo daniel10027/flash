@@ -150,6 +150,48 @@ class TestReservations:
             getattr(w, method)(xof(1_500), T0)
 
 
+class TestVaultMoves:
+    def test_move_to_vault_shifts_available_to_vaulted_keeping_balance(self) -> None:
+        w = new_wallet(10_000)
+        w.move_to_vault(xof(4_000), T0)
+        assert w.available == xof(6_000)
+        assert w.vaulted == xof(4_000)
+        assert w.balance == xof(10_000)
+        assert [e.name for e in w.pull_events()] == ["FundsVaulted"]
+
+    def test_move_from_vault_returns_value_to_available(self) -> None:
+        w = new_wallet(10_000)
+        w.move_to_vault(xof(4_000), T0)
+        w.pull_events()
+        w.move_from_vault(xof(2_500), T0)
+        assert w.available == xof(8_500)
+        assert w.vaulted == xof(1_500)
+        assert w.balance == xof(10_000)
+        assert [e.name for e in w.pull_events()] == ["FundsUnvaulted"]
+
+    def test_move_to_vault_more_than_available_rejected(self) -> None:
+        w = new_wallet(1_000)
+        with pytest.raises(InsufficientFunds):
+            w.move_to_vault(xof(1_001), T0)
+
+    def test_move_from_vault_more_than_vaulted_rejected(self) -> None:
+        w = new_wallet(1_000)
+        w.move_to_vault(xof(500), T0)
+        with pytest.raises(InvalidReservation):
+            w.move_from_vault(xof(600), T0)
+
+    def test_frozen_wallet_blocks_move_to_vault(self) -> None:
+        w = new_wallet(5_000)
+        w.freeze("x", T0)
+        with pytest.raises(WalletFrozen):
+            w.move_to_vault(xof(100), T0)
+
+    def test_repr_mentions_vaulted(self) -> None:
+        w = new_wallet(5_000)
+        w.move_to_vault(xof(2_000), T0)
+        assert "vaulted=2000" in repr(w)
+
+
 class TestFreeze:
     def test_frozen_wallet_blocks_debit_and_reserve(self) -> None:
         w = new_wallet(10_000)

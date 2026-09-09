@@ -30,6 +30,7 @@ from flash.infrastructure.db.repositories import (
     SqlAlchemyMerchantRepository,
     SqlAlchemyPaymentRequestRepository,
     SqlAlchemyUserRepository,
+    SqlAlchemyVaultRepository,
     SqlAlchemyWalletRepository,
 )
 from flash.infrastructure.ids import uuid7
@@ -60,6 +61,7 @@ class SqlAlchemyUnitOfWork:
         self.merchants = SqlAlchemyMerchantRepository(self._session, self)
         self.merchant_charges = SqlAlchemyMerchantChargeRepository(self._session, self)
         self.merchant_payments = SqlAlchemyMerchantPaymentRepository(self._session, self)
+        self.vaults = SqlAlchemyVaultRepository(self._session, self)
         return self
 
     def __exit__(self, exc_type: object, exc: object, tb: object) -> None:

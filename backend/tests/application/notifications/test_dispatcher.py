@@ -12,6 +12,7 @@ from flash.domain.cash.events import CashDepositCompleted, CashWithdrawalConfirm
 from flash.domain.identity.events import KycCaseApproved, KycCaseRejected
 from flash.domain.merchants.events import MerchantPaymentCompleted, MerchantPaymentRefunded
 from flash.domain.shared.events import DomainEvent
+from flash.domain.vault.events import VaultPocketDeposited, VaultPocketWithdrawn
 from flash.domain.wallet.events import TransferCompleted, TransferReversed
 from tests.support.fakes import FixedClock, SeqIdGenerator
 from tests.support.notifications import RecordingNotifier
@@ -163,6 +164,39 @@ def test_kyc_events_notify_user(
     assert approved.kind is NotificationKind.KYC and approved.data["target_tier"] == 1
     rejected = notifier.for_user("u-2")[0]
     assert "Selfie illisible" in rejected.body
+
+
+def test_vault_moves_notify_owner(
+    dispatcher: NotificationDispatcher, notifier: RecordingNotifier
+) -> None:
+    dispatcher.handle(
+        [
+            VaultPocketDeposited(
+                occurred_at=T0,
+                aggregate_id="v-1",
+                user_id="u-1",
+                wallet_id="w-1",
+                pocket_id="p-1",
+                pocket_name="Vacances",
+                amount_minor=20_000,
+                currency="XOF",
+            ),
+            VaultPocketWithdrawn(
+                occurred_at=T0,
+                aggregate_id="v-1",
+                user_id="u-1",
+                wallet_id="w-1",
+                pocket_id="p-1",
+                pocket_name="Vacances",
+                amount_minor=5_000,
+                currency="XOF",
+            ),
+        ]
+    )
+    notes = notifier.for_user("u-1")
+    assert [n.kind for n in notes] == [NotificationKind.VAULT, NotificationKind.VAULT]
+    assert "20 000 XOF" in notes[0].body and "Vacances" in notes[0].body
+    assert notes[1].data["pocket_id"] == "p-1"
 
 
 def test_unmapped_event_produces_nothing(

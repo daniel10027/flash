@@ -81,12 +81,41 @@ class WalletModel(Base):
     status: Mapped[str] = mapped_column(String(16), nullable=False, default="ACTIVE")
     available_minor: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
     reserved_minor: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
+    vaulted_minor: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
     created_at: Mapped[datetime] = mapped_column(TZDateTime, nullable=False)
 
     __table_args__ = (
         UniqueConstraint("user_id", "currency"),
         CheckConstraint("available_minor >= 0", name="available_non_negative"),
         CheckConstraint("reserved_minor >= 0", name="reserved_non_negative"),
+        CheckConstraint("vaulted_minor >= 0", name="vaulted_non_negative"),
+    )
+
+
+class VaultPocketModel(Base):
+    """Une poche du coffre. Le coffre lui-même n'a pas de table : c'est l'ensemble des
+    poches d'un portefeuille (``sum(balance_minor) == wallets.vaulted_minor``)."""
+
+    __tablename__ = "vault_pockets"
+
+    id: Mapped[str] = mapped_column(_UUID, primary_key=True)
+    vault_id: Mapped[str] = mapped_column(_UUID, nullable=False)
+    wallet_id: Mapped[str] = mapped_column(
+        ForeignKey("wallets.id", ondelete="RESTRICT"), nullable=False
+    )
+    user_id: Mapped[str] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
+    )
+    currency: Mapped[str] = mapped_column(_CCY, nullable=False)
+    name: Mapped[str] = mapped_column(String(60), nullable=False)
+    balance_minor: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
+    goal_minor: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    locked_until: Mapped[datetime | None] = mapped_column(TZDateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(TZDateTime, nullable=False)
+
+    __table_args__ = (
+        CheckConstraint("balance_minor >= 0", name="pocket_balance_non_negative"),
+        Index("ix_vault_pockets_wallet_id", "wallet_id"),
     )
 
 
@@ -418,5 +447,6 @@ __all__ = [
     "PaymentRequestModel",
     "PhoneNumberModel",
     "UserModel",
+    "VaultPocketModel",
     "WalletModel",
 ]

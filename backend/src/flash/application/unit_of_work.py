@@ -20,6 +20,7 @@ from flash.domain.merchants.ports import (
 )
 from flash.domain.payments.ports import PaymentRequestRepository
 from flash.domain.shared.events import DomainEvent
+from flash.domain.vault.ports import VaultRepository
 from flash.domain.wallet.ports import WalletRepository
 
 
@@ -56,6 +57,9 @@ class WorkUnitOfWork(Protocol):
 
     @property
     def merchant_payments(self) -> MerchantPaymentRepository: ...
+
+    @property
+    def vaults(self) -> VaultRepository: ...
 
     def __enter__(self) -> WorkUnitOfWork: ...
 

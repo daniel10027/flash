@@ -27,6 +27,7 @@ from flash.domain.shared.errors import PhoneNumberAlreadyLinked
 from flash.domain.shared.events import EventRecorder
 from flash.domain.shared.identifiers import EntityId, Msisdn
 from flash.domain.shared.money import Currency
+from flash.domain.vault.vault import Vault
 from flash.domain.wallet.wallet import Wallet
 from flash.infrastructure.db import mappers
 from flash.infrastructure.db.models import (
@@ -42,6 +43,7 @@ from flash.infrastructure.db.models import (
     PaymentRequestModel,
     PhoneNumberModel,
     UserModel,
+    VaultPocketModel,
     WalletModel,
 )
 from flash.infrastructure.ids import uuid7
@@ -522,6 +524,53 @@ class SqlAlchemyMerchantPaymentRepository:
         self._tracker.track(payment)
 
 
+class SqlAlchemyVaultRepository:
+    """Le coffre est l'ensemble des lignes ``vault_pockets`` d'un portefeuille."""
+
+    def __init__(self, session: Session, tracker: _AggregateTracker) -> None:
+        self._session = session
+        self._tracker = tracker
+
+    def _load(self, models: list[VaultPocketModel]) -> Vault | None:
+        vault = mappers.vault_to_domain(models)
+        if vault is not None:
+            self._tracker.track(vault)
+        return vault
+
+    def get_for_wallet(self, wallet_id: EntityId) -> Vault | None:
+        stmt = (
+            select(VaultPocketModel)
+            .where(VaultPocketModel.wallet_id == str(wallet_id))
+            .with_for_update()
+        )
+        return self._load(list(self._session.scalars(stmt)))
+
+    def get_for_user(self, user_id: EntityId) -> Vault | None:
+        stmt = (
+            select(VaultPocketModel)
+            .where(VaultPocketModel.user_id == str(user_id))
+            .with_for_update()
+        )
+        return self._load(list(self._session.scalars(stmt)))
+
+    def add(self, vault: Vault) -> None:
+        for model in mappers.vault_pockets_to_models(vault):
+            self._session.add(model)
+        self._tracker.track(vault)
+
+    def save(self, vault: Vault) -> None:
+        wanted = {str(p.id) for p in vault.pockets}
+        existing = self._session.scalars(
+            select(VaultPocketModel).where(VaultPocketModel.vault_id == str(vault.id))
+        )
+        for model in existing:
+            if model.id not in wanted:
+                self._session.delete(model)
+        for model in mappers.vault_pockets_to_models(vault):
+            self._session.merge(model)
+        self._tracker.track(vault)
+
+
 def _new_account_id() -> EntityId:
     return EntityId(str(uuid7()))
 
@@ -536,5 +585,6 @@ __all__ = [
     "SqlAlchemyMerchantRepository",
     "SqlAlchemyPaymentRequestRepository",
     "SqlAlchemyUserRepository",
+    "SqlAlchemyVaultRepository",
     "SqlAlchemyWalletRepository",
 ]

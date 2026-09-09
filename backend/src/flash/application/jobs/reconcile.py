@@ -1,5 +1,5 @@
 """Job de réconciliation (BE-045) — compare la projection de solde de chaque
-portefeuille (``available + reserved``) au solde recalculé depuis le ledger.
+portefeuille (``available + reserved + vaulted``) au solde recalculé depuis le ledger.
 
 Lecture seule : le job **signale** les écarts (retour + journal), il ne corrige rien
 automatiquement (un écart est un incident à investiguer, pas une donnée à réécrire).
@@ -21,7 +21,7 @@ class WalletDiscrepancy:
     wallet_id: str
     user_id: str
     currency: str
-    projected_minor: int  # available + reserved (projection wallets)
+    projected_minor: int  # available + reserved + vaulted (projection wallets)
     ledger_minor: int  # recalculé depuis les postings
     delta_minor: int  # projected - ledger
 
@@ -69,7 +69,7 @@ class ReconcileWalletBalances:
                     break
                 for wallet in page:
                     checked += 1
-                    projected = wallet.available.amount_minor + wallet.reserved.amount_minor
+                    projected = wallet.balance.amount_minor
                     ledger = uow.ledger.wallet_balance(EntityId(str(wallet.id)))
                     if projected != ledger:
                         discrepancies.append(

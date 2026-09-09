@@ -47,6 +47,21 @@ def _project_for_wallets(txn: LedgerTransaction, wallet_ids: set[str]) -> _Proje
         net += -p.amount.amount_minor if p.direction is Direction.DEBIT else p.amount.amount_minor
 
     meta = dict(txn.metadata)
+
+    # Mouvement de coffre : les deux écritures portent le même portefeuille, le net est
+    # nul. Le sens (vers / depuis le coffre) et le montant viennent des métadonnées.
+    if txn.kind is TransactionKind.VAULT_MOVE:
+        into_vault = bool(meta.get("into_vault"))
+        moved = int(meta.get("amount_minor", 0))
+        return _Projection(
+            direction="out" if into_vault else "in",
+            amount_minor=moved,
+            fee_minor=0,
+            currency=currency,
+            counterparty_masked=meta.get("pocket_name"),
+            note=meta.get("note"),
+        )
+
     is_out = net < 0
     gross = abs(net)
     meta_fee = int(meta.get("fee_minor", 0))

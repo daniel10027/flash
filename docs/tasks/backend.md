@@ -166,13 +166,17 @@ Chaque tâche livrée : code complet + tests + doc, **zéro `TODO`**.
 
 ## Phase 3 — Épargne & carte (BE-047 → BE-060)
 
-- [ ] **BE-047** · `domain/vault/vault.py` : `Vault` (poches verrouillables sur un wallet ;
-  `available` du wallet exclut le contenu du coffre). Tests d'invariants.
-- [ ] **BE-048** · `MoveToVault` / `MoveFromVault` : `LedgerTransaction.vault_move` entre
-  analytique `client_liability` et `savings_liability` (poche coffre), instantané, sans
-  frais. Historisé.
-- [ ] **BE-049** · `CreateVaultPocket` (nom, objectif optionnel, option « verrouillé
-  jusqu'à date »), `RenameVaultPocket`, `DeleteVaultPocket` (vide obligatoire).
+- [x] **BE-047** · `domain/vault/vault.py` : `Vault` (poches verrouillables sur un wallet ;
+  `Wallet.vaulted` — `available` l'exclut, `balance = available + reserved + vaulted`).
+  `VaultPocket` (nom, solde, objectif, `locked_until`, `progress_bps`). Invariant
+  `sum(pocket.balance) == wallet.vaulted`. Tests d'invariants (domaine + wallet).
+- [x] **BE-048** · `MoveToVault` / `MoveFromVault` (idempotents) : `LedgerTransaction.vault_move`
+  entre analytique `client_liability` et `savings_liability` (poche coffre), instantané,
+  sans frais. Historisé au relevé (`VAULT_MOVE`, sens + montant via métadonnées). Job de
+  réconciliation aligné sur `wallet.balance`.
+- [x] **BE-049** · `OpenVaultPocket` (nom, objectif optionnel, « verrouillé jusqu'à
+  date » ISO 8601), `RenameVaultPocket`, `CloseVaultPocket` (vide obligatoire →
+  `PocketNotEmpty`). Retrait avant échéance → `PocketLocked`.
 - [ ] **BE-050** · `domain/savings/plan.py` : `SavingsPlan` (objectif montant/date,
   fréquence de versement, source wallet, statut, taux annuel).
 - [ ] **BE-051** · `OpenSavingsPlan` / `CloseSavingsPlan` (rapatrie au wallet).
@@ -180,7 +184,9 @@ Chaque tâche livrée : code complet + tests + doc, **zéro `TODO`**.
   proprement si solde insuffisant → notification, réessai).
 - [ ] **BE-053** · Job `accrue_savings_interest` : calcul quotidien prorata, crédite
   mensuellement via `LedgerTransaction.interest` (`interest_expense`). Tests de calcul.
-- [ ] **BE-054** · Blueprints `vault`, `savings` + schémas + OpenAPI + notifications.
+- [~] **BE-054** · Blueprints `vault` (fait : `GET /v1/vault`, `POST /v1/vault/pockets`,
+  `PATCH`/`DELETE /v1/vault/pockets/<id>`, `deposit`/`withdraw` + schémas + OpenAPI +
+  notifications `VAULT`), `savings` (à faire avec BE-050 → BE-053).
 - [ ] **BE-055** · `domain/card/card.py` : `Card` (token PAN, 4 derniers, réseau, statut
   ACTIVE/FROZEN/CLOSED, plafonds jour/mois, canaux autorisés e‑com/sans‑contact).
 - [ ] **BE-056** · Port `CardIssuer` + `SandboxCardIssuer` (émission, gel, clôture,

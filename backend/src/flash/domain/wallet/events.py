@@ -44,6 +44,22 @@ class ReservationSettled(DomainEvent):
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
+class FundsVaulted(DomainEvent):
+    """Des fonds ont quitté le disponible pour une poche de coffre."""
+
+    amount_minor: int
+    currency: str
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class FundsUnvaulted(DomainEvent):
+    """Des fonds sont revenus d'une poche de coffre au disponible."""
+
+    amount_minor: int
+    currency: str
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
 class WalletFrozen(DomainEvent):
     reason: str
 
@@ -82,6 +98,8 @@ class TransferReversed(DomainEvent):
 __all__ = [
     "FundsReleased",
     "FundsReserved",
+    "FundsUnvaulted",
+    "FundsVaulted",
     "ReservationSettled",
     "TransferCompleted",
     "TransferReversed",

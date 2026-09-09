@@ -16,6 +16,7 @@ from flash.domain.identity.events import KycCaseApproved, KycCaseRejected
 from flash.domain.merchants.events import MerchantPaymentCompleted, MerchantPaymentRefunded
 from flash.domain.shared.events import DomainEvent
 from flash.domain.shared.ports import Clock, IdGenerator
+from flash.domain.vault.events import VaultPocketDeposited, VaultPocketWithdrawn
 from flash.domain.wallet.events import TransferCompleted, TransferReversed
 
 
@@ -149,6 +150,30 @@ def _merchant_refund(e: MerchantPaymentRefunded) -> list[_Spec]:
     ]
 
 
+def _vault_deposited(e: VaultPocketDeposited) -> list[_Spec]:
+    return [
+        (
+            e.user_id,
+            NotificationKind.VAULT,
+            "Mis de côté",
+            f"{_money(e.amount_minor, e.currency)} placés dans « {e.pocket_name} ».",
+            {"pocket_id": e.pocket_id},
+        )
+    ]
+
+
+def _vault_withdrawn(e: VaultPocketWithdrawn) -> list[_Spec]:
+    return [
+        (
+            e.user_id,
+            NotificationKind.VAULT,
+            "Repris du coffre",
+            f"{_money(e.amount_minor, e.currency)} repris de « {e.pocket_name} ».",
+            {"pocket_id": e.pocket_id},
+        )
+    ]
+
+
 def _kyc_approved(e: KycCaseApproved) -> list[_Spec]:
     return [
         (
@@ -182,6 +207,8 @@ _BUILDERS: dict[type[DomainEvent], Callable[[Any], list[_Spec]]] = {
     MerchantPaymentRefunded: _merchant_refund,
     KycCaseApproved: _kyc_approved,
     KycCaseRejected: _kyc_rejected,
+    VaultPocketDeposited: _vault_deposited,
+    VaultPocketWithdrawn: _vault_withdrawn,
 }
 
 

@@ -16,6 +16,7 @@ class NotificationKind(StrEnum):
     MERCHANT_PAYMENT = "MERCHANT_PAYMENT"  # paiement à un marchand
     REVERSAL = "REVERSAL"  # annulation / remboursement
     KYC = "KYC"  # avancement de la vérification d'identité
+    VAULT = "VAULT"  # mouvement de coffre (mise de côté / reprise)
     SECURITY = "SECURITY"  # événement de sécurité (nouvel appareil…)
 
 

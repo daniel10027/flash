@@ -24,6 +24,7 @@ _WALLET_SCHEMA = {
         "status": {"type": "string"},
         "available_minor": {"type": "integer"},
         "reserved_minor": {"type": "integer"},
+        "vaulted_minor": {"type": "integer"},
         "balance_minor": {"type": "integer"},
         "created_at": {"type": "string"},
     },

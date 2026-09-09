@@ -24,6 +24,7 @@ from flash.domain.shared.errors import PhoneNumberAlreadyLinked
 from flash.domain.shared.events import DomainEvent, EventRecorder
 from flash.domain.shared.identifiers import EntityId, Msisdn
 from flash.domain.shared.money import Currency
+from flash.domain.vault.vault import Vault
 from flash.domain.wallet.wallet import Wallet
 
 
@@ -449,6 +450,33 @@ class InMemoryMerchantPaymentRepository(_Tracking):
         self._track(payment)
 
 
+class InMemoryVaultRepository(_Tracking):
+    def __init__(self) -> None:
+        super().__init__()
+        self._by_wallet: dict[str, Vault] = {}
+
+    def get_for_wallet(self, wallet_id: EntityId) -> Vault | None:
+        vault = self._by_wallet.get(str(wallet_id))
+        if vault is not None:
+            self._track(vault)
+        return vault
+
+    def get_for_user(self, user_id: EntityId) -> Vault | None:
+        for vault in self._by_wallet.values():
+            if vault.user_id == user_id:
+                self._track(vault)
+                return vault
+        return None
+
+    def add(self, vault: Vault) -> None:
+        self._by_wallet[str(vault.wallet_id)] = vault
+        self._track(vault)
+
+    def save(self, vault: Vault) -> None:
+        self._by_wallet[str(vault.wallet_id)] = vault
+        self._track(vault)
+
+
 class InMemoryUnitOfWork:
     """Frontière transactionnelle en mémoire."""
 
@@ -465,6 +493,7 @@ class InMemoryUnitOfWork:
         merchants: InMemoryMerchantRepository | None = None,
         merchant_charges: InMemoryMerchantChargeRepository | None = None,
         merchant_payments: InMemoryMerchantPaymentRepository | None = None,
+        vaults: InMemoryVaultRepository | None = None,
     ) -> None:
         self.users = users or InMemoryUserRepository()
         self.wallets = wallets or InMemoryWalletRepository()
@@ -476,6 +505,7 @@ class InMemoryUnitOfWork:
         self.merchants = merchants or InMemoryMerchantRepository()
         self.merchant_charges = merchant_charges or InMemoryMerchantChargeRepository()
         self.merchant_payments = merchant_payments or InMemoryMerchantPaymentRepository()
+        self.vaults = vaults or InMemoryVaultRepository()
         self.committed = False
         self.rolled_back = False
         self._extra_events: list[DomainEvent] = []
@@ -510,6 +540,7 @@ class InMemoryUnitOfWork:
             *self.merchants.seen,
             *self.merchant_charges.seen,
             *self.merchant_payments.seen,
+            *self.vaults.seen,
         ):
             events.extend(aggregate.pull_events())
         events.extend(self._extra_events)
@@ -528,5 +559,6 @@ __all__ = [
     "InMemoryPaymentRequestRepository",
     "InMemoryUnitOfWork",
     "InMemoryUserRepository",
+    "InMemoryVaultRepository",
     "InMemoryWalletRepository",
 ]

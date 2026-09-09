@@ -30,6 +30,8 @@ from flash.domain.shared.money import Currency, Money
 from flash.domain.wallet.events import (
     FundsReleased,
     FundsReserved,
+    FundsUnvaulted,
+    FundsVaulted,
     ReservationSettled,
     WalletCredited,
     WalletDebited,
@@ -54,10 +56,16 @@ class Wallet(EventRecorder):
         available: Money,
         reserved: Money,
         created_at: datetime,
+        vaulted: Money | None = None,
         status: WalletStatus = WalletStatus.ACTIVE,
     ) -> None:
         super().__init__()
-        for label, money in (("available", available), ("reserved", reserved)):
+        vaulted = vaulted if vaulted is not None else Money.zero(currency)
+        for label, money in (
+            ("available", available),
+            ("reserved", reserved),
+            ("vaulted", vaulted),
+        ):
             if money.currency != currency:
                 raise ValueError(f"{label} n'est pas dans la devise du portefeuille ({currency}).")
             if money.is_negative:
@@ -67,6 +75,7 @@ class Wallet(EventRecorder):
         self.currency = currency
         self.available = available
         self.reserved = reserved
+        self.vaulted = vaulted
         self.created_at = created_at
         self.status = status
 
@@ -96,7 +105,7 @@ class Wallet(EventRecorder):
     # ---------------------------------------------------------------- lecture
     @property
     def balance(self) -> Money:
-        return self.available + self.reserved
+        return self.available + self.reserved + self.vaulted
 
     @property
     def is_active(self) -> bool:
@@ -196,6 +205,44 @@ class Wallet(EventRecorder):
             )
         )
 
+    # ------------------------------------------------------------------ coffre
+    def move_to_vault(self, amount: Money, now: datetime) -> None:
+        """Met de côté : le disponible baisse, le contenu du coffre monte."""
+        self._guard(amount)
+        self.ensure_active()
+        if self.available < amount:
+            raise InsufficientFunds(
+                available=self.available.amount_minor, requested=amount.amount_minor
+            )
+        self.available = self.available - amount
+        self.vaulted = self.vaulted + amount
+        self.record_event(
+            FundsVaulted(
+                occurred_at=now,
+                aggregate_id=str(self.id),
+                amount_minor=amount.amount_minor,
+                currency=self.currency.code,
+            )
+        )
+
+    def move_from_vault(self, amount: Money, now: datetime) -> None:
+        """Reprend depuis le coffre : le contenu du coffre baisse, le disponible monte."""
+        self._guard(amount)
+        if self.vaulted < amount:
+            raise InvalidReservation(
+                reserved=self.vaulted.amount_minor, requested=amount.amount_minor
+            )
+        self.vaulted = self.vaulted - amount
+        self.available = self.available + amount
+        self.record_event(
+            FundsUnvaulted(
+                occurred_at=now,
+                aggregate_id=str(self.id),
+                amount_minor=amount.amount_minor,
+                currency=self.currency.code,
+            )
+        )
+
     # ---------------------------------------------------------------- statut
     def freeze(self, reason: str, now: datetime) -> None:
         if self.status is WalletStatus.FROZEN:
@@ -212,7 +259,8 @@ class Wallet(EventRecorder):
     def __repr__(self) -> str:
         return (
             f"Wallet(id={self.id!s}, {self.currency.code}, "
-            f"available={self.available.amount_minor}, reserved={self.reserved.amount_minor})"
+            f"available={self.available.amount_minor}, reserved={self.reserved.amount_minor}, "
+            f"vaulted={self.vaulted.amount_minor})"
         )
 
 

@@ -830,6 +830,9 @@
                     "reserved_minor": {
                       "type": "integer"
                     },
+                    "vaulted_minor": {
+                      "type": "integer"
+                    },
                     "balance_minor": {
                       "type": "integer"
                     },
@@ -886,6 +889,9 @@
                       "type": "integer"
                     },
                     "reserved_minor": {
+                      "type": "integer"
+                    },
+                    "vaulted_minor": {
                       "type": "integer"
                     },
                     "balance_minor": {
@@ -2266,6 +2272,469 @@
         "security": [
           {
             "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/v1/vault": {
+      "get": {
+        "summary": "Consulter mon coffre et ses poches",
+        "tags": [
+          "vault"
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "currency": {
+                      "type": "string"
+                    },
+                    "vaulted_minor": {
+                      "type": "integer"
+                    },
+                    "pockets": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "pocket_id": {
+                            "type": "string"
+                          },
+                          "name": {
+                            "type": "string"
+                          },
+                          "balance_minor": {
+                            "type": "integer"
+                          },
+                          "currency": {
+                            "type": "string"
+                          },
+                          "goal_minor": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          },
+                          "progress_bps": {
+                            "type": [
+                              "integer",
+                              "null"
+                            ]
+                          },
+                          "locked_until": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "created_at": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/v1/vault/pockets": {
+      "post": {
+        "summary": "Ouvrir une poche (nom, objectif et verrouillage optionnels)",
+        "tags": [
+          "vault"
+        ],
+        "responses": {
+          "201": {
+            "description": "Succès",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "pocket_id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "balance_minor": {
+                      "type": "integer"
+                    },
+                    "currency": {
+                      "type": "string"
+                    },
+                    "goal_minor": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ]
+                    },
+                    "progress_bps": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ]
+                    },
+                    "locked_until": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "created_at": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "name": {
+                    "examples": [
+                      "Vacances"
+                    ],
+                    "maxLength": 60,
+                    "minLength": 1,
+                    "title": "Name",
+                    "type": "string"
+                  },
+                  "goal_minor": {
+                    "anyOf": [
+                      {
+                        "exclusiveMinimum": 0,
+                        "type": "integer"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "examples": [
+                      500000
+                    ],
+                    "title": "Goal Minor"
+                  },
+                  "locked_until": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "examples": [
+                      "2026-12-31T00:00:00+00:00"
+                    ],
+                    "title": "Locked Until"
+                  }
+                },
+                "required": [
+                  "name"
+                ],
+                "title": "OpenPocketRequest",
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/vault/pockets/{pocket_id}": {
+      "patch": {
+        "summary": "Renommer une poche",
+        "tags": [
+          "vault"
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "pocket_id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "balance_minor": {
+                      "type": "integer"
+                    },
+                    "currency": {
+                      "type": "string"
+                    },
+                    "goal_minor": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ]
+                    },
+                    "progress_bps": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ]
+                    },
+                    "locked_until": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "created_at": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "name": {
+                    "examples": [
+                      "Voyage 2027"
+                    ],
+                    "maxLength": 60,
+                    "minLength": 1,
+                    "title": "Name",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "name"
+                ],
+                "title": "RenamePocketRequest",
+                "type": "object"
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Fermer une poche vide",
+        "tags": [
+          "vault"
+        ],
+        "responses": {
+          "204": {
+            "description": "Succès"
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/v1/vault/pockets/{pocket_id}/deposit": {
+      "post": {
+        "summary": "Mettre de l'argent de côté dans une poche",
+        "tags": [
+          "vault"
+        ],
+        "responses": {
+          "201": {
+            "description": "Succès"
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "amount_minor": {
+                    "examples": [
+                      20000
+                    ],
+                    "exclusiveMinimum": 0,
+                    "title": "Amount Minor",
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "amount_minor"
+                ],
+                "title": "MoveRequest",
+                "type": "object"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 255
+            }
+          }
+        ]
+      }
+    },
+    "/v1/vault/pockets/{pocket_id}/withdraw": {
+      "post": {
+        "summary": "Reprendre de l'argent d'une poche (refusé si verrouillée)",
+        "tags": [
+          "vault"
+        ],
+        "responses": {
+          "201": {
+            "description": "Succès"
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "amount_minor": {
+                    "examples": [
+                      20000
+                    ],
+                    "exclusiveMinimum": 0,
+                    "title": "Amount Minor",
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "amount_minor"
+                ],
+                "title": "MoveRequest",
+                "type": "object"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 255
+            }
           }
         ]
       }

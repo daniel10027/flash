@@ -27,6 +27,7 @@ from flash.domain.merchants.payment import MerchantPayment, MerchantPaymentStatu
 from flash.domain.payments.request import PaymentRequest, PaymentRequestStatus
 from flash.domain.shared.identifiers import CountryCode, EntityId, Msisdn
 from flash.domain.shared.money import Currency, Money
+from flash.domain.vault.vault import Vault, VaultPocket
 from flash.domain.wallet.wallet import Wallet, WalletStatus
 from flash.infrastructure.db.models import (
     AgentModel,
@@ -41,6 +42,7 @@ from flash.infrastructure.db.models import (
     PaymentRequestModel,
     PhoneNumberModel,
     UserModel,
+    VaultPocketModel,
     WalletModel,
 )
 
@@ -106,6 +108,7 @@ def wallet_to_domain(model: WalletModel) -> Wallet:
         currency=currency,
         available=Money(model.available_minor, currency),
         reserved=Money(model.reserved_minor, currency),
+        vaulted=Money(model.vaulted_minor, currency),
         created_at=model.created_at,
         status=WalletStatus(model.status),
     )
@@ -119,8 +122,57 @@ def wallet_to_model(wallet: Wallet) -> WalletModel:
         status=wallet.status.value,
         available_minor=wallet.available.amount_minor,
         reserved_minor=wallet.reserved.amount_minor,
+        vaulted_minor=wallet.vaulted.amount_minor,
         created_at=wallet.created_at,
     )
+
+
+# ------------------------------------------------------------------------ coffre
+
+
+def vault_to_domain(models: list[VaultPocketModel]) -> Vault | None:
+    """Reconstruit l'agrégat ``Vault`` à partir de ses lignes de poches (ou ``None``)."""
+    if not models:
+        return None
+    first = models[0]
+    currency = Currency.of(first.currency)
+    pockets = [
+        VaultPocket(
+            id=EntityId(m.id),
+            name=m.name,
+            balance=Money(m.balance_minor, currency),
+            created_at=m.created_at,
+            goal_minor=m.goal_minor,
+            locked_until=m.locked_until,
+        )
+        for m in models
+    ]
+    return Vault(
+        id=EntityId(first.vault_id),
+        wallet_id=EntityId(first.wallet_id),
+        user_id=EntityId(first.user_id),
+        currency=currency,
+        created_at=min(m.created_at for m in models),
+        pockets=pockets,
+    )
+
+
+def vault_pockets_to_models(vault: Vault) -> list[VaultPocketModel]:
+    return [
+        VaultPocketModel(
+            id=str(p.id),
+            vault_id=str(vault.id),
+            wallet_id=str(vault.wallet_id),
+            user_id=str(vault.user_id),
+            currency=vault.currency.code,
+            name=p.name,
+            balance_minor=p.balance.amount_minor,
+            goal_minor=p.goal_minor,
+            locked_until=p.locked_until,
+            created_at=p.created_at,
+        )
+        for p in vault.pockets
+    ]
 
 
 # ----------------------------------------------------------------------- ledger
@@ -449,6 +501,8 @@ __all__ = [
     "payment_request_to_model",
     "user_to_domain",
     "user_to_model",
+    "vault_pockets_to_models",
+    "vault_to_domain",
     "wallet_to_domain",
     "wallet_to_model",
 ]

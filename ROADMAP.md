@@ -1,7 +1,7 @@
 # Flash — Map de développement
 
 > **Dernière mise à jour : 2026-09-09**
-> **Phase 1 terminée + Phase 2 : BE-025 → BE-046 (Phase 2 complète)**
+> **Phase 1 + Phase 2 complètes · Phase 3 en cours : BE-047 → BE-049 (coffre) livrés**
 > (auth, numéros, wallets, transfert + **annulation**, **demandes de paiement**,
 > **paiement marchand QR** + **remboursement**, **dépôt & retrait cash agent**,
 > relevé + **reçu détaillé**, **KYC**, **notifications** + **flux SSE**, **jobs
@@ -45,10 +45,11 @@
 > `/v1/notifications` (liste + curseur + `unread`, `/<id>/read`, `/read-all`) et
 > **SSE `/v1/notifications/stream`** (`RedisNotificationBus` pub/sub, rattrapage
 > `Last-Event-ID` depuis le journal, keep-alive).
-> **40 chemins** : `auth` (6), `phones` (5), `wallets` (2), `transfers` (2),
+> **45 chemins** : `auth` (6), `phones` (5), `wallets` (2), `transfers` (2),
 > `payment-requests` (4), `merchant` (4), `merchant-payments` (1), `statement` (1),
 > `receipts` (1), `notifications` (4), `withdrawals` (2), `agent` (2), `kyc` (4),
-> `admin/kyc` (1), `admin` ops (2) + `/health*`, `/openapi.json`, `/docs`, `/redoc`.
+> `vault` (6), `admin/kyc` (1), `admin` ops (2) + `/health*`, `/openapi.json`, `/docs`,
+> `/redoc`.
 > **Tout vérifié end-to-end via docker compose** : cash, KYC, demandes de paiement,
 > paiement marchand, annulation / remboursement (soldes restaurés, rejeu → 409),
 > reçus (out/in, 404 pour un tiers, REVERSED) ; un transfert génère « Argent reçu » /
@@ -64,13 +65,23 @@
 > `flash run-jobs` (cron, exit 1 si écart) + `POST /v1/admin/{jobs/expire,reconcile}`.
 > **Seed (BE-046)** : `flash seed` — agent + marchand + 2 utilisateurs approvisionnés,
 > idempotent.
-> **40 chemins.** 659 tests unit + 14 d'intégration (Postgres réel), couverture 100 %
+> **Coffre (BE-047 → BE-049 + BE-054 partiel)** : agrégat `Vault` = les **poches** d'un
+> portefeuille (nom, solde, objectif + `progress_bps`, `locked_until`). Le `Wallet` gagne
+> `vaulted` : `balance = available + reserved + vaulted`, l'`available` **exclut** le coffre.
+> `OpenVaultPocket` / `RenameVaultPocket` / `CloseVaultPocket` (vide → `PocketNotEmpty`).
+> `MoveToVault` / `MoveFromVault` idempotents, instantanés, **sans frais**, via
+> `LedgerTransaction.vault_move` (analytiques `client_liability` ↔ `savings_liability`,
+> les deux écritures portent le wallet → solde ledger inchangé, cohérent avec `balance`).
+> Retrait d'une poche verrouillée → `PocketLocked` (409). Historisé au relevé
+> (`VAULT_MOVE`, sens/montant via métadonnées) ; job de réconciliation aligné sur
+> `wallet.balance`. Notifications `VAULT` (« Mis de côté » / « Repris du coffre »).
+> Blueprint `/v1/vault` : `GET`, `POST /pockets`, `PATCH`/`DELETE /pockets/<id>`,
+> `POST /pockets/<id>/{deposit,withdraw}`. Colonne `wallets.vaulted_minor` + table
+> `vault_pockets` (migration `a1c9f4e2b7d3`).
+> **45 chemins.** 717 tests unit + 16 d'intégration (Postgres réel), couverture 100 %
 > domain+application, ruff + mypy stricts.
-> **Vérifié end-to-end via docker compose** : `flash seed` (comptes + float + QR + dépôts,
-> rejeu idempotent), `flash run-jobs` (0 expirés, 4 portefeuilles réconciliés sans écart),
-> `POST /v1/admin/reconcile` sans clé → 403.
-> **Phase 2 terminée. Prochaine : Phase 3 — `BE-047` (`Vault` / coffre), `BE-050`
-> (`SavingsPlan` / épargne), `BE-055` (`Card` / carte virtuelle).**
+> **Phase 2 terminée. Phase 3 en cours** : coffre livré → prochaine `BE-050`
+> (`SavingsPlan` / épargne), puis `BE-055` (`Card` / carte virtuelle).
 
 Ce fichier est la vue d'ensemble. Le détail (une ligne = une tâche cochable) est dans
 `docs/tasks/`. On avance **dans l'ordre des identifiants** à l'intérieur de chaque lot,
@@ -88,7 +99,7 @@ mais les lots Backend / Infra avancent en priorité car Web et Mobile en dépend
 | Lot | Fichier détaillé | Fait / Total |
 |-----|------------------|--------------|
 | Fondations & docs | ce fichier | 6 / 6 |
-| Backend (BE) | [docs/tasks/backend.md](docs/tasks/backend.md) | 46 / 78 |
+| Backend (BE) | [docs/tasks/backend.md](docs/tasks/backend.md) | 49 / 78 |
 | Web (WEB) | [docs/tasks/frontend-web.md](docs/tasks/frontend-web.md) | 0 / 46 |
 | Mobile (MOB) | [docs/tasks/mobile.md](docs/tasks/mobile.md) | 0 / 44 |
 | Infra & CI/CD (INFRA) | [docs/tasks/infra.md](docs/tasks/infra.md) | 2 / 24 |
@@ -156,13 +167,16 @@ charge, revue sécurité (OWASP ASVS, secrets, rate‑limit), doc API publiée, 
 
 ## Prochaine action
 
-**Phase 2 terminée** (`BE-025` → `BE-046`). On entre en **Phase 3 — épargne & carte** :
+**Phase 3 en cours.** Coffre livré : `BE-047` (agrégat `Vault` + `Wallet.vaulted`),
+`BE-048` (`MoveToVault` / `MoveFromVault` + `vault_move` historisé), `BE-049`
+(`OpenVaultPocket` / `RenameVaultPocket` / `CloseVaultPocket`), `BE-054` partiel
+(blueprint `/v1/vault` + OpenAPI + notifications `VAULT`, migration `a1c9f4e2b7d3`).
 
-`BE-047` — `domain/vault/vault.py` : agrégat `Vault` (poches verrouillables adossées à
-un wallet ; l'`available` du wallet exclut le contenu du coffre). Invariants + tests.
-Puis `BE-048/049` (ouvrir / alimenter / retirer une poche, `LedgerTransaction.vault_move`),
-`BE-050` → `BE-054` (`SavingsPlan`, dépôts programmés, intérêts), `BE-055` → `BE-060`
-(`Card` virtuelle : émission, gel, plafonds, autorisations, rapprochement).
+Prochaine : `BE-050` — `domain/savings/plan.py` : agrégat `SavingsPlan` (objectif
+montant/date, fréquence de versement, source wallet, statut, taux annuel). Puis `BE-051`
+(`OpenSavingsPlan` / `CloseSavingsPlan`), `BE-052` (job versements programmés), `BE-053`
+(job intérêts prorata + `LedgerTransaction.interest`), fin de `BE-054` (blueprint
+`savings`), puis `BE-055` → `BE-060` (`Card` virtuelle).
 
 ✅ Phase 2 livrée : `BE-029` (KYC), `BE-032` (demandes de paiement), `BE-033` (marchand
 QR), `BE-034` → `BE-036` (cash agent), `BE-037` (annulation / remboursement), `BE-038`
