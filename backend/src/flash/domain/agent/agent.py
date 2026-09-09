@@ -12,13 +12,17 @@ from datetime import datetime
 from enum import StrEnum
 
 from flash.domain.agent.events import (
+    AgentAttachedToMaster,
     AgentCommissionAccrued,
+    AgentCommissionPaid,
     AgentEnrolled,
     AgentFloatCollected,
     AgentFloatDisbursed,
+    AgentFloatToppedUp,
+    AgentFloatWithdrawn,
     AgentSuspended,
 )
-from flash.domain.shared.errors import AgentFloatTooLow, InvalidAccountState
+from flash.domain.shared.errors import AgentFloatTooLow, InvalidAccountState, InvalidInput
 from flash.domain.shared.events import EventRecorder
 from flash.domain.shared.identifiers import EntityId
 from flash.domain.shared.money import Currency, Money
@@ -43,6 +47,9 @@ class Agent(EventRecorder):
         commission_bps: int,
         created_at: datetime,
         status: AgentStatus = AgentStatus.ACTIVE,
+        parent_agent_id: EntityId | None = None,
+        commission_earned: Money | None = None,
+        commission_paid: Money | None = None,
     ) -> None:
         super().__init__()
         for label, m in (("float_available", float_available), ("float_cap", float_cap)):
@@ -60,6 +67,9 @@ class Agent(EventRecorder):
         self.commission_bps = commission_bps
         self.created_at = created_at
         self.status = status
+        self.parent_agent_id = parent_agent_id
+        self.commission_earned = commission_earned or Money.zero(currency)
+        self.commission_paid = commission_paid or Money.zero(currency)
 
     @classmethod
     def enroll(
@@ -137,6 +147,45 @@ class Agent(EventRecorder):
             )
         )
 
+    def top_up_float(self, amount: Money, now: datetime) -> None:
+        """L'agent achète de l'e-money auprès de Flash : son float monte (≤ float_cap)."""
+        self._guard(amount)
+        self.ensure_active()
+        if self.float_available + amount > self.float_cap:
+            raise AgentFloatTooLow(
+                "Plafond de float de l'agent dépassé.",
+                available=self.float_available.amount_minor,
+                cap=self.float_cap.amount_minor,
+                requested=amount.amount_minor,
+            )
+        self.float_available = self.float_available + amount
+        self.record_event(
+            AgentFloatToppedUp(
+                occurred_at=now,
+                aggregate_id=str(self.id),
+                amount_minor=amount.amount_minor,
+                float_after_minor=self.float_available.amount_minor,
+            )
+        )
+
+    def withdraw_float(self, amount: Money, now: datetime) -> None:
+        """L'agent restitue de l'e-money à Flash : son float baisse (remboursé en banque)."""
+        self._guard(amount)
+        self.ensure_active()
+        if self.float_available < amount:
+            raise AgentFloatTooLow(
+                available=self.float_available.amount_minor, requested=amount.amount_minor
+            )
+        self.float_available = self.float_available - amount
+        self.record_event(
+            AgentFloatWithdrawn(
+                occurred_at=now,
+                aggregate_id=str(self.id),
+                amount_minor=amount.amount_minor,
+                float_after_minor=self.float_available.amount_minor,
+            )
+        )
+
     def commission_for(self, amount: Money) -> Money:
         """Commission de l'agent sur une opération (arrondie vers le bas)."""
         from decimal import ROUND_FLOOR
@@ -145,9 +194,43 @@ class Agent(EventRecorder):
 
     def accrue_commission(self, amount: Money, now: datetime) -> None:
         self._guard(amount)
+        self.commission_earned = self.commission_earned + amount
         self.record_event(
             AgentCommissionAccrued(
                 occurred_at=now, aggregate_id=str(self.id), amount_minor=amount.amount_minor
+            )
+        )
+
+    @property
+    def commission_owed(self) -> Money:
+        """Commission gagnée non encore versée sur le portefeuille de l'agent."""
+        return self.commission_earned - self.commission_paid
+
+    def pay_commission(self, amount: Money, now: datetime) -> None:
+        """Verse ``amount`` de commission due (déduit du float, à créditer sur le wallet)."""
+        self._guard(amount)
+        self.ensure_active()
+        if amount > self.commission_owed:
+            raise InvalidInput("Montant supérieur à la commission due.")
+        if amount > self.float_available:
+            raise AgentFloatTooLow(
+                available=self.float_available.amount_minor, requested=amount.amount_minor
+            )
+        self.float_available = self.float_available - amount
+        self.commission_paid = self.commission_paid + amount
+        self.record_event(
+            AgentCommissionPaid(
+                occurred_at=now, aggregate_id=str(self.id), amount_minor=amount.amount_minor
+            )
+        )
+
+    def attach_to_master(self, master_id: EntityId, now: datetime) -> None:
+        if master_id == self.id:
+            raise InvalidInput("Un agent ne peut pas être son propre master.")
+        self.parent_agent_id = master_id
+        self.record_event(
+            AgentAttachedToMaster(
+                occurred_at=now, aggregate_id=str(self.id), master_agent_id=str(master_id)
             )
         )
 

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from flask import Blueprint, Response, jsonify
 
+from flash.application.jobs.agent_commission import PayDueAgentCommissions
 from flash.application.jobs.card_reconcile import ReconcileCardSettlements
 from flash.application.jobs.expire import ExpireStaleOperations
 from flash.application.jobs.merchant_settle import SettleDueMerchants
@@ -76,6 +77,18 @@ def run_merchant_settle() -> tuple[Response, int]:
     report = SettleDueMerchants(
         services=deps().services, bank=deps().bank_gateway
     ).execute()
+    return jsonify(report.to_dict()), 200
+
+
+@bp.post("/jobs/agents/commissions")
+@require_admin
+@document(
+    summary="Back-office : verser les commissions agent dues au-dessus du seuil",
+    tags=["admin"],
+    secured=False,
+)
+def run_agent_commissions() -> tuple[Response, int]:
+    report = PayDueAgentCommissions(services=deps().services).execute()
     return jsonify(report.to_dict()), 200
 
 

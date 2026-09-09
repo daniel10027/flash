@@ -320,6 +320,11 @@ def agent_to_domain(model: AgentModel) -> Agent:
         commission_bps=model.commission_bps,
         created_at=model.created_at,
         status=AgentStatus(model.status),
+        parent_agent_id=(
+            EntityId(model.parent_agent_id) if model.parent_agent_id else None
+        ),
+        commission_earned=Money(model.commission_earned_minor, currency),
+        commission_paid=Money(model.commission_paid_minor, currency),
     )
 
 
@@ -332,6 +337,9 @@ def agent_to_model(agent: Agent) -> AgentModel:
         float_cap_minor=agent.float_cap.amount_minor,
         commission_bps=agent.commission_bps,
         status=agent.status.value,
+        parent_agent_id=str(agent.parent_agent_id) if agent.parent_agent_id else None,
+        commission_earned_minor=agent.commission_earned.amount_minor,
+        commission_paid_minor=agent.commission_paid.amount_minor,
         created_at=agent.created_at,
     )
 

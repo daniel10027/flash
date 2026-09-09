@@ -307,12 +307,24 @@ Chaque tâche livrée : code complet + tests + doc, **zéro `TODO`**.
   `X-Flash-Signature: sha256=HMAC(secret, body)` via `HttpMerchantWebhookSender`. Table
   `merchant_webhook_deliveries` + colonnes `webhook_url`/`webhook_secret` sur
   `merchants`, migration `e1f4b7c92a05`.
-- [ ] **BE-072** · `domain/agent/` : `Agent` (float, plafonds, grille de commission,
-  hiérarchie master/sous‑agent), `AgentFloatTopUp` / `AgentFloatWithdraw`.
-- [ ] **BE-073** · Commissions agent : calcul par opération, cumul, versement périodique
-  (`agent_commission_expense` → wallet agent), relevé de commissions.
-- [ ] **BE-074** · Espace agent API : lister opérations, dépôt/retrait, solde float,
-  commissions, recherche client par msisdn (données minimales).
+- [x] **BE-072** · `Agent` enrichi : `parent_agent_id` + `attach_to_master` (hiérarchie
+  master ↔ sous-agent), `top_up_float` / `withdraw_float` (achat / restitution d'e-money,
+  events dédiés). Use cases `TopUpAgentFloat` / `WithdrawAgentFloat` (idempotents) →
+  `LedgerTransaction.agent_float_topup` / `agent_float_withdraw`
+  (`AGENT_FLOAT` ↔ `BANK_SETTLEMENT`). Back-office `POST /v1/admin/agents/<id>/master`
+  (`AttachAgentToMaster`, rôles `admin`/`finance`).
+- [x] **BE-073** · Commissions agent : `Agent.commission_earned` / `commission_paid` /
+  `commission_owed` — `accrue_commission` cumule à chaque opération cash. `pay_commission`
+  déplace le dû du float vers le portefeuille de l'agent
+  (`LedgerTransaction.agent_commission_payout` : `AGENT_FLOAT` ↓ / `CLIENT_LIABILITY` ↑).
+  `PayAgentCommission` (`POST /v1/agent/commission/payout`, montant ou tout le dû) ; job
+  `PayDueAgentCommissions` (seuil, `flash run-jobs` +
+  `POST /v1/admin/jobs/agents/commissions`). Relevé via `GET /v1/agent`.
+- [x] **BE-074** · Espace agent API `/v1/agent` : `GET /` (float, plafond, commissions,
+  master), `GET /operations` (`cash_orders.list_for_agent`), `POST /float/topup`,
+  `POST /float/withdraw`, `POST /commission/payout`, `GET /customers?msisdn=`
+  (`LookupCustomer` — données minimales : id, msisdn masqué, statut, palier KYC).
+  Migration `f2a9c1e83b47` (colonnes `parent_agent_id` / `commission_*` sur `agents`).
 - [ ] **BE-075** · Back‑office API : recherche utilisateur, détail compte, gel/dégel,
   liste des transactions, forcer reversal, notes, tickets de support. RBAC
   (`support`, `compliance`, `finance`, `admin`) + audit de chaque action.

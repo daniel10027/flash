@@ -17,6 +17,7 @@ _STATUS_BY_CODE: dict[str, int] = {
     "WALLET_NOT_FOUND": 404,
     "RECIPIENT_NOT_FOUND": 404,
     "NOT_A_MERCHANT": 404,
+    "NOT_AN_AGENT": 404,
     # 409 — conflit / état incompatible
     "DUPLICATE_OPERATION": 409,
     "PHONE_NUMBER_ALREADY_LINKED": 409,

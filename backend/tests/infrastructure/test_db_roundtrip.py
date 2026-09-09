@@ -228,6 +228,60 @@ class TestAgentAndCashOrderRoundtrip:
             final_agent = uow.agents.get(agent.id)
             assert final_agent is not None
             assert final_agent.float_available == Money(230_000, XOF)
+            assert final_agent.commission_earned == Money(0, XOF)
+            assert final_agent.parent_agent_id is None
+            [op] = uow.cash_orders.list_for_agent(agent.id)
+            assert op.id == order.id
+
+    def test_agent_hierarchy_and_commission_counters_persist(
+        self, session_factory: sessionmaker[Session]
+    ) -> None:
+        from flash.domain.agent.agent import Agent
+
+        clock = FixedClock(T0)
+        master_user = _new_user("+2250700000031")
+        sub_user = _new_user("+2250700000032")
+        master = Agent.enroll(
+            agent_id=EntityId(str(uuid7())),
+            user_id=master_user.id,
+            currency=XOF,
+            float_cap=Money(1_000_000, XOF),
+            commission_bps=50,
+            now=T0,
+        )
+        sub = Agent.enroll(
+            agent_id=EntityId(str(uuid7())),
+            user_id=sub_user.id,
+            currency=XOF,
+            float_cap=Money(1_000_000, XOF),
+            commission_bps=100,
+            now=T0,
+            initial_float=Money(100_000, XOF),
+        )
+        with SqlAlchemyUnitOfWork(session_factory, clock) as uow:
+            uow.users.add(master_user)
+            uow.users.add(sub_user)
+            uow.commit()
+        with SqlAlchemyUnitOfWork(session_factory, clock) as uow:
+            uow.agents.add(master)
+            uow.agents.add(sub)
+            uow.commit()
+
+        with SqlAlchemyUnitOfWork(session_factory, clock) as uow:
+            loaded = uow.agents.get(sub.id)
+            assert loaded is not None
+            loaded.attach_to_master(master.id, T0)
+            loaded.accrue_commission(Money(4_000, XOF), T0)
+            uow.agents.save(loaded)
+            uow.commit()
+
+        with SqlAlchemyUnitOfWork(session_factory, clock) as uow:
+            again = uow.agents.get(sub.id)
+            assert again is not None
+            assert again.parent_agent_id == master.id
+            assert again.commission_owed == Money(4_000, XOF)
+            owed = uow.agents.list_with_commission_owed(1_000)
+            assert [a.id for a in owed] == [sub.id]
 
 
 class TestKycCaseRoundtrip:

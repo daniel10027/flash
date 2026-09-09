@@ -392,12 +392,21 @@ class AgentModel(Base):
     float_cap_minor: Mapped[int] = mapped_column(BigInteger, nullable=False)
     commission_bps: Mapped[int] = mapped_column(SmallInteger, nullable=False, default=0)
     status: Mapped[str] = mapped_column(String(16), nullable=False, default="ACTIVE")
+    parent_agent_id: Mapped[str | None] = mapped_column(_UUID, nullable=True)
+    commission_earned_minor: Mapped[int] = mapped_column(
+        BigInteger, nullable=False, default=0
+    )
+    commission_paid_minor: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
     created_at: Mapped[datetime] = mapped_column(TZDateTime, nullable=False)
 
     __table_args__ = (
         UniqueConstraint("user_id"),
         CheckConstraint("float_available_minor >= 0", name="float_non_negative"),
         CheckConstraint("float_available_minor <= float_cap_minor", name="float_within_cap"),
+        CheckConstraint(
+            "commission_paid_minor <= commission_earned_minor", name="commission_paid_le_earned"
+        ),
+        Index("ix_agents_parent_agent_id", "parent_agent_id"),
     )
 
 

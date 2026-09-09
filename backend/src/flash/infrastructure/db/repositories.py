@@ -265,6 +265,14 @@ class SqlAlchemyAgentRepository:
         assert loaded is not None
         return loaded
 
+    def list_with_commission_owed(self, threshold_minor: int) -> list[Agent]:
+        stmt = select(AgentModel).where(
+            AgentModel.status == "ACTIVE",
+            (AgentModel.commission_earned_minor - AgentModel.commission_paid_minor)
+            >= threshold_minor,
+        )
+        return [a for a in (self._load(m) for m in self._session.scalars(stmt)) if a is not None]
+
     def add(self, agent: Agent) -> None:
         self._session.add(mappers.agent_to_model(agent))
         self._tracker.track(agent)
@@ -311,6 +319,15 @@ class SqlAlchemyCashOrderRepository:
             .order_by(CashOrderModel.expires_at.asc())
             .limit(limit)
             .with_for_update()
+        )
+        return [o for o in (self._load(m) for m in self._session.scalars(stmt)) if o is not None]
+
+    def list_for_agent(self, agent_id: EntityId, *, limit: int = 50) -> list[CashOrder]:
+        stmt = (
+            select(CashOrderModel)
+            .where(CashOrderModel.agent_id == str(agent_id))
+            .order_by(CashOrderModel.created_at.desc())
+            .limit(limit)
         )
         return [o for o in (self._load(m) for m in self._session.scalars(stmt)) if o is not None]
 

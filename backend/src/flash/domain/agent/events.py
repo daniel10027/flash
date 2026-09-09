@@ -29,14 +29,40 @@ class AgentCommissionAccrued(DomainEvent):
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
+class AgentCommissionPaid(DomainEvent):
+    amount_minor: int
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class AgentAttachedToMaster(DomainEvent):
+    master_agent_id: str
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class AgentFloatToppedUp(DomainEvent):
+    amount_minor: int
+    float_after_minor: int
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class AgentFloatWithdrawn(DomainEvent):
+    amount_minor: int
+    float_after_minor: int
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
 class AgentSuspended(DomainEvent):
     reason: str
 
 
 __all__ = [
+    "AgentAttachedToMaster",
     "AgentCommissionAccrued",
+    "AgentCommissionPaid",
     "AgentEnrolled",
     "AgentFloatCollected",
     "AgentFloatDisbursed",
+    "AgentFloatToppedUp",
+    "AgentFloatWithdrawn",
     "AgentSuspended",
 ]

@@ -63,6 +63,7 @@ def serve(host: str, port: int) -> None:
 def run_jobs() -> None:
     """Exécute une passe des tâches planifiées (à appeler par cron) : expiration des
     opérations en attente + réconciliation des soldes."""
+    from flash.application.jobs.agent_commission import PayDueAgentCommissions
     from flash.application.jobs.card_reconcile import ReconcileCardSettlements
     from flash.application.jobs.expire import ExpireStaleOperations
     from flash.application.jobs.merchant_settle import SettleDueMerchants
@@ -110,6 +111,12 @@ def run_jobs() -> None:
     click.echo(
         f"webhooks marchands : {webhooks.delivered} livrés, {webhooks.retried} à retenter, "
         f"{webhooks.exhausted} abandonnés (sur {webhooks.due} échus)"
+    )
+
+    commissions = PayDueAgentCommissions(services=services).execute()
+    click.echo(
+        f"commissions agent : {commissions.paid} versées ({commissions.paid_minor} minor), "
+        f"{commissions.skipped} reportées (sur {commissions.checked} éligibles)"
     )
 
     card_report = ReconcileCardSettlements(services=services).execute()

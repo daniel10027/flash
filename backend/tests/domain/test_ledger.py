@@ -249,6 +249,49 @@ class TestCashFactories:
         assert len(txn.postings) == 3
 
 
+class TestAgentFloatAndCommissionFactories:
+    def test_float_topup_balanced(self) -> None:
+        txn = LedgerTransaction.agent_float_topup(
+            id=_id(1),
+            occurred_at=T0,
+            reference="AFT-1",
+            bank_settlement_account_id=_id(700),
+            agent_float_account_id=AGENT_FLOAT,
+            amount=xof(500_000),
+        )
+        assert txn.kind is TransactionKind.AGENT_FLOAT_TOPUP
+        assert txn.is_balanced and sum_postings(txn.postings) == {"XOF": 0}
+
+    def test_float_withdraw_balanced_and_mirrors_topup(self) -> None:
+        txn = LedgerTransaction.agent_float_withdraw(
+            id=_id(2),
+            occurred_at=T0,
+            reference="AFW-1",
+            agent_float_account_id=AGENT_FLOAT,
+            bank_settlement_account_id=_id(700),
+            amount=xof(200_000),
+        )
+        assert txn.kind is TransactionKind.AGENT_FLOAT_WITHDRAW
+        assert txn.is_balanced and sum_postings(txn.postings) == {"XOF": 0}
+        debit = next(p for p in txn.postings if p.direction is Direction.DEBIT)
+        assert debit.account_id == AGENT_FLOAT
+
+    def test_commission_payout_credits_agent_wallet(self) -> None:
+        txn = LedgerTransaction.agent_commission_payout(
+            id=_id(3),
+            occurred_at=T0,
+            reference="ACP-1",
+            agent_float_account_id=AGENT_FLOAT,
+            agent_wallet_account_id=CLIENT,
+            agent_wallet_id=W_CLIENT,
+            amount=xof(3_500),
+        )
+        assert txn.kind is TransactionKind.AGENT_COMMISSION_PAYOUT
+        assert txn.is_balanced and sum_postings(txn.postings) == {"XOF": 0}
+        credit = next(p for p in txn.postings if p.direction is Direction.CREDIT)
+        assert credit.account_id == CLIENT and credit.wallet_id == W_CLIENT
+
+
 class TestVaultSavingsInterest:
     def test_vault_move_into_and_out(self) -> None:
         into = LedgerTransaction.vault_move(

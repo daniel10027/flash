@@ -44,6 +44,7 @@ class TransactionKind(StrEnum):
     MERCHANT_PAYMENT = "MERCHANT_PAYMENT"
     MERCHANT_SETTLEMENT = "MERCHANT_SETTLEMENT"
     AGENT_FLOAT_TOPUP = "AGENT_FLOAT_TOPUP"
+    AGENT_FLOAT_WITHDRAW = "AGENT_FLOAT_WITHDRAW"
     AGENT_COMMISSION_PAYOUT = "AGENT_COMMISSION_PAYOUT"
     REVERSAL = "REVERSAL"
     ADJUSTMENT = "ADJUSTMENT"
@@ -398,6 +399,57 @@ class LedgerTransaction:
             occurred_at=occurred_at,
             reference=reference,
             reason="Approvisionnement du float agent",
+            metadata=metadata or {},
+        )
+
+    @staticmethod
+    def agent_float_withdraw(
+        *,
+        id: EntityId,
+        occurred_at: datetime,
+        reference: str,
+        agent_float_account_id: EntityId,
+        bank_settlement_account_id: EntityId,
+        amount: Money,
+        metadata: Mapping[str, Any] | None = None,
+    ) -> LedgerTransaction:
+        """L'agent restitue de l'e-money : float de l'agent ↓, trésorerie Flash ↓."""
+        return LedgerTransaction(
+            id=id,
+            kind=TransactionKind.AGENT_FLOAT_WITHDRAW,
+            postings=(
+                _debit(agent_float_account_id, amount),
+                _credit(bank_settlement_account_id, amount),
+            ),
+            occurred_at=occurred_at,
+            reference=reference,
+            reason="Restitution du float agent",
+            metadata=metadata or {},
+        )
+
+    @staticmethod
+    def agent_commission_payout(
+        *,
+        id: EntityId,
+        occurred_at: datetime,
+        reference: str,
+        agent_float_account_id: EntityId,
+        agent_wallet_account_id: EntityId,
+        agent_wallet_id: EntityId,
+        amount: Money,
+        metadata: Mapping[str, Any] | None = None,
+    ) -> LedgerTransaction:
+        """Versement de commission : float de l'agent ↓, portefeuille de l'agent ↑."""
+        return LedgerTransaction(
+            id=id,
+            kind=TransactionKind.AGENT_COMMISSION_PAYOUT,
+            postings=(
+                _debit(agent_float_account_id, amount),
+                _credit(agent_wallet_account_id, amount, wallet_id=agent_wallet_id),
+            ),
+            occurred_at=occurred_at,
+            reference=reference,
+            reason="Versement de la commission agent sur le portefeuille",
             metadata=metadata or {},
         )
 

@@ -8,7 +8,11 @@ from uuid import UUID
 import pytest
 
 from flash.domain.agent.agent import Agent, AgentStatus
-from flash.domain.shared.errors import AgentFloatTooLow, InvalidAccountState
+from flash.domain.shared.errors import (
+    AgentFloatTooLow,
+    InvalidAccountState,
+    InvalidInput,
+)
 from flash.domain.shared.identifiers import EntityId
 from flash.domain.shared.money import XOF, Currency, Money
 
@@ -117,3 +121,87 @@ class TestMovements:
 
     def test_repr(self) -> None:
         assert "float=" in repr(_agent(available=5, cap=10))
+
+
+class TestFloatTopUpWithdraw:
+    def test_top_up_raises_float_and_records_event(self) -> None:
+        agent = _agent(available=1_000, cap=10_000)
+        agent.top_up_float(Money(4_000, XOF), T0)
+        assert agent.float_available == Money(5_000, XOF)
+        assert [e.name for e in agent.pull_events()] == ["AgentFloatToppedUp"]
+
+    def test_top_up_beyond_cap_rejected(self) -> None:
+        agent = _agent(available=9_000, cap=10_000)
+        with pytest.raises(AgentFloatTooLow, match="Plafond"):
+            agent.top_up_float(Money(2_000, XOF), T0)
+
+    def test_withdraw_lowers_float_and_records_event(self) -> None:
+        agent = _agent(available=5_000, cap=10_000)
+        agent.withdraw_float(Money(2_000, XOF), T0)
+        assert agent.float_available == Money(3_000, XOF)
+        assert [e.name for e in agent.pull_events()] == ["AgentFloatWithdrawn"]
+
+    def test_withdraw_more_than_available_rejected(self) -> None:
+        agent = _agent(available=1_000, cap=10_000)
+        with pytest.raises(AgentFloatTooLow):
+            agent.withdraw_float(Money(2_000, XOF), T0)
+
+    def test_float_moves_require_active_agent(self) -> None:
+        agent = _agent(available=5_000, cap=10_000)
+        agent.suspend("x", T0)
+        with pytest.raises(InvalidAccountState):
+            agent.top_up_float(Money(100, XOF), T0)
+        with pytest.raises(InvalidAccountState):
+            agent.withdraw_float(Money(100, XOF), T0)
+
+
+class TestCommissionAccounting:
+    def test_accrue_increments_earned_and_owed(self) -> None:
+        agent = _agent()
+        agent.accrue_commission(Money(300, XOF), T0)
+        agent.accrue_commission(Money(200, XOF), T0)
+        assert agent.commission_earned == Money(500, XOF)
+        assert agent.commission_owed == Money(500, XOF)
+
+    def test_pay_commission_deducts_float_and_records_event(self) -> None:
+        agent = _agent(available=1_000, cap=10_000)
+        agent.accrue_commission(Money(600, XOF), T0)
+        agent.pull_events()
+        agent.pay_commission(Money(400, XOF), T0)
+        assert agent.commission_paid == Money(400, XOF)
+        assert agent.commission_owed == Money(200, XOF)
+        assert agent.float_available == Money(600, XOF)
+        assert [e.name for e in agent.pull_events()] == ["AgentCommissionPaid"]
+
+    def test_pay_more_than_owed_rejected(self) -> None:
+        agent = _agent(available=10_000, cap=20_000)
+        agent.accrue_commission(Money(300, XOF), T0)
+        with pytest.raises(InvalidInput, match="commission due"):
+            agent.pay_commission(Money(400, XOF), T0)
+
+    def test_pay_more_than_float_rejected(self) -> None:
+        agent = _agent(available=100, cap=20_000)
+        agent.accrue_commission(Money(5_000, XOF), T0)
+        with pytest.raises(AgentFloatTooLow):
+            agent.pay_commission(Money(5_000, XOF), T0)
+
+    def test_pay_requires_active(self) -> None:
+        agent = _agent(available=1_000, cap=10_000)
+        agent.accrue_commission(Money(300, XOF), T0)
+        agent.suspend("x", T0)
+        with pytest.raises(InvalidAccountState):
+            agent.pay_commission(Money(100, XOF), T0)
+
+
+class TestHierarchy:
+    def test_attach_to_master_sets_parent_and_event(self) -> None:
+        agent = _agent()
+        master = EntityId(str(UUID(int=9)))
+        agent.attach_to_master(master, T0)
+        assert agent.parent_agent_id == master
+        assert [e.name for e in agent.pull_events()] == ["AgentAttachedToMaster"]
+
+    def test_cannot_be_own_master(self) -> None:
+        agent = _agent()
+        with pytest.raises(InvalidInput, match="propre master"):
+            agent.attach_to_master(AID, T0)

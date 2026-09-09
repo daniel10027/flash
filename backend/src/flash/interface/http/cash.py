@@ -6,6 +6,19 @@ from flask import Blueprint, Response, jsonify, request
 from pydantic import Field
 from werkzeug.exceptions import BadRequest
 
+from flash.application.agent.operations import (
+    AgentFloatCommand,
+    GetAgentOverview,
+    GetAgentOverviewCommand,
+    ListAgentOperations,
+    ListAgentOperationsCommand,
+    LookupCustomer,
+    LookupCustomerCommand,
+    PayAgentCommission,
+    PayAgentCommissionCommand,
+    TopUpAgentFloat,
+    WithdrawAgentFloat,
+)
 from flash.application.cash.operations import (
     CancelCashWithdrawal,
     CancelWithdrawalCommand,
@@ -136,6 +149,121 @@ def agent_confirm_withdrawal() -> tuple[Response, int]:
         ConfirmWithdrawalCommand(agent_user_id=str(current_principal().user_id), code=body.code)
     )
     return jsonify(result.to_dict()), 200
+
+
+# ------------------------------------------------------------ espace agent (BE-074)
+@agent_bp.get("")
+@require_auth
+@document(summary="Tableau de bord agent : float, plafond, commissions", tags=["agent"])
+def agent_overview() -> tuple[Response, int]:
+    view = GetAgentOverview(services=deps().services).execute(
+        GetAgentOverviewCommand(agent_user_id=str(current_principal().user_id))
+    )
+    return jsonify(view.to_dict()), 200
+
+
+@agent_bp.get("/operations")
+@require_auth
+@document(summary="Historique des opérations cash traitées par l'agent", tags=["agent"])
+def agent_operations() -> tuple[Response, int]:
+    limit = request.args.get("limit", default=50, type=int)
+    lines = ListAgentOperations(services=deps().services).execute(
+        ListAgentOperationsCommand(
+            agent_user_id=str(current_principal().user_id), limit=limit
+        )
+    )
+    return jsonify({"operations": [line.to_dict() for line in lines]}), 200
+
+
+class AgentFloatRequest(ApiModel):
+    amount_minor: int = Field(gt=0, examples=[500_000])
+
+
+@agent_bp.post("/float/topup")
+@require_auth
+@rate_limit(name="agent-float", limit=30, per_seconds=60, subject="user")
+@document(
+    summary="Approvisionner le float de l'agent (achat d'e-money)",
+    tags=["agent"],
+    idempotent=True,
+    status_code=201,
+    request_schema=AgentFloatRequest.model_json_schema(),
+)
+def agent_float_topup() -> tuple[Response, int]:
+    body = AgentFloatRequest.model_validate(_json())
+    receipt = TopUpAgentFloat(services=deps().services).execute(
+        AgentFloatCommand(
+            agent_user_id=str(current_principal().user_id),
+            amount_minor=body.amount_minor,
+            idempotency_key=_idem_key(),
+        )
+    )
+    return jsonify(receipt.to_dict()), 201
+
+
+@agent_bp.post("/float/withdraw")
+@require_auth
+@rate_limit(name="agent-float", limit=30, per_seconds=60, subject="user")
+@document(
+    summary="Restituer du float de l'agent (remboursé en banque)",
+    tags=["agent"],
+    idempotent=True,
+    status_code=201,
+    request_schema=AgentFloatRequest.model_json_schema(),
+)
+def agent_float_withdraw() -> tuple[Response, int]:
+    body = AgentFloatRequest.model_validate(_json())
+    receipt = WithdrawAgentFloat(services=deps().services).execute(
+        AgentFloatCommand(
+            agent_user_id=str(current_principal().user_id),
+            amount_minor=body.amount_minor,
+            idempotency_key=_idem_key(),
+        )
+    )
+    return jsonify(receipt.to_dict()), 201
+
+
+class CommissionPayoutRequest(ApiModel):
+    amount_minor: int | None = Field(default=None, gt=0)
+
+
+@agent_bp.post("/commission/payout")
+@require_auth
+@rate_limit(name="agent-commission", limit=20, per_seconds=60, subject="user")
+@document(
+    summary="Verser la commission due sur le portefeuille de l'agent",
+    tags=["agent"],
+    status_code=200,
+    request_schema=CommissionPayoutRequest.model_json_schema(),
+)
+def agent_commission_payout() -> tuple[Response, int]:
+    body = CommissionPayoutRequest.model_validate(_json())
+    view = PayAgentCommission(services=deps().services).execute(
+        PayAgentCommissionCommand(
+            agent_user_id=str(current_principal().user_id), amount_minor=body.amount_minor
+        )
+    )
+    return jsonify(view.to_dict()), 200
+
+
+@agent_bp.get("/customers")
+@require_auth
+@document(
+    summary="Recherche d'un client par numéro (données minimales pour l'agence)",
+    tags=["agent"],
+)
+def agent_customer_lookup() -> tuple[Response, int]:
+    phone = request.args.get("msisdn", "").strip()
+    if not phone:
+        raise BadRequest("Paramètre `msisdn` requis.")
+    view = LookupCustomer(services=deps().services).execute(
+        LookupCustomerCommand(
+            agent_user_id=str(current_principal().user_id),
+            phone_number=phone,
+            country=request.args.get("country"),
+        )
+    )
+    return jsonify(view.to_dict()), 200
 
 
 __all__ = ["agent_bp", "withdrawals_bp"]

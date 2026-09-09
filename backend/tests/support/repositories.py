@@ -220,6 +220,17 @@ class InMemoryAgentRepository(_Tracking):
         self._track(agent)
         return agent
 
+    def list_with_commission_owed(self, threshold_minor: int) -> list[Agent]:
+        rows = [
+            a
+            for a in self._by_id.values()
+            if a.status.value == "ACTIVE"
+            and a.commission_owed.amount_minor >= threshold_minor
+        ]
+        for a in rows:
+            self._track(a)
+        return rows
+
     def add(self, agent: Agent) -> None:
         self._by_id[str(agent.id)] = agent
         self._track(agent)
@@ -262,6 +273,13 @@ class InMemoryCashOrderRepository(_Tracking):
         ]
         rows.sort(key=lambda o: o.expires_at or now)
         for o in rows:
+            self._track(o)
+        return rows[:limit]
+
+    def list_for_agent(self, agent_id: EntityId, *, limit: int = 50) -> list[CashOrder]:
+        rows = [o for o in self._by_id.values() if o.agent_id == agent_id]
+        rows.sort(key=lambda o: o.created_at, reverse=True)
+        for o in rows[:limit]:
             self._track(o)
         return rows[:limit]
 

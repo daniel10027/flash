@@ -1,7 +1,7 @@
 # Flash — Map de développement
 
 > **Dernière mise à jour : 2026-09-09**
-> **Phases 1-3 complètes · Phase 4 : BE-061→071 (interop opérateurs, marchands : KYB, clés API, affiche, règlements, API publique + webhooks) — BE-068 partiel**
+> **Phases 1-3 complètes · Phase 4 : BE-061→074 (interop opérateurs, marchands complets, réseau d'agents enrichi) — BE-068 partiel · reste BE-075→078**
 > (auth, numéros, wallets, transfert + **annulation**, **demandes de paiement**,
 > **paiement marchand QR** + **remboursement**, **dépôt & retrait cash agent**,
 > relevé + **reçu détaillé**, **KYC**, **notifications** + **flux SSE**, **jobs
@@ -45,14 +45,14 @@
 > `/v1/notifications` (liste + curseur + `unread`, `/<id>/read`, `/read-all`) et
 > **SSE `/v1/notifications/stream`** (`RedisNotificationBus` pub/sub, rattrapage
 > `Last-Event-ID` depuis le journal, keep-alive).
-> **94 chemins** : `auth` (6), `phones` (5), `wallets` (2), `transfers` (2),
+> **96 chemins** : `auth` (6), `phones` (5), `wallets` (2), `transfers` (2),
 > `payment-requests` (4), `merchant` (15), `merchant-payments` (1), `merchant/v1`
 > (public, 4), `statement` (1), `receipts` (1), `notifications` (4), `withdrawals` (2),
-> `agent` (2), `kyc` (4), `vault` (6), `savings` (5), `cards` (8),
+> `agent` (8), `kyc` (4), `vault` (6), `savings` (5), `cards` (8),
 > `cards/authorizations` (4), `operators` (3) + `operators/callbacks` (1),
-> `reference` (2), `admin/kyc` (1), `admin` ops (7), `admin/merchants` (1),
-> `admin/reference` (5) + `admin/audit` (1) + `/health*`, `/openapi.json`, `/docs`,
-> `/redoc`.
+> `reference` (2), `admin/kyc` (1), `admin` ops (8), `admin/merchants` (1),
+> `admin/agents` (1), `admin/reference` (5) + `admin/audit` (1) + `/health*`,
+> `/openapi.json`, `/docs`, `/redoc`.
 > **Tout vérifié end-to-end via docker compose** : cash, KYC, demandes de paiement,
 > paiement marchand, annulation / remboursement (soldes restaurés, rejeu → 409),
 > reçus (out/in, 404 pour un tiers, REVERSED) ; un transfert génère « Argent reçu » /
@@ -168,13 +168,21 @@
 > `X-Flash-Signature: sha256=HMAC(secret, body)` via `HttpMerchantWebhookSender`, backoff
 > exponentiel sur 6 tentatives puis `FAILED`. Table `merchant_webhook_deliveries` +
 > colonnes `webhook_url`/`webhook_secret`, migration `e1f4b7c92a05`.
-> **94 chemins.** 1118 tests unit + 27 d'intégration (Postgres réel), couverture 100 %
+> **Réseau d'agents enrichi (BE-072/073/074)** : `Agent` gagne `parent_agent_id`
+> (hiérarchie master ↔ sous-agent), `commission_earned`/`commission_paid` (cumul,
+> `commission_owed`), `top_up_float`/`withdraw_float`, `pay_commission`. Factories
+> `agent_float_withdraw` et `agent_commission_payout` (float ↓ / wallet agent ↑). Espace
+> agent `/v1/agent` : `GET /`, `GET /operations`, `POST /float/topup`,
+> `POST /float/withdraw`, `POST /commission/payout`, `GET /customers?msisdn=`. Job
+> `PayDueAgentCommissions` (`POST /v1/admin/jobs/agents/commissions`) ; back-office
+> `POST /v1/admin/agents/<id>/master`. Migration `f2a9c1e83b47`.
+> **96 chemins.** 1168 tests unit + 29 d'intégration (Postgres réel), couverture 100 %
 > domain+application, ruff + mypy stricts.
-> **Phases 1-3 terminées. Phase 4 en cours** : `BE-061` → `BE-067` livrés (référentiel,
-> CRUD + audit chaîné, grille multi-pays, interop opérateurs) ; `BE-069` (KYB + clés
-> d'API + affiche) + `BE-070` (règlements marchands) + `BE-071` (API marchande publique
-> + webhooks) + `BE-068` partiel. Migrations `f4b7c2109ea3`, `a8e3d5f10c47`,
-> `b6c1e9d47f20`, `c7d2f4a91b38`, `d4e8a1c6b923`, `e1f4b7c92a05`.
+> **Phases 1-3 terminées. Phase 4 en cours** : `BE-061` → `BE-074` livrés (référentiel,
+> audit chaîné, grille multi-pays, interop opérateurs, marchands : KYB / clés d'API /
+> affiche / règlements / API publique + webhooks, agents enrichis + espace agent) ;
+> `BE-068` partiel. Migrations `f4b7c2109ea3`, `a8e3d5f10c47`, `b6c1e9d47f20`,
+> `c7d2f4a91b38`, `d4e8a1c6b923`, `e1f4b7c92a05`, `f2a9c1e83b47`.
 
 Ce fichier est la vue d'ensemble. Le détail (une ligne = une tâche cochable) est dans
 `docs/tasks/`. On avance **dans l'ordre des identifiants** à l'intérieur de chaque lot,
@@ -280,10 +288,18 @@ entité `MerchantApiKey` + `Sha256MerchantApiKeyVault` ; `POST/GET/DELETE
 `AuthenticateMerchantApiKey`, webhooks signés `MerchantWebhookDelivery` +
 `DispatchMerchantWebhooks`, migration `e1f4b7c92a05`).
 
-Prochaine : `BE-072` → `BE-078` (réseau d'agents enrichi : float/plafonds/commissions +
-espace agent API ; back-office RBAC nominatif ; conformité AML ; exports réglementaires ;
-registre d'audit consultable). Reste de `BE-068` (sous-comptes caisses/employés). Reste
-de `BE-062` : `pricing_rules` / `limits` éditables (tables + repos).
+`BE-072`/`BE-073`/`BE-074` **livrés** (agents : `parent_agent_id` + `attach_to_master`,
+`commission_earned`/`paid`/`owed`, `top_up_float`/`withdraw_float`, `pay_commission` ;
+factories `agent_float_withdraw` / `agent_commission_payout` ; espace `/v1/agent` ; job
+`PayDueAgentCommissions` ; migration `f2a9c1e83b47`).
+
+Prochaine : `BE-075` (back-office API : recherche utilisateur, détail compte, gel/dégel,
+transactions, forcer reversal, notes/tickets, RBAC nominatif + audit de chaque action),
+`BE-076` (conformité AML : seuils, file d'alertes, blocage préventif, export STR/CTR),
+`BE-077` (exports réglementaires & compta : balance du ledger, journal, export mensuel
+par pays), `BE-078` (registre d'audit consultable qui/quoi/quand/avant-après). Reste de
+`BE-068` (sous-comptes caisses/employés). Reste de `BE-062` : `pricing_rules` / `limits`
+éditables (tables + repos).
 
 ✅ Phase 2 livrée : `BE-029` (KYC), `BE-032` (demandes de paiement), `BE-033` (marchand
 QR), `BE-034` → `BE-036` (cash agent), `BE-037` (annulation / remboursement), `BE-038`
