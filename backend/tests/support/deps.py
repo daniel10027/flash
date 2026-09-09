@@ -39,6 +39,7 @@ def build_test_deps(
     otp: RecordingOtpService,
     bundle: SecurityBundle | None = None,
     clock: FixedClock | None = None,
+    admin_api_key: str = "test-admin-key",
 ) -> Deps:
     bundle = bundle or build_test_security()
     the_clock = clock or FixedClock()
@@ -68,7 +69,7 @@ def build_test_deps(
         kyc=KycPolicy(),
         codes=PepperedWithdrawalCodes("test-pepper-0123456789"),
         documents=InMemoryDocumentStore(),
-        admin_api_key="test-admin-key",
+        admin_api_key=admin_api_key,
         reversal_window=timedelta(hours=1),
         notifications=notifications,
         notification_bus=notification_bus,

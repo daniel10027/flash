@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Protocol, runtime_checkable
 
 from flash.domain.payments.request import PaymentRequest
@@ -18,6 +19,10 @@ class PaymentRequestRepository(Protocol):
 
     def list_outgoing(self, requester_id: EntityId) -> list[PaymentRequest]:
         """Demandes émises par ``requester_id`` (les plus récentes d'abord)."""
+        ...
+
+    def list_expired(self, now: datetime, *, limit: int = 500) -> list[PaymentRequest]:
+        """Demandes ``PENDING`` dont ``expires_at`` est dépassé (job d'expiration)."""
         ...
 
     def add(self, request: PaymentRequest) -> None: ...

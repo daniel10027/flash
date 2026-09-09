@@ -21,9 +21,11 @@ from flash.interface.container import deps
 def require_admin[F: Callable[..., Any]](fn: F) -> F:
     @wraps(fn)
     def wrapper(*args: Any, **kwargs: Any) -> Any:
-        expected = deps().admin_api_key
+        expected = deps().admin_api_key.strip()
         provided = request.headers.get("X-Admin-Key", "")
-        if not expected or not hmac.compare_digest(expected, provided):
+        # comparaison en bytes : robuste aux caractères non ASCII (`compare_digest`
+        # sur `str` lève un `TypeError` si l'un des opérandes n'est pas ASCII).
+        if not expected or not hmac.compare_digest(expected.encode(), provided.encode()):
             raise Forbidden("Accès back-office refusé.")
         return fn(*args, **kwargs)
 

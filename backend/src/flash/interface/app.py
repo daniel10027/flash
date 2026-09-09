@@ -20,6 +20,7 @@ from flash.domain.shared.errors import DomainError
 from flash.infrastructure.config import Settings, get_settings
 from flash.interface.container import Deps, build_deps, register_deps
 from flash.interface.errors import status_for, to_payload
+from flash.interface.http import admin_ops as admin_ops_routes
 from flash.interface.http import auth as auth_routes
 from flash.interface.http import cash as cash_routes
 from flash.interface.http import kyc as kyc_routes
@@ -79,6 +80,7 @@ def create_app(
     app.register_blueprint(merchant_routes.merchant_bp)
     app.register_blueprint(merchant_routes.merchant_payments_bp)
     app.register_blueprint(notification_routes.bp)
+    app.register_blueprint(admin_ops_routes.bp)
     return app
 
 

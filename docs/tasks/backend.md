@@ -150,11 +150,19 @@ Chaque tâche livrée : code complet + tests + doc, **zéro `TODO`**.
   course d'intégration (`tests/infrastructure/test_wallet_concurrency.py`, sur l'`Engine`
   réel) : deux transferts de 8 000 lancés via une barrière de threads sur un solde de
   10 000 → exactement un `ok`, un `InsufficientFunds`, solde final = 1 936 ≥ 0.
-- [ ] **BE-044** · Job `expire_withdrawal_codes` (planifié) + `flask flash run-jobs`.
-- [ ] **BE-045** · Job `reconcile_wallet_balances` : recompute depuis le ledger, alerte
-  si écart, endpoint back‑office pour lancer à la demande.
-- [ ] **BE-046** · Seed de développement : pays CI/SN, grille tarifaire, limites par
-  KYC, 1 agent, 1 marchand, 2 utilisateurs. `flask flash seed`.
+- [x] **BE-044** · `ExpireStaleOperations` (`application/jobs/expire.py`) : passe à
+  l'état expiré les retraits cash `INITIATED` périmés (**et libère la réserve**), les
+  demandes de paiement `PENDING` périmées, les QR marchands `PENDING` périmés.
+  Idempotent. Exposé par `flash run-jobs` (cron) et `POST /v1/admin/jobs/expire`.
+- [x] **BE-045** · `ReconcileWalletBalances` (`application/jobs/reconcile.py`) : pour
+  chaque portefeuille, compare `available + reserved` (projection) au solde recalculé
+  depuis les postings du ledger (`LedgerRepository.wallet_balance`) ; renvoie la liste
+  des écarts (lecture seule, aucune réécriture). `flash run-jobs` sort en code 1 si
+  écart ; `POST /v1/admin/reconcile` (X-Admin-Key) → 200 / 409.
+- [x] **BE-046** · `flash seed` (`interface/jobs_seed.py`) : 4 comptes actifs
+  (1 agent avec float, 1 marchand + QR, 2 utilisateurs), les 2 utilisateurs
+  approvisionnés par dépôt agent (ledger équilibré, sous le plafond palier 0).
+  Idempotent. Pays / tarifs / plafonds viennent des référentiels statiques.
 
 ## Phase 3 — Épargne & carte (BE-047 → BE-060)
 

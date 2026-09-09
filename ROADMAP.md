@@ -1,10 +1,11 @@
 # Flash — Map de développement
 
 > **Dernière mise à jour : 2026-09-09**
-> **Phase 1 terminée + Phase 2 : BE-025 → BE-042**
+> **Phase 1 terminée + Phase 2 : BE-025 → BE-046 (Phase 2 complète)**
 > (auth, numéros, wallets, transfert + **annulation**, **demandes de paiement**,
 > **paiement marchand QR** + **remboursement**, **dépôt & retrait cash agent**,
-> relevé + **reçu détaillé**, **KYC**, **notifications** + **flux SSE**).
+> relevé + **reçu détaillé**, **KYC**, **notifications** + **flux SSE**, **jobs
+> d'expiration / réconciliation**, **seed de démo**).
 > Domaine complet (identity + PIN Argon2, wallet, ledger partie double, pricing 0,8 %,
 > limits, référentiel pays, **agent + ordre cash**). Application : `RegisterUser`, auth
 > (`Login`/`VerifyOtp`/`ResendOtp` + `TokenService`), gestion des numéros,
@@ -44,10 +45,10 @@
 > `/v1/notifications` (liste + curseur + `unread`, `/<id>/read`, `/read-all`) et
 > **SSE `/v1/notifications/stream`** (`RedisNotificationBus` pub/sub, rattrapage
 > `Last-Event-ID` depuis le journal, keep-alive).
-> **38 chemins** : `auth` (6), `phones` (5), `wallets` (2), `transfers` (2),
+> **40 chemins** : `auth` (6), `phones` (5), `wallets` (2), `transfers` (2),
 > `payment-requests` (4), `merchant` (4), `merchant-payments` (1), `statement` (1),
 > `receipts` (1), `notifications` (4), `withdrawals` (2), `agent` (2), `kyc` (4),
-> `admin/kyc` (1) + `/health*`, `/openapi.json`, `/docs`, `/redoc`.
+> `admin/kyc` (1), `admin` ops (2) + `/health*`, `/openapi.json`, `/docs`, `/redoc`.
 > **Tout vérifié end-to-end via docker compose** : cash, KYC, demandes de paiement,
 > paiement marchand, annulation / remboursement (soldes restaurés, rejeu → 409),
 > reçus (out/in, 404 pour un tiers, REVERSED) ; un transfert génère « Argent reçu » /
@@ -57,11 +58,19 @@
 > **Concurrence (BE-043)** : `SELECT … FOR UPDATE` sur le portefeuille (déjà en place)
 > prouvé par un test de course d'intégration — deux transferts simultanés sur un solde
 > insuffisant : exactement un passe, l'autre `InsufficientFunds`, solde jamais négatif.
-> 647 tests unit + 12 d'intégration (Postgres réel), couverture 100 % domain+application,
-> ruff + mypy stricts.
-> **Prochaine : BE-044/045 (jobs d'expiration des codes / demandes / QR &
-> réconciliation des soldes), BE-046 (seed de démo), BE-047+ (Phase 3 :
-> coffre / épargne / carte).**
+> **Jobs (BE-044/045)** : `ExpireStaleOperations` (retraits / demandes / QR périmés →
+> expirés, réserve libérée, idempotent) + `ReconcileWalletBalances` (projection
+> `available + reserved` vs solde recalculé du ledger, écarts signalés, lecture seule).
+> `flash run-jobs` (cron, exit 1 si écart) + `POST /v1/admin/{jobs/expire,reconcile}`.
+> **Seed (BE-046)** : `flash seed` — agent + marchand + 2 utilisateurs approvisionnés,
+> idempotent.
+> **40 chemins.** 659 tests unit + 14 d'intégration (Postgres réel), couverture 100 %
+> domain+application, ruff + mypy stricts.
+> **Vérifié end-to-end via docker compose** : `flash seed` (comptes + float + QR + dépôts,
+> rejeu idempotent), `flash run-jobs` (0 expirés, 4 portefeuilles réconciliés sans écart),
+> `POST /v1/admin/reconcile` sans clé → 403.
+> **Phase 2 terminée. Prochaine : Phase 3 — `BE-047` (`Vault` / coffre), `BE-050`
+> (`SavingsPlan` / épargne), `BE-055` (`Card` / carte virtuelle).**
 
 Ce fichier est la vue d'ensemble. Le détail (une ligne = une tâche cochable) est dans
 `docs/tasks/`. On avance **dans l'ordre des identifiants** à l'intérieur de chaque lot,
@@ -79,7 +88,7 @@ mais les lots Backend / Infra avancent en priorité car Web et Mobile en dépend
 | Lot | Fichier détaillé | Fait / Total |
 |-----|------------------|--------------|
 | Fondations & docs | ce fichier | 6 / 6 |
-| Backend (BE) | [docs/tasks/backend.md](docs/tasks/backend.md) | 43 / 78 |
+| Backend (BE) | [docs/tasks/backend.md](docs/tasks/backend.md) | 46 / 78 |
 | Web (WEB) | [docs/tasks/frontend-web.md](docs/tasks/frontend-web.md) | 0 / 46 |
 | Mobile (MOB) | [docs/tasks/mobile.md](docs/tasks/mobile.md) | 0 / 44 |
 | Infra & CI/CD (INFRA) | [docs/tasks/infra.md](docs/tasks/infra.md) | 2 / 24 |
@@ -103,7 +112,7 @@ Domaine partagé (Money, Currency, Country), identité (User, PhoneNumber ≤ 5)
 auth (téléphone + PIN + OTP, JWT), erreurs & idempotence, tests unitaires du domaine.
 → `BE-001` à `BE-024`.
 
-## Phase 2 — Cas d'usage cœur (en cours : 19 / 22)
+## Phase 2 — Cas d'usage cœur (terminée : 22 / 22)
 
 Ouverture de compte, KYC par paliers, transfert P2P (frais 0,8 %), paiement marchand par
 QR, dépôt cash agent, retrait cash agent (code de retrait), annulation / remboursement,
@@ -147,13 +156,15 @@ charge, revue sécurité (OWASP ASVS, secrets, rate‑limit), doc API publiée, 
 
 ## Prochaine action
 
-`BE-042` — SSE `GET /v1/notifications/stream` : flux temps réel des notifications
-(auth, keep-alive, reprise par `Last-Event-ID`), fan-out via Redis pub/sub pour
-fonctionner avec plusieurs workers gunicorn. Puis `BE-043` (test de course wallet :
-deux transferts simultanés ne passent pas le solde en négatif), `BE-044/045` (jobs :
-expiration des codes de retrait / demandes / QR, réconciliation des soldes),
-`BE-046` (seed de démo).
+**Phase 2 terminée** (`BE-025` → `BE-046`). On entre en **Phase 3 — épargne & carte** :
 
-✅ Livrés : `BE-029` (KYC), `BE-032` (demandes de paiement), `BE-033` (paiement
-marchand QR), `BE-034` → `BE-036` (cash agent), `BE-037` (annulation / remboursement),
-`BE-039` (reçu détaillé), `BE-040/041` (notifications + blueprints / OpenAPI).
+`BE-047` — `domain/vault/vault.py` : agrégat `Vault` (poches verrouillables adossées à
+un wallet ; l'`available` du wallet exclut le contenu du coffre). Invariants + tests.
+Puis `BE-048/049` (ouvrir / alimenter / retirer une poche, `LedgerTransaction.vault_move`),
+`BE-050` → `BE-054` (`SavingsPlan`, dépôts programmés, intérêts), `BE-055` → `BE-060`
+(`Card` virtuelle : émission, gel, plafonds, autorisations, rapprochement).
+
+✅ Phase 2 livrée : `BE-029` (KYC), `BE-032` (demandes de paiement), `BE-033` (marchand
+QR), `BE-034` → `BE-036` (cash agent), `BE-037` (annulation / remboursement), `BE-038`
+(relevé), `BE-039` (reçu détaillé), `BE-040/041/042` (notifications + SSE), `BE-043`
+(course wallet), `BE-044/045` (jobs), `BE-046` (seed).

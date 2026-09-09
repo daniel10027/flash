@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Protocol, runtime_checkable
 
 from flash.domain.merchants.charge import MerchantCharge
@@ -30,6 +31,10 @@ class MerchantChargeRepository(Protocol):
         ...
 
     def list_for_merchant(self, merchant_id: EntityId) -> list[MerchantCharge]: ...
+
+    def list_expired(self, now: datetime, *, limit: int = 500) -> list[MerchantCharge]:
+        """QR dynamiques ``PENDING`` dont ``expires_at`` est dépassé (job d'expiration)."""
+        ...
 
     def add(self, charge: MerchantCharge) -> None: ...
 

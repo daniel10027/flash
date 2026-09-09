@@ -7,9 +7,10 @@ enregistre les agrégats chargés/écrits auprès de la Unit of Work pour la col
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Protocol
 
-from sqlalchemy import select
+from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session
 
 from flash.domain.agent.agent import Agent
@@ -123,6 +124,12 @@ class SqlAlchemyWalletRepository:
         stmt = select(WalletModel).where(WalletModel.user_id == str(user_id))
         return [w for w in (self._load(m) for m in self._session.scalars(stmt)) if w is not None]
 
+    def list_all(self, *, limit: int = 1000, after: EntityId | None = None) -> list[Wallet]:
+        stmt = select(WalletModel).order_by(WalletModel.id.asc()).limit(limit)
+        if after is not None:
+            stmt = stmt.where(WalletModel.id > str(after))
+        return [w for w in (self._load(m) for m in self._session.scalars(stmt)) if w is not None]
+
     def get_for_update(self, wallet_id: EntityId) -> Wallet:
         stmt = select(WalletModel).where(WalletModel.id == str(wallet_id)).with_for_update()
         model = self._session.scalars(stmt).first()
@@ -155,6 +162,16 @@ class SqlAlchemyLedgerRepository:
     def get_by_reference(self, reference: str) -> list[LedgerTransaction]:
         stmt = select(LedgerTransactionModel).where(LedgerTransactionModel.reference == reference)
         return [mappers.ledger_transaction_to_domain(m) for m in self._session.scalars(stmt)]
+
+    def wallet_balance(self, wallet_id: EntityId) -> int:
+        signed = case(
+            (LedgerPostingModel.direction == "CREDIT", LedgerPostingModel.amount_minor),
+            else_=-LedgerPostingModel.amount_minor,
+        )
+        stmt = select(func.coalesce(func.sum(signed), 0)).where(
+            LedgerPostingModel.wallet_id == str(wallet_id)
+        )
+        return int(self._session.scalar(stmt) or 0)
 
     def list_for_wallet(
         self, wallet_id: EntityId, *, limit: int = 50, before: EntityId | None = None
@@ -267,6 +284,20 @@ class SqlAlchemyCashOrderRepository:
         )
         return self._load(self._session.scalars(stmt).first())
 
+    def list_expired_withdrawals(self, now: datetime, *, limit: int = 500) -> list[CashOrder]:
+        stmt = (
+            select(CashOrderModel)
+            .where(
+                CashOrderModel.type == "WITHDRAWAL",
+                CashOrderModel.status == "INITIATED",
+                CashOrderModel.expires_at < now,
+            )
+            .order_by(CashOrderModel.expires_at.asc())
+            .limit(limit)
+            .with_for_update()
+        )
+        return [o for o in (self._load(m) for m in self._session.scalars(stmt)) if o is not None]
+
     def add(self, order: CashOrder) -> None:
         self._session.add(mappers.cash_order_to_model(order))
         self._tracker.track(order)
@@ -347,6 +378,18 @@ class SqlAlchemyPaymentRequestRepository:
         )
         return [r for r in (self._load(m) for m in self._session.scalars(stmt)) if r is not None]
 
+    def list_expired(self, now: datetime, *, limit: int = 500) -> list[PaymentRequest]:
+        stmt = (
+            select(PaymentRequestModel)
+            .where(
+                PaymentRequestModel.status == "PENDING",
+                PaymentRequestModel.expires_at < now,
+            )
+            .order_by(PaymentRequestModel.expires_at.asc())
+            .limit(limit)
+        )
+        return [r for r in (self._load(m) for m in self._session.scalars(stmt)) if r is not None]
+
     def add(self, request: PaymentRequest) -> None:
         self._session.add(mappers.payment_request_to_model(request))
         self._tracker.track(request)
@@ -417,6 +460,18 @@ class SqlAlchemyMerchantChargeRepository:
             select(MerchantChargeModel)
             .where(MerchantChargeModel.merchant_id == str(merchant_id))
             .order_by(MerchantChargeModel.created_at.desc())
+        )
+        return [c for c in (self._load(m) for m in self._session.scalars(stmt)) if c is not None]
+
+    def list_expired(self, now: datetime, *, limit: int = 500) -> list[MerchantCharge]:
+        stmt = (
+            select(MerchantChargeModel)
+            .where(
+                MerchantChargeModel.status == "PENDING",
+                MerchantChargeModel.expires_at < now,
+            )
+            .order_by(MerchantChargeModel.expires_at.asc())
+            .limit(limit)
         )
         return [c for c in (self._load(m) for m in self._session.scalars(stmt)) if c is not None]
 

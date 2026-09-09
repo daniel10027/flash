@@ -19,6 +19,10 @@ class WalletRepository(Protocol):
 
     def list_for_user(self, user_id: EntityId) -> list[Wallet]: ...
 
+    def list_all(self, *, limit: int = 1000, after: EntityId | None = None) -> list[Wallet]:
+        """Balaye tous les portefeuilles (job de réconciliation), triés par id."""
+        ...
+
     def get_for_update(self, wallet_id: EntityId) -> Wallet:
         """Charge le wallet avec un verrou pessimiste (``SELECT … FOR UPDATE``).
 

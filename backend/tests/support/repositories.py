@@ -8,6 +8,7 @@ agrégats manipulés permet à ``InMemoryUnitOfWork.collect_new_events`` de réc
 from __future__ import annotations
 
 from collections.abc import Iterable
+from datetime import datetime
 
 from flash.domain.agent.agent import Agent
 from flash.domain.cash.order import CashOrder, CashOrderStatus, CashOrderType
@@ -15,10 +16,10 @@ from flash.domain.identity.kyc_case import KycCase, KycCaseStatus
 from flash.domain.identity.user import User
 from flash.domain.ledger.chart import AccountType
 from flash.domain.ledger.transaction import LedgerTransaction
-from flash.domain.merchants.charge import MerchantCharge
+from flash.domain.merchants.charge import MerchantCharge, MerchantChargeStatus
 from flash.domain.merchants.merchant import Merchant
 from flash.domain.merchants.payment import MerchantPayment
-from flash.domain.payments.request import PaymentRequest
+from flash.domain.payments.request import PaymentRequest, PaymentRequestStatus
 from flash.domain.shared.errors import PhoneNumberAlreadyLinked
 from flash.domain.shared.events import DomainEvent, EventRecorder
 from flash.domain.shared.identifiers import EntityId, Msisdn
@@ -100,6 +101,12 @@ class InMemoryWalletRepository(_Tracking):
             self._track(wallet)
         return found
 
+    def list_all(self, *, limit: int = 1000, after: EntityId | None = None) -> list[Wallet]:
+        rows = sorted(self._by_id.values(), key=lambda w: str(w.id))
+        if after is not None:
+            rows = [w for w in rows if str(w.id) > str(after)]
+        return rows[:limit]
+
     def get_for_update(self, wallet_id: EntityId) -> Wallet:
         wallet = self._by_id.get(str(wallet_id))
         if wallet is None:
@@ -130,6 +137,18 @@ class InMemoryLedgerRepository:
 
     def get_by_reference(self, reference: str) -> list[LedgerTransaction]:
         return [t for t in self._by_id.values() if t.reference == reference]
+
+    def wallet_balance(self, wallet_id: EntityId) -> int:
+        total = 0
+        for txn in self._by_id.values():
+            for p in txn.postings:
+                if p.wallet_id is not None and str(p.wallet_id) == str(wallet_id):
+                    total += (
+                        p.amount.amount_minor
+                        if p.direction.value == "CREDIT"
+                        else -p.amount.amount_minor
+                    )
+        return total
 
     def list_for_wallet(
         self, wallet_id: EntityId, *, limit: int = 50, before: EntityId | None = None
@@ -224,6 +243,20 @@ class InMemoryCashOrderRepository(_Tracking):
                 return order
         return None
 
+    def list_expired_withdrawals(self, now: datetime, *, limit: int = 500) -> list[CashOrder]:
+        rows = [
+            o
+            for o in self._by_id.values()
+            if o.type is CashOrderType.WITHDRAWAL
+            and o.status is CashOrderStatus.INITIATED
+            and o.expires_at is not None
+            and o.expires_at < now
+        ]
+        rows.sort(key=lambda o: o.expires_at or now)
+        for o in rows:
+            self._track(o)
+        return rows[:limit]
+
     def add(self, order: CashOrder) -> None:
         self._by_id[str(order.id)] = order
         self._track(order)
@@ -290,6 +323,17 @@ class InMemoryPaymentRequestRepository(_Tracking):
     def list_outgoing(self, requester_id: EntityId) -> list[PaymentRequest]:
         return self._recent([r for r in self._by_id.values() if r.requester_id == requester_id])
 
+    def list_expired(self, now: datetime, *, limit: int = 500) -> list[PaymentRequest]:
+        rows = [
+            r
+            for r in self._by_id.values()
+            if r.status is PaymentRequestStatus.PENDING and r.expires_at < now
+        ]
+        rows.sort(key=lambda r: r.expires_at)
+        for r in rows:
+            self._track(r)
+        return rows[:limit]
+
     def add(self, request: PaymentRequest) -> None:
         self._by_id[str(request.id)] = request
         self._track(request)
@@ -350,6 +394,17 @@ class InMemoryMerchantChargeRepository(_Tracking):
         for c in rows:
             self._track(c)
         return rows
+
+    def list_expired(self, now: datetime, *, limit: int = 500) -> list[MerchantCharge]:
+        rows = [
+            c
+            for c in self._by_id.values()
+            if c.status is MerchantChargeStatus.PENDING and c.expires_at < now
+        ]
+        rows.sort(key=lambda c: c.expires_at)
+        for c in rows:
+            self._track(c)
+        return rows[:limit]
 
     def add(self, charge: MerchantCharge) -> None:
         self._by_id[str(charge.id)] = charge

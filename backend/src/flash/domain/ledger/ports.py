@@ -25,6 +25,12 @@ class LedgerRepository(Protocol):
 
     def get_by_reference(self, reference: str) -> list[LedgerTransaction]: ...
 
+    def wallet_balance(self, wallet_id: EntityId) -> int:
+        """Solde théorique du portefeuille recalculé depuis le ledger : somme des
+        crédits moins somme des débits des postings portant ce ``wallet_id`` (unité
+        mineure). Doit égaler ``available + reserved`` de la projection."""
+        ...
+
     def list_for_wallet(
         self, wallet_id: EntityId, *, limit: int = 50, before: EntityId | None = None
     ) -> Iterable[LedgerTransaction]: ...

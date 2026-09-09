@@ -59,6 +59,48 @@ def serve(host: str, port: int) -> None:
     create_app().run(host=host, port=port, debug=True, use_reloader=True)
 
 
+@main.command("run-jobs")
+def run_jobs() -> None:
+    """Exécute une passe des tâches planifiées (à appeler par cron) : expiration des
+    opérations en attente + réconciliation des soldes."""
+    from flash.application.jobs.expire import ExpireStaleOperations
+    from flash.application.jobs.reconcile import ReconcileWalletBalances
+    from flash.infrastructure.config import get_settings
+    from flash.interface.container import build_app_services
+
+    services = build_app_services(get_settings())
+
+    expired = ExpireStaleOperations(services=services).execute()
+    click.echo(
+        f"expiration : {expired.withdrawals_expired} retraits, "
+        f"{expired.payment_requests_expired} demandes, "
+        f"{expired.merchant_charges_expired} QR marchands"
+    )
+
+    report = ReconcileWalletBalances(services=services).execute()
+    if report.ok:
+        click.echo(f"réconciliation : {report.checked} portefeuilles, aucun écart")
+    else:
+        for d in report.discrepancies:
+            click.echo(
+                f"ÉCART wallet {d.wallet_id} : projection {d.projected_minor} "
+                f"≠ ledger {d.ledger_minor} (Δ {d.delta_minor})",
+                err=True,
+            )
+        raise SystemExit(1)
+
+
+@main.command("seed")
+def seed() -> None:
+    """Jeu de données de démo : 2 utilisateurs actifs approvisionnés, 1 agent, 1 marchand."""
+    from flash.infrastructure.config import get_settings
+    from flash.interface.jobs_seed import seed_demo
+
+    summary = seed_demo(get_settings())
+    for line in summary:
+        click.echo(line)
+
+
 @main.group()
 def openapi() -> None:
     """Spécification OpenAPI."""
