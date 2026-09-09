@@ -15,9 +15,10 @@ from flash.infrastructure.events import NotifyingEventPublisher
 from flash.infrastructure.limits import NullLimitCounter, build_limit_repository
 from flash.infrastructure.notifications import BusChannel, FanOutNotifier, InAppChannel
 from flash.infrastructure.pricing import build_pricing_repository
-from flash.infrastructure.reference import StaticReferenceDirectory
+from flash.infrastructure.reference import MutableReferenceDirectory
 from flash.interface.container import Deps
 from flash.interface.security.wiring import SecurityBundle
+from tests.support.audit import InMemoryAuditLog
 from tests.support.fakes import (
     FakePinHasher,
     FixedClock,
@@ -42,6 +43,7 @@ def build_test_deps(
     clock: FixedClock | None = None,
     admin_api_key: str = "test-admin-key",
     card_webhook_secret: str = "test-card-webhook-secret",
+    compliance_api_key: str = "test-compliance-key",
 ) -> Deps:
     bundle = bundle or build_test_security()
     the_clock = clock or FixedClock()
@@ -60,11 +62,19 @@ def build_test_deps(
         events=NotifyingEventPublisher(RecordingEventPublisher(), dispatcher),
         idempotency=InMemoryIdempotencyStore(),
     )
-    reference = StaticReferenceDirectory()
+    reference = MutableReferenceDirectory()
+    admin_roles: dict[str, str] = {}
+    if admin_api_key.strip():
+        admin_roles[admin_api_key.strip()] = "admin"
+    if compliance_api_key.strip():
+        admin_roles[compliance_api_key.strip()] = "compliance"
     return Deps(
         services=services,
         countries=reference,
         reference=reference,
+        reference_editor=reference,
+        audit=InMemoryAuditLog(),
+        admin_roles=admin_roles,
         pins=FakePinHasher(),
         otp=otp,
         tokens=bundle.tokens,

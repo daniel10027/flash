@@ -91,6 +91,24 @@ class ReferenceDirectory(Protocol):
     def currency_for(self, country: CountryCode) -> Currency: ...
 
 
+@runtime_checkable
+class ReferenceEditor(Protocol):
+    """Écriture du référentiel (back-office, BE-062). L'invalidation du cache est de la
+    responsabilité de l'implémentation."""
+
+    def country(self, code: CountryCode) -> Country | None: ...
+
+    def save_country(self, country: Country) -> None: ...
+
+    def remove_country(self, code: CountryCode) -> None: ...
+
+    def operator(self, code: str) -> Operator | None: ...
+
+    def save_operator(self, operator: Operator) -> None: ...
+
+    def remove_operator(self, code: str) -> None: ...
+
+
 class _DirectoryMixin:
     """Logique commune : dérive tout des ``Country`` retournés par ``_all()``."""
 
@@ -132,4 +150,10 @@ class _DirectoryMixin:
         return self.require_country(country).currency
 
 
-__all__ = ["Country", "Operator", "ReferenceDirectory", "_DirectoryMixin"]
+__all__ = [
+    "Country",
+    "Operator",
+    "ReferenceDirectory",
+    "ReferenceEditor",
+    "_DirectoryMixin",
+]

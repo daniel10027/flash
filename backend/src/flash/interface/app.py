@@ -21,6 +21,7 @@ from flash.infrastructure.config import Settings, get_settings
 from flash.interface.container import Deps, build_deps, register_deps
 from flash.interface.errors import status_for, to_payload
 from flash.interface.http import admin_ops as admin_ops_routes
+from flash.interface.http import admin_reference as admin_reference_routes
 from flash.interface.http import auth as auth_routes
 from flash.interface.http import cards as cards_routes
 from flash.interface.http import cash as cash_routes
@@ -90,6 +91,7 @@ def create_app(
     app.register_blueprint(cards_routes.card_webhook_bp)
     app.register_blueprint(cards_routes.cards_bp)
     app.register_blueprint(admin_ops_routes.bp)
+    app.register_blueprint(admin_reference_routes.bp)
     return app
 
 

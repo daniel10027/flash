@@ -507,7 +507,7 @@ def merchant_payment_to_model(payment: MerchantPayment) -> MerchantPaymentModel:
 # --------------------------------------------------------------------- référentiel
 
 
-def _operator_to_domain(model: OperatorModel) -> Operator:
+def operator_to_domain(model: OperatorModel) -> Operator:
     prefixes = tuple(p for p in model.msisdn_prefixes.split(",") if p)
     return Operator(
         code=model.code,
@@ -526,7 +526,17 @@ def country_to_domain(model: CountryModel) -> Country:
         dialing_code=model.dialing_code,
         timezone=model.timezone,
         active=model.active,
-        operators=tuple(_operator_to_domain(o) for o in model.operators),
+        operators=tuple(operator_to_domain(o) for o in model.operators),
+    )
+
+
+def operator_to_model(operator: Operator) -> OperatorModel:
+    return OperatorModel(
+        code=operator.code,
+        country_code=operator.country.value,
+        name=operator.name,
+        msisdn_prefixes=",".join(operator.msisdn_prefixes),
+        active=operator.active,
     )
 
 
@@ -698,6 +708,7 @@ __all__ = [
     "merchant_payment_to_model",
     "merchant_to_domain",
     "merchant_to_model",
+    "operator_to_model",
     "payment_request_to_domain",
     "payment_request_to_model",
     "savings_plan_to_domain",

@@ -19,8 +19,9 @@ from flash.application.notifications.dispatcher import NotificationDispatcher
 from flash.application.notifications.ports import NotificationBus, NotificationRepository
 from flash.application.ports import OtpService
 from flash.application.services import AppServices
+from flash.domain.audit.ports import AuditLog
 from flash.domain.country.directory import CountryDirectory
-from flash.domain.country.reference import ReferenceDirectory
+from flash.domain.country.reference import ReferenceDirectory, ReferenceEditor
 from flash.domain.identity.pin import PinHasher
 from flash.domain.limits.limits import KycPolicy, LimitPolicy
 from flash.domain.pricing.pricing import PricingService
@@ -30,6 +31,7 @@ from flash.infrastructure.card_issuer import SandboxCardIssuer
 from flash.infrastructure.clock import SystemClock
 from flash.infrastructure.codes import PepperedWithdrawalCodes
 from flash.infrastructure.config import Settings
+from flash.infrastructure.db.audit_log import SqlAlchemyAuditLog
 from flash.infrastructure.db.engine import get_session_factory
 from flash.infrastructure.db.notification_repository import SqlAlchemyNotificationRepository
 from flash.infrastructure.db.uow import SqlAlchemyUnitOfWork
@@ -50,7 +52,9 @@ from flash.infrastructure.otp import ConsoleOtpChannel, RedisOtpService
 from flash.infrastructure.pricing import build_pricing_repository
 from flash.infrastructure.reference import (
     CachingReferenceDirectory,
+    ReadOnlyReferenceEditor,
     SqlAlchemyReferenceDirectory,
+    SqlAlchemyReferenceEditor,
     StaticReferenceDirectory,
 )
 from flash.infrastructure.security.pin_hasher import Argon2PinHasher
@@ -63,6 +67,9 @@ class Deps:
     services: AppServices
     countries: CountryDirectory
     reference: ReferenceDirectory
+    reference_editor: ReferenceEditor
+    audit: AuditLog
+    admin_roles: dict[str, str]
     pins: PinHasher
     otp: OtpService
     tokens: TokenService
@@ -118,16 +125,25 @@ def build_deps(settings: Settings, *, tokens: TokenService) -> Deps:
         ttl_seconds=settings.otp_ttl_seconds,
         max_attempts=settings.otp_max_attempts,
     )
+    session_factory = get_session_factory()
     if settings.reference_source == "db":
-        reference: ReferenceDirectory = CachingReferenceDirectory(
-            SqlAlchemyReferenceDirectory(get_session_factory()), redis
+        caching = CachingReferenceDirectory(
+            SqlAlchemyReferenceDirectory(session_factory), redis
+        )
+        reference: ReferenceDirectory = caching
+        reference_editor: ReferenceEditor = SqlAlchemyReferenceEditor(
+            session_factory, on_change=caching.bump
         )
     else:
         reference = StaticReferenceDirectory()
+        reference_editor = ReadOnlyReferenceEditor()
     return Deps(
         services=services,
         countries=reference,
         reference=reference,
+        reference_editor=reference_editor,
+        audit=SqlAlchemyAuditLog(session_factory, Uuid7Generator()),
+        admin_roles=_admin_roles(settings),
         pins=Argon2PinHasher(),
         otp=otp,
         tokens=tokens,
@@ -145,6 +161,20 @@ def build_deps(settings: Settings, *, tokens: TokenService) -> Deps:
         card_daily_limit_minor=settings.card_daily_limit_minor,
         card_monthly_limit_minor=settings.card_monthly_limit_minor,
     )
+
+
+def _admin_roles(settings: Settings) -> dict[str, str]:
+    roles: dict[str, str] = {}
+    if settings.admin_api_key.strip():
+        roles[settings.admin_api_key.strip()] = "admin"
+    for pair in settings.admin_api_keys.split(","):
+        pair = pair.strip()
+        if not pair or ":" not in pair:
+            continue
+        role, _, key = pair.partition(":")
+        if role.strip() and key.strip():
+            roles[key.strip()] = role.strip()
+    return roles
 
 
 def register_deps(app: Flask, deps: Deps) -> None:

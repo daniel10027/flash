@@ -12,15 +12,22 @@
 from __future__ import annotations
 
 import time
+from collections.abc import Callable
 
 from redis import Redis
 from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 
 from flash.domain.country.reference import Country, Operator, _DirectoryMixin
+from flash.domain.shared.errors import InvalidAccountState
 from flash.domain.shared.identifiers import CountryCode
 from flash.domain.shared.money import Currency
-from flash.infrastructure.db.mappers import country_to_domain, country_to_models
+from flash.infrastructure.db.mappers import (
+    country_to_domain,
+    country_to_models,
+    operator_to_domain,
+    operator_to_model,
+)
 from flash.infrastructure.db.models import CountryModel, OperatorModel
 
 _VERSION_KEY = "flash:reference:version"
@@ -148,6 +155,150 @@ class CachingReferenceDirectory(_DirectoryMixin):
         return value
 
 
+class MutableReferenceDirectory(_DirectoryMixin):
+    """Référentiel en mémoire, à la fois lisible et éditable (bootstrap statique + tests)."""
+
+    def __init__(self, countries: tuple[Country, ...] | None = None) -> None:
+        rows = countries if countries is not None else _static_countries()
+        self._by_code: dict[str, Country] = {c.code.value: c for c in rows}
+
+    def _all(self) -> tuple[Country, ...]:
+        return tuple(sorted(self._by_code.values(), key=lambda c: c.code.value))
+
+    # --- ReferenceEditor
+    def save_country(self, country: Country) -> None:
+        existing = self._by_code.get(country.code.value)
+        operators = country.operators or (existing.operators if existing else ())
+        self._by_code[country.code.value] = Country(
+            code=country.code,
+            name=country.name,
+            currency=country.currency,
+            dialing_code=country.dialing_code,
+            timezone=country.timezone,
+            active=country.active,
+            operators=operators,
+        )
+
+    def remove_country(self, code: CountryCode) -> None:
+        self._by_code.pop(code.value, None)
+
+    def operator(self, code: str) -> Operator | None:
+        for country in self._by_code.values():
+            for operator in country.operators:
+                if operator.code == code:
+                    return operator
+        return None
+
+    def save_operator(self, operator: Operator) -> None:
+        country = self._by_code.get(operator.country.value)
+        if country is None:
+            raise InvalidAccountState(f"Pays inconnu : {operator.country.value}.")
+        kept = tuple(o for o in country.operators if o.code != operator.code)
+        self._replace_operators(country, (*kept, operator))
+
+    def remove_operator(self, code: str) -> None:
+        for country in list(self._by_code.values()):
+            if any(o.code == code for o in country.operators):
+                self._replace_operators(
+                    country, tuple(o for o in country.operators if o.code != code)
+                )
+                return
+
+    def _replace_operators(self, country: Country, operators: tuple[Operator, ...]) -> None:
+        self._by_code[country.code.value] = Country(
+            code=country.code,
+            name=country.name,
+            currency=country.currency,
+            dialing_code=country.dialing_code,
+            timezone=country.timezone,
+            active=country.active,
+            operators=tuple(sorted(operators, key=lambda o: o.code)),
+        )
+
+
+class SqlAlchemyReferenceEditor:
+    def __init__(
+        self,
+        session_factory: sessionmaker[Session],
+        *,
+        on_change: Callable[[], object] | None = None,
+    ) -> None:
+        self._session_factory = session_factory
+        self._on_change = on_change
+
+    def _invalidate(self) -> None:
+        if self._on_change is not None:
+            self._on_change()
+
+    def country(self, code: CountryCode) -> Country | None:
+        with self._session_factory() as session:
+            model = session.get(CountryModel, code.value)
+            return country_to_domain(model) if model is not None else None
+
+    def save_country(self, country: Country) -> None:
+        country_model, operator_models = country_to_models(country)
+        with self._session_factory() as session:
+            session.merge(country_model)
+            if country.operators:
+                for operator_model in operator_models:
+                    session.merge(operator_model)
+            session.commit()
+        self._invalidate()
+
+    def remove_country(self, code: CountryCode) -> None:
+        with self._session_factory() as session:
+            model = session.get(CountryModel, code.value)
+            if model is not None:
+                session.delete(model)
+                session.commit()
+        self._invalidate()
+
+    def operator(self, code: str) -> Operator | None:
+        with self._session_factory() as session:
+            model = session.get(OperatorModel, code)
+            return operator_to_domain(model) if model is not None else None
+
+    def save_operator(self, operator: Operator) -> None:
+        with self._session_factory() as session:
+            if session.get(CountryModel, operator.country.value) is None:
+                raise InvalidAccountState(f"Pays inconnu : {operator.country.value}.")
+            session.merge(operator_to_model(operator))
+            session.commit()
+        self._invalidate()
+
+    def remove_operator(self, code: str) -> None:
+        with self._session_factory() as session:
+            model = session.get(OperatorModel, code)
+            if model is not None:
+                session.delete(model)
+                session.commit()
+        self._invalidate()
+
+
+class ReadOnlyReferenceEditor:
+    """Éditeur refusant toute écriture — actif quand ``REFERENCE_SOURCE=static``."""
+
+    _MSG = "Référentiel en lecture seule : passez REFERENCE_SOURCE=db pour l'éditer."
+
+    def country(self, code: CountryCode) -> Country | None:
+        return None
+
+    def save_country(self, country: Country) -> None:
+        raise InvalidAccountState(self._MSG)
+
+    def remove_country(self, code: CountryCode) -> None:
+        raise InvalidAccountState(self._MSG)
+
+    def operator(self, code: str) -> Operator | None:
+        return None
+
+    def save_operator(self, operator: Operator) -> None:
+        raise InvalidAccountState(self._MSG)
+
+    def remove_operator(self, code: str) -> None:
+        raise InvalidAccountState(self._MSG)
+
+
 def seed_reference(session_factory: sessionmaker[Session]) -> int:
     """Charge / met à jour le jeu de données statique en base. Idempotent."""
     written = 0
@@ -167,7 +318,10 @@ def seed_reference(session_factory: sessionmaker[Session]) -> int:
 
 __all__ = [
     "CachingReferenceDirectory",
+    "MutableReferenceDirectory",
+    "ReadOnlyReferenceEditor",
     "SqlAlchemyReferenceDirectory",
+    "SqlAlchemyReferenceEditor",
     "StaticReferenceDirectory",
     "seed_reference",
 ]

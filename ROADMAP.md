@@ -1,7 +1,7 @@
 # Flash — Map de développement
 
 > **Dernière mise à jour : 2026-09-09**
-> **Phases 1-3 complètes · Phase 4 en cours : BE-061 (référentiel pays) + BE-063 (grille multi-pays)**
+> **Phases 1-3 complètes · Phase 4 : BE-061 + BE-063 + BE-062 (CRUD référentiel + audit chaîné)**
 > (auth, numéros, wallets, transfert + **annulation**, **demandes de paiement**,
 > **paiement marchand QR** + **remboursement**, **dépôt & retrait cash agent**,
 > relevé + **reçu détaillé**, **KYC**, **notifications** + **flux SSE**, **jobs
@@ -45,11 +45,12 @@
 > `/v1/notifications` (liste + curseur + `unread`, `/<id>/read`, `/read-all`) et
 > **SSE `/v1/notifications/stream`** (`RedisNotificationBus` pub/sub, rattrapage
 > `Last-Event-ID` depuis le journal, keep-alive).
-> **67 chemins** : `auth` (6), `phones` (5), `wallets` (2), `transfers` (2),
+> **73 chemins** : `auth` (6), `phones` (5), `wallets` (2), `transfers` (2),
 > `payment-requests` (4), `merchant` (4), `merchant-payments` (1), `statement` (1),
 > `receipts` (1), `notifications` (4), `withdrawals` (2), `agent` (2), `kyc` (4),
 > `vault` (6), `savings` (5), `cards` (8), `cards/authorizations` (4), `reference` (2),
-> `admin/kyc` (1), `admin` ops (5) + `/health*`, `/openapi.json`, `/docs`, `/redoc`.
+> `admin/kyc` (1), `admin` ops (5), `admin/reference` (5) + `admin/audit` (1) +
+> `/health*`, `/openapi.json`, `/docs`, `/redoc`.
 > **Tout vérifié end-to-end via docker compose** : cash, KYC, demandes de paiement,
 > paiement marchand, annulation / remboursement (soldes restaurés, rejeu → 409),
 > reçus (out/in, 404 pour un tiers, REVERSED) ; un transfert génère « Argent reçu » /
@@ -115,10 +116,16 @@
 > `f4b7c2109ea3`. Blueprint **public** `GET /v1/reference/countries` (+ `/countries/<code>`).
 > **Grille multi-pays (BE-063)** : transfert CI 0,8 %, **SN 1,0 %** (preuve de généricité),
 > CM/GA 0,9 % **en XAF** ; paiement marchand gratuit partout ; plafonds déclinés XOF/XAF.
-> **67 chemins.** 885 tests unit + 20 d'intégration (Postgres réel), couverture 100 %
+> **CRUD back-office + audit chaîné (BE-062)** : `require_role("admin","compliance")` (clés
+> `ADMIN_API_KEYS` porteuses d'un rôle) ; `PUT`/`DELETE /v1/admin/reference/countries` &
+> `.../operators`, `POST .../reload` (invalide le cache), `GET /v1/admin/audit?verify=1`.
+> Chaque mutation écrit une entrée dans un **registre d'audit append-only chaîné par
+> hachage** (`AuditEntry` : `prev_hash` + `entry_hash` sur le contenu canonique ;
+> `verify_chain` détecte trou / lien cassé / altération). Table `audit_entries`.
+> **73 chemins.** 913 tests unit + 22 d'intégration (Postgres réel), couverture 100 %
 > domain+application, ruff + mypy stricts.
-> **Phases 1-3 terminées. Phase 4 en cours** : `BE-061` + `BE-063` livrés. Prochaine :
-> `BE-062` (CRUD back-office référentiel + audit trail), `BE-064` → `BE-078`.
+> **Phases 1-3 terminées. Phase 4 en cours** : `BE-061`, `BE-062` (countries/operators),
+> `BE-063` livrés. Migrations `f4b7c2109ea3`, `a8e3d5f10c47`.
 
 Ce fichier est la vue d'ensemble. Le détail (une ligne = une tâche cochable) est dans
 `docs/tasks/`. On avance **dans l'ordre des identifiants** à l'intérieur de chaque lot,
@@ -136,7 +143,7 @@ mais les lots Backend / Infra avancent en priorité car Web et Mobile en dépend
 | Lot | Fichier détaillé | Fait / Total |
 |-----|------------------|--------------|
 | Fondations & docs | ce fichier | 6 / 6 |
-| Backend (BE) | [docs/tasks/backend.md](docs/tasks/backend.md) | 62 / 78 |
+| Backend (BE) | [docs/tasks/backend.md](docs/tasks/backend.md) | 62 / 78 (+ BE-062 partiel) |
 | Web (WEB) | [docs/tasks/frontend-web.md](docs/tasks/frontend-web.md) | 0 / 46 |
 | Mobile (MOB) | [docs/tasks/mobile.md](docs/tasks/mobile.md) | 0 / 44 |
 | Infra & CI/CD (INFRA) | [docs/tasks/infra.md](docs/tasks/infra.md) | 2 / 24 |
@@ -204,17 +211,17 @@ charge, revue sécurité (OWASP ASVS, secrets, rate‑limit), doc API publiée, 
 
 ## Prochaine action
 
-**Phases 1-3 terminées.** **Phase 4 démarrée** : `BE-061` (référentiel pays / opérateurs :
-`Country`/`Operator` + `ReferenceDirectory` static / SQL / cache Redis, `flash reference
-seed`, `GET /v1/reference/countries`, migration `f4b7c2109ea3`) et `BE-063` (grille
-tarifaire réellement par pays : CI 0,8 %, SN 1,0 %, CM/GA 0,9 % en XAF ; plafonds XOF/XAF).
+**Phases 1-3 terminées.** **Phase 4 en cours** : `BE-061` (référentiel `Country`/`Operator`
++ `ReferenceDirectory` static / SQL / cache Redis + `flash reference seed`), `BE-063`
+(grille réellement par pays : CI 0,8 %, SN 1,0 %, CM/GA 0,9 % en XAF), et `BE-062` *partiel*
+(CRUD `countries`/`operators` sous rôle `admin`/`compliance` + **registre d'audit chaîné
+par hachage** — fondation de `BE-078`). Migrations `f4b7c2109ea3`, `a8e3d5f10c47`.
+Reste de `BE-062` : rendre `pricing_rules` / `limits` éditables (tables + repos DB).
 
-Prochaine : `BE-062` (CRUD back-office `countries`/`operators`/`pricing_rules`/`limits`
-avec rôles `compliance`/`admin` + audit trail immuable). Puis `BE-064` → `BE-067`
-(interop opérateurs : port `OperatorGateway` + `SandboxOperatorGateway`,
-`SendToOperatorAccount` / `TopUpFromOperator`, webhooks signés), `BE-068` → `BE-078`
-(marchands & règlements, agents, back-office, conformité AML, exports réglementaires,
-registre d'audit hash-chaîné).
+Prochaine : `BE-064` → `BE-067` (interop opérateurs : port `OperatorGateway` +
+`SandboxOperatorGateway` — `payout` Flash→Orange/MTN/Moov et `collect`,
+`SendToOperatorAccount` / `TopUpFromOperator` via `OPERATOR_SUSPENSE`, webhooks signés
+`POST /v1/operators/{op}/callbacks` idempotents). Puis `BE-068` → `BE-078`.
 
 ✅ Phase 2 livrée : `BE-029` (KYC), `BE-032` (demandes de paiement), `BE-033` (marchand
 QR), `BE-034` → `BE-036` (cash agent), `BE-037` (annulation / remboursement), `BE-038`

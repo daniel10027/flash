@@ -1,35 +1,11 @@
-"""Garde ``require_admin`` — accès back-office par clé partagée.
+"""``require_admin`` — accès back-office réservé au rôle ``admin``.
 
-Solution volontairement minimale en attendant le vrai RBAC (BE-071) : l'appelant
-présente l'en-tête ``X-Admin-Key`` qui doit correspondre à ``ADMIN_API_KEY``. Si la clé
-n'est pas configurée, l'accès est refusé (*fail closed*).
+Conservé pour compatibilité : délègue à ``require_role`` (BE-062), qui résout la clé
+``X-Admin-Key`` vers un rôle. Sans clé ``admin`` configurée, l'accès est refusé (403).
 """
 
 from __future__ import annotations
 
-import hmac
-from collections.abc import Callable
-from functools import wraps
-from typing import Any, cast
-
-from flask import request
-from werkzeug.exceptions import Forbidden
-
-from flash.interface.container import deps
-
-
-def require_admin[F: Callable[..., Any]](fn: F) -> F:
-    @wraps(fn)
-    def wrapper(*args: Any, **kwargs: Any) -> Any:
-        expected = deps().admin_api_key.strip()
-        provided = request.headers.get("X-Admin-Key", "")
-        # comparaison en bytes : robuste aux caractères non ASCII (`compare_digest`
-        # sur `str` lève un `TypeError` si l'un des opérandes n'est pas ASCII).
-        if not expected or not hmac.compare_digest(expected.encode(), provided.encode()):
-            raise Forbidden("Accès back-office refusé.")
-        return fn(*args, **kwargs)
-
-    return cast("F", wrapper)
-
+from flash.interface.security.roles import require_admin
 
 __all__ = ["require_admin"]

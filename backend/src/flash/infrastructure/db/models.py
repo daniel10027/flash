@@ -249,6 +249,29 @@ class OperatorModel(Base):
     __table_args__ = (Index("ix_operators_country_code", "country_code"),)
 
 
+class AuditEntryModel(Base):
+    __tablename__ = "audit_entries"
+
+    id: Mapped[str] = mapped_column(_UUID, primary_key=True)
+    sequence: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    actor: Mapped[str] = mapped_column(String(64), nullable=False)
+    role: Mapped[str] = mapped_column(String(24), nullable=False)
+    action: Mapped[str] = mapped_column(String(48), nullable=False)
+    resource_type: Mapped[str] = mapped_column(String(48), nullable=False)
+    resource_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    before: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    after: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    occurred_at: Mapped[datetime] = mapped_column(TZDateTime, nullable=False)
+    prev_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    entry_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("sequence"),
+        UniqueConstraint("entry_hash"),
+        Index("ix_audit_entries_sequence", "sequence"),
+    )
+
+
 class LedgerAccountModel(Base):
     __tablename__ = "ledger_accounts"
 
@@ -562,6 +585,7 @@ class OutboxModel(Base):
 
 __all__ = [
     "AgentModel",
+    "AuditEntryModel",
     "CardAuthorizationModel",
     "CardModel",
     "CashOrderModel",

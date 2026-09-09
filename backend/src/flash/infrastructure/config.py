@@ -52,6 +52,8 @@ class Settings(BaseSettings):
     # --- KYC
     kyc_document_dir: str = Field(default="/tmp/flash-kyc", alias="KYC_DOCUMENT_DIR")
     admin_api_key: str = Field(default="", alias="ADMIN_API_KEY")
+    # Clés supplémentaires porteuses d'un rôle : "compliance:LA_CLE,finance:AUTRE_CLE".
+    admin_api_keys: str = Field(default="", alias="ADMIN_API_KEYS")
 
     # --- annulation / remboursement
     reversal_window_seconds: int = Field(default=3_600, alias="REVERSAL_WINDOW_SECONDS")
