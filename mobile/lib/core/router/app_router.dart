@@ -10,9 +10,15 @@ import '../../features/history/history_page.dart';
 import '../../features/home/home_page.dart';
 import '../../features/home/home_shell.dart';
 import '../../features/home/placeholder_page.dart';
+import '../../features/notifications/notifications_page.dart';
 import '../../features/onboarding/onboarding_page.dart';
 import '../../features/pay/scan_page.dart';
+import '../../features/profile/phones_page.dart';
+import '../../features/profile/profile_page.dart';
 import '../../features/receive/receive_page.dart';
+import '../../features/settings/about_page.dart';
+import '../../features/settings/security_page.dart';
+import '../../features/settings/settings_page.dart';
 import '../../features/transfer/send_page.dart';
 import '../../l10n/generated/app_localizations.dart';
 import '../storage/prefs.dart';
@@ -54,6 +60,20 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/lock', builder: (_, __) => const PinLockPage()),
       GoRoute(path: '/send', builder: (_, __) => const SendPage()),
       GoRoute(path: '/receive', builder: (_, __) => const ReceivePage()),
+      GoRoute(
+        path: '/profile/security',
+        builder: (_, __) => const SecurityPage(),
+      ),
+      GoRoute(
+        path: '/profile/settings',
+        builder: (_, __) => const SettingsPage(),
+      ),
+      GoRoute(path: '/profile/about', builder: (_, __) => const AboutPage()),
+      GoRoute(path: '/profile/phones', builder: (_, __) => const PhonesPage()),
+      GoRoute(
+        path: '/profile/notifications',
+        builder: (_, __) => const NotificationsPage(),
+      ),
       ShellRoute(
         builder: (_, __, child) => HomeShell(child: child),
         routes: [
@@ -61,10 +81,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/history', builder: (_, __) => const HistoryPage()),
           GoRoute(path: '/scan', builder: (_, __) => const ScanPage()),
           GoRoute(path: '/card', builder: (_, __) => const _Tab('navCard')),
-          GoRoute(
-            path: '/profile',
-            builder: (_, __) => const _Tab('navProfile'),
-          ),
+          GoRoute(path: '/profile', builder: (_, __) => const ProfilePage()),
         ],
       ),
     ],

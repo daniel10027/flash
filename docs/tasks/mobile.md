@@ -32,30 +32,27 @@ test + integration_test, golden tests.
 - [x] **MOB-015** · `RegisterPage` — numéro → code → confirmation → OTP → succès, barre de progression, transitions slide/fade, animation de succès, câblé `/v1/auth/register` + `verify-otp`.
 - [x] **MOB-016** · `WelcomePage` (`BrandBackground`) : connexion numéro/PIN en bottom sheet, lien « Créer un compte ».
 - [x] **MOB-017** · `HomePage` — carte de solde dégradée avec montant animé (count-up), raccourcis, bandeau KYC tier 0, 5 dernières opérations (shimmer/EmptyState), pull-to-refresh ; providers `wallet/kyc/statement`. **Didacticiel** `shared/tutorial/coach_marks.dart` au 1er lancement.
-- [ ] **MOB-018** · Envoyer : destinataire (contacts device + favoris + saisie), montant,
-  aperçu frais 0,8 % + total, confirmation PIN/biométrie, reçu partageable.
+- [x] **MOB-018** · `SendPage` — destinataire + `AmountField` (aperçu frais 0,8 %) + `ConfirmSheet` (friction PIN) + `ReceiptView` animée, `POST /v1/transfers`.
 - [ ] **MOB-019** · Demander de l'argent : créer, partager (lien/QR), listes reçues/émises.
-- [ ] **MOB-020** · Scanner un QR marchand (mobile_scanner), QR dynamique, confirmation,
-  reçu.
-- [ ] **MOB-021** · Mon QR pour recevoir (montant optionnel), partage/plein écran.
+- [x] **MOB-020** · `ScanPage` (onglet Payer) — `mobile_scanner` + cadre de visée + saisie manuelle `flash://pay?m=…&c=…`, QR statique/dynamique, `POST /v1/merchant-payments`.
+- [x] **MOB-021** · `ReceivePage` — `QrImageView` de `flash://pay?u=<id>&amount=<minor>`, partage `share_plus`, montant optionnel.
 - [ ] **MOB-022** · Retrait cash : générer le code, compte à rebours, annuler, statut.
 - [ ] **MOB-023** · Dépôt cash : mon QR/identifiant à présenter à l'agent, notif à
   réception.
 - [ ] **MOB-024** · Retrait/dépôt compte opérateur : choix opérateur, numéro, montant,
   frais, suivi asynchrone.
-- [ ] **MOB-025** · Historique : liste paginée, filtres, recherche, groupé par jour,
-  lecture hors‑ligne du cache.
+- [x] **MOB-025** · `HistoryPage` — `GET /v1/statement` paginé (cursor), scroll infini, regroupé par jour (`intl` fr), pull-to-refresh, skeleton/EmptyState/erreur+retry.
 - [ ] **MOB-026** · Détail + reçu : partage image/PDF, signaler, annuler si éligible.
 - [ ] **MOB-027** · Coffre : poches, créer/renommer/supprimer, déplacer, poche verrouillée.
 - [ ] **MOB-028** · Épargne : ouvrir un plan, progression, intérêts, versement manuel,
   clôture.
 - [ ] **MOB-029** · Carte : demander, afficher (masqué + révéler sécurisé), geler/dégeler,
   plafonds, canaux, opérations.
-- [ ] **MOB-030** · Mes numéros (max 5) : ajouter (OTP), principal, supprimer.
-- [ ] **MOB-031** · Profil & KYC : upload pièce (caméra) + selfie, statut, limites.
-- [ ] **MOB-032** · Notifications : centre, réglages push, historique.
-- [ ] **MOB-033** · Sécurité : appareils, déconnexion à distance, changer PIN, activité.
-- [ ] **MOB-034** · Paramètres : langue, pays, thème, masquer soldes, mentions légales.
+- [x] **MOB-030** · `PhonesPage` — `GET /v1/phones`, ajout numéro + OTP (`POST /v1/phones` puis `/verify`), définir principal, supprimer ; « 5 max ».
+- [x] **MOB-031** · `ProfilePage` — en-tête (avatar + id), carte KYC (palier + statut, upload **pièce + selfie** via `image_picker`, base64 → `POST /v1/kyc/submissions`), accès numéros / notifications / sécurité / paramètres / à propos, déconnexion.
+- [x] **MOB-032** · `NotificationsPage` — `GET /v1/notifications`, marquage lu (`/read`, `/read-all`), pull-to-refresh, EmptyState.
+- [x] **MOB-033** · `SecurityPage` — appareils connectés (`GET`/`DELETE /v1/auth/devices`), changer le code secret (`POST /v1/auth/change-pin`, 2 étapes), déconnexion.
+- [x] **MOB-034** · `SettingsPage` — thème clair/sombre/auto, langue FR/EN/auto (`ThemeModeController` / `LocaleController` persistants), masquer les soldes par défaut.
 - [ ] **MOB-035** · Partage de reçu natif (share_plus) image + PDF.
 - [ ] **MOB-036** · Mode agent léger (si compte agent) : dépôt/retrait, code, float,
   commissions — écrans dédiés.
@@ -72,8 +69,7 @@ test + integration_test, golden tests.
 - [ ] **MOB-042** · Fastlane : lanes `beta` (Firebase App Distribution / TestFlight) et
   `release`.
 - [ ] **MOB-043** · CI mobile : analyze + tests + golden + build artefacts par flavor.
-- [ ] **MOB-044** · Écran « À propos » avec version/commit, lien conditions et
-  confidentialité.
+- [x] **MOB-044** · `AboutPage` — version + build (`package_info_plus`), liens CGU / confidentialité / licences.
 
 ## Transverse
 

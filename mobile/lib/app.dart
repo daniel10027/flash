@@ -10,13 +10,35 @@ import 'features/auth/auth_controller.dart';
 import 'l10n/generated/app_localizations.dart';
 import 'shared/security/app_lock_guard.dart';
 
-/// ThemeMode réactif (lu de Prefs, modifiable via Paramètres — MOB-034).
-final themeModeProvider = StateProvider<ThemeMode>((ref) {
-  return ref.watch(prefsProvider).themeMode;
+/// ThemeMode réactif (Paramètres — MOB-034), persistant.
+class ThemeModeController extends StateNotifier<ThemeMode> {
+  ThemeModeController(this._prefs) : super(_prefs.themeMode);
+  final Prefs _prefs;
+
+  void set(ThemeMode m) {
+    state = m;
+    _prefs.setThemeMode(m);
+  }
+}
+
+final themeModeProvider =
+    StateNotifierProvider<ThemeModeController, ThemeMode>((ref) {
+  return ThemeModeController(ref.watch(prefsProvider));
 });
 
-final localeProvider = StateProvider<Locale?>((ref) {
-  return ref.watch(prefsProvider).locale;
+/// Langue (null = système), persistante.
+class LocaleController extends StateNotifier<Locale?> {
+  LocaleController(this._prefs) : super(_prefs.locale);
+  final Prefs _prefs;
+
+  void set(Locale? l) {
+    state = l;
+    _prefs.setLocale(l);
+  }
+}
+
+final localeProvider = StateNotifierProvider<LocaleController, Locale?>((ref) {
+  return LocaleController(ref.watch(prefsProvider));
 });
 
 /// Masquer les soldes (œil dans l'app bar / Paramètres). Persiste à chaque bascule.

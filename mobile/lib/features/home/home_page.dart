@@ -82,7 +82,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                   ),
                 ),
                 IconButton(
-                  onPressed: () => context.go('/profile'),
+                  onPressed: () => context.push('/profile/notifications'),
                   icon: const Icon(Icons.notifications_none),
                 ),
               ],
