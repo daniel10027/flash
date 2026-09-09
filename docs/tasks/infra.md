@@ -63,28 +63,43 @@ Cible : dev local en Docker (API + Web + Postgres + Redis + Mailhog), production
 
 ## CD & VPS (INFRA-014 → INFRA-021)
 
-- [ ] **INFRA-014** · `infra/deploy/docker-compose.prod.yml` : `api` (gunicorn, réplicas),
-  `web`, `caddy` (reverse proxy + TLS Let's Encrypt), `db` (postgres + volume),
-  `redis`, `backup`. Pas de port DB exposé publiquement.
-- [ ] **INFRA-015** · `infra/deploy/Caddyfile` : domaines `api.flash.<tld>` et
-  `app.flash.<tld>`, en‑têtes de sécurité (HSTS, CSP pour le web, X‑Content‑Type),
-  compression, rate‑limit léger.
-- [ ] **INFRA-016** · `.github/workflows/deploy.yml` : sur tag `v*` (ou `main` →
-  staging), SSH vers le VPS, `docker compose pull && up -d`, migration Alembic en
-  job dédié (`alembic upgrade head`) avant bascule, health‑check post‑deploy, rollback
-  au tag précédent si échec.
-- [ ] **INFRA-017** · Provisioning VPS documenté (`infra/deploy/PROVISION.md`) : user
-  non‑root, firewall UFW (22/80/443), fail2ban, Docker + compose plugin, swap,
-  déploiement des secrets (`/etc/flash/flash.env`, `chmod 600`).
-- [ ] **INFRA-018** · Sauvegardes Postgres : conteneur `backup` (pg_dump chiffré,
-  cron, rétention 7/4/6), copie hors‑site (S3‑compatible / rsync), script de
-  restauration testé + `RESTORE.md`.
-- [ ] **INFRA-019** · Secrets : `GITHUB` secrets pour SSH, registry, FCM, SMTP ;
-  rotation documentée ; `detect-secrets` en CI ; aucun secret dans le dépôt.
-- [ ] **INFRA-020** · Environnement staging sur le même VPS (préfixe réseau/volumes,
-  sous‑domaines `*.staging`) pour valider avant prod.
-- [ ] **INFRA-021** · Runbook (`infra/deploy/RUNBOOK.md`) : déployer, rollback,
-  restaurer la base, tourner un job, lire les logs, incident solde/ledger.
+- [x] **INFRA-014** · `infra/deploy/docker-compose.prod.yml` : `caddy` (80/443, seul
+  exposé), `web`, `api` (image GHCR, `deploy.replicas`, `GUNICORN_CMD_ARGS`,
+  `read_only` + tmpfs), `db` + `redis` (réseau interne, healthchecks), `backup`,
+  service one-shot `migrate` (profil `tools`). Ancres `x-restart`/`x-logging`
+  (json-file 10 Mo×5)/`x-hardening` (`no-new-privileges`, `cap_drop: ALL`), `mem_limit`
+  par service.
+- [x] **INFRA-015** · `infra/deploy/caddy/` : `Dockerfile` (build Caddy 2.8 + module
+  `caddy-ratelimit`) + `Caddyfile` — vhosts `app.$DOMAIN` / `api.$DOMAIN`, snippet
+  `security_headers` (HSTS preload, `X-Content-Type-Options`, `Referrer-Policy`,
+  `X-Frame-Options`, `Permissions-Policy`), CSP dédiée au bundle Vite, `encode zstd
+  gzip`, `rate_limit` par IP (300/min app, 600/min API), `request_body max_size 8MB`,
+  `reverse_proxy` avec `health_uri`. Racine → redirection vers l'app.
+- [x] **INFRA-016** · `.github/workflows/deploy.yml` : tag `v*` → production, push
+  `main` → staging (projet + env-file séparés). SSH (clé dédiée), `checkout` du SHA,
+  mémorise le tag courant, `compose pull` → `run --rm migrate` → `up -d`. Health-check
+  `GET /health/ready` (30×5 s) ; **rollback** automatique vers le tag précédent si KO.
+- [x] **INFRA-017** · `infra/deploy/PROVISION.md` : user `deploy` non-root, SSH durci,
+  UFW 22/80/443 + fail2ban, swap 2 Go, install Docker + `unattended-upgrades`, clone
+  `/opt/flash`, secrets `/etc/flash/*.env` (0600), clé publique GPG + rclone,
+  DNS, premier démarrage, table des secrets GitHub Actions. `.env.prod.example` fourni.
+- [x] **INFRA-018** · `infra/deploy/backup/` : image Alpine (`postgresql16-client`,
+  `gnupg`, `rclone`) + `crond`. `backup.sh` : `pg_dump | gzip -9 | gpg --encrypt`
+  vers `daily/weekly/monthly` selon le jour, `sha256`, `prune.sh` (rétention 7/4/6),
+  `rclone sync` hors-site si `OFFSITE_REMOTE`. `restore.sh` (vérif sha256, refuse une
+  base non vide sans `FORCE=1`) + `RESTORE.md` (procédure incident + test trimestriel).
+- [x] **INFRA-019** · Secrets hors dépôt (`/etc/flash/*.env`, `.gitignore`),
+  `detect-secrets` en pré-commit (baseline auditée), table `DEPLOY_HOST/USER/SSH_KEY`
+  + var `DOMAIN` dans `PROVISION.md`, procédure de rotation semestrielle (SSH, mdp
+  Postgres, clés admin, `FLASH_SECRET_KEY`) dans le `RUNBOOK`.
+- [x] **INFRA-020** · Staging = même VPS, `COMPOSE_PROJECT_NAME=flash-staging`
+  (réseaux/volumes préfixés) + `/etc/flash/flash-staging.env` + sous-domaines
+  `*.staging.$DOMAIN`. `deploy.yml` cible staging à chaque push `main`, production
+  sur tag `v*`.
+- [x] **INFRA-021** · `infra/deploy/RUNBOOK.md` : déployer (auto/manuel), rollback
+  (+ `db downgrade`), restaurer (renvoi `RESTORE.md`), lancer `run-jobs`, lire les
+  logs, **procédure incident solde/ledger** (gel → `run-jobs` → audit → contre-passation,
+  jamais de SQL direct), rotation des secrets.
 
 ## Observabilité & sécurité (INFRA-022 → INFRA-024)
 

@@ -1,0 +1,104 @@
+name: deploy
+
+on:
+  push:
+    branches: [main] # -> staging
+    tags: ["v*"] # -> production
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Cible"
+        type: choice
+        options: [staging, production]
+        default: staging
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ (startsWith(github.ref, 'refs/tags/v') || inputs.environment == 'production') && 'production' || 'staging' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cible & tag d'image
+        id: target
+        run: |
+          if [ "${{ startsWith(github.ref, 'refs/tags/v') || inputs.environment == 'production' }}" = "true" ]; then
+            echo "env=production"                              >> "$GITHUB_OUTPUT"
+            echo "project=flash"                               >> "$GITHUB_OUTPUT"
+            echo "tag=${GITHUB_REF_NAME}"                      >> "$GITHUB_OUTPUT"
+            echo "host_url=https://app.${{ vars.DOMAIN }}"     >> "$GITHUB_OUTPUT"
+            echo "api_url=https://api.${{ vars.DOMAIN }}"      >> "$GITHUB_OUTPUT"
+          else
+            echo "env=staging"                                 >> "$GITHUB_OUTPUT"
+            echo "project=flash-staging"                       >> "$GITHUB_OUTPUT"
+            echo "tag=sha-${GITHUB_SHA}"                       >> "$GITHUB_OUTPUT"
+            echo "host_url=https://app.staging.${{ vars.DOMAIN }}" >> "$GITHUB_OUTPUT"
+            echo "api_url=https://api.staging.${{ vars.DOMAIN }}"  >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Clé SSH
+        run: |
+          install -m 700 -d ~/.ssh
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H "${{ secrets.DEPLOY_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Déploiement
+        env:
+          HOST: ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}
+          PROJECT: ${{ steps.target.outputs.project }}
+          TAG: ${{ steps.target.outputs.tag }}
+          API_URL: ${{ steps.target.outputs.api_url }}
+        run: |
+          ssh "$HOST" bash -se <<EOF
+          set -euo pipefail
+          cd /opt/flash
+          git fetch --tags --quiet && git checkout --quiet "${GITHUB_SHA}"
+
+          ENVF=/etc/flash/\${PROJECT}.env
+          CMP="docker compose -p ${PROJECT} -f infra/deploy/docker-compose.prod.yml --env-file \$ENVF"
+
+          export IMAGE_TAG="${TAG}"
+          echo "IMAGE_TAG=${TAG}" | sudo tee -a "\$ENVF" >/dev/null || true
+
+          # tag précédent pour rollback
+          PREV=\$(\$CMP config | awk -F: '/flash-api:/{print \$3; exit}') || PREV=""
+          echo "\$PREV" > /tmp/flash_prev_tag
+
+          \$CMP pull
+          \$CMP run --rm migrate          # migrations AVANT bascule
+          \$CMP up -d --remove-orphans
+          EOF
+
+      - name: Health-check post-deploy
+        id: health
+        run: |
+          for i in $(seq 1 30); do
+            if curl -fsS "${{ steps.target.outputs.api_url }}/health/ready" | grep -q '"status":"ok"'; then
+              echo "ok=1" >> "$GITHUB_OUTPUT"; exit 0
+            fi
+            sleep 5
+          done
+          echo "ok=0" >> "$GITHUB_OUTPUT"; exit 1
+
+      - name: Rollback si échec
+        if: failure() && steps.health.outputs.ok == '0'
+        env:
+          HOST: ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}
+          PROJECT: ${{ steps.target.outputs.project }}
+        run: |
+          ssh "$HOST" bash -se <<'EOF'
+          set -euo pipefail
+          cd /opt/flash
+          PREV=$(cat /tmp/flash_prev_tag || true)
+          [ -n "$PREV" ] || { echo "pas de tag précédent connu"; exit 1; }
+          ENVF=/etc/flash/${PROJECT}.env
+          CMP="docker compose -p ${PROJECT} -f infra/deploy/docker-compose.prod.yml --env-file $ENVF"
+          export IMAGE_TAG="$PREV"
+          $CMP pull && $CMP up -d --remove-orphans
+          echo "rollback -> $PREV"
+          EOF

@@ -1,0 +1,72 @@
+# INFRA-015 — Caddy de bord. Deux vhosts : l'app (SPA) et l'API.
+# Variables fournies par docker-compose.prod.yml :
+#   DOMAIN, ACME_EMAIL, APP_UPSTREAM (web:80), API_UPSTREAM (api:8000)
+{
+	email {$ACME_EMAIL}
+	servers {
+		trusted_proxies static private_ranges
+	}
+	order rate_limit before basicauth
+}
+
+(security_headers) {
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		X-Frame-Options "DENY"
+		Permissions-Policy "camera=(self), geolocation=(), microphone=()"
+		-Server
+	}
+}
+
+# ------------------------------------------------------------------ App (SPA)
+app.{$DOMAIN} {
+	import security_headers
+	# CSP adaptée au bundle Vite : tout en self, connexion XHR vers l'API + Sentry.
+	header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https://api.{$DOMAIN} https://*.sentry.io; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+	encode zstd gzip
+
+	rate_limit {
+		zone app_spa {
+			key {remote_host}
+			events 300
+			window 1m
+		}
+	}
+
+	reverse_proxy {$APP_UPSTREAM} {
+		header_up X-Forwarded-Proto https
+	}
+}
+
+# ------------------------------------------------------------------ API
+api.{$DOMAIN} {
+	import security_headers
+	encode zstd gzip
+
+	# Garde-fou de bord ; la vraie limitation métier est côté application (Redis).
+	rate_limit {
+		zone api_all {
+			key {remote_host}
+			events 600
+			window 1m
+		}
+	}
+
+	request_body {
+		max_size 8MB
+	}
+
+	reverse_proxy {$API_UPSTREAM} {
+		header_up X-Forwarded-Proto https
+		health_uri /health
+		health_interval 15s
+		health_timeout 5s
+	}
+}
+
+# Redirige la racine du domaine vers l'app.
+{$DOMAIN} {
+	redir https://app.{$DOMAIN}{uri} permanent
+}

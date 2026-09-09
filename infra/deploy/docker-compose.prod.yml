@@ -1,0 +1,166 @@
+# INFRA-014 — pile de production sur un VPS unique.
+#
+#   docker compose -f infra/deploy/docker-compose.prod.yml --env-file /etc/flash/flash.env pull
+#   docker compose -f infra/deploy/docker-compose.prod.yml --env-file /etc/flash/flash.env up -d
+#
+# Images tirées de GHCR (voir .github/workflows/images.yml). `IMAGE_TAG` est fixé par
+# le pipeline de déploiement (tag `vX` en prod, `sha-…` en staging).
+#
+# Migrations : PAS au démarrage du conteneur `api`. Le pipeline lance d'abord
+#   docker compose … run --rm migrate
+# puis bascule les services.
+#
+# Rien n'est exposé sur l'hôte hormis Caddy (80/443). db/redis restent sur le
+# réseau interne.
+
+name: ${COMPOSE_PROJECT_NAME:-flash}
+
+x-restart: &restart
+  restart: unless-stopped
+
+x-logging: &logging
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "5"
+
+x-hardening: &hardening
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
+
+services:
+  caddy:
+    <<: [*restart, *logging]
+    build:
+      context: ./caddy
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN:?DOMAIN requis}
+      ACME_EMAIL: ${ACME_EMAIL:?ACME_EMAIL requis}
+      APP_UPSTREAM: web:80
+      API_UPSTREAM: api:8000
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+    security_opt:
+      - no-new-privileges:true
+    depends_on: [api, web]
+    mem_limit: 128m
+
+  web:
+    <<: [*restart, *logging, *hardening]
+    image: ghcr.io/${IMAGE_OWNER:?}/flash-web:${IMAGE_TAG:-latest}
+    environment:
+      # Le SPA parle à l'API via le sous-domaine public (CORS gérés côté API).
+      # L'entrypoint écrit /srv/config.js au démarrage.
+      FLASH_API_BASE_URL: https://api.${DOMAIN}
+      FLASH_ENV: ${FLASH_ENV:-production}
+      FLASH_SENTRY_DSN: ${FLASH_SENTRY_DSN:-}
+    mem_limit: 128m
+
+  api:
+    <<: [*restart, *logging, *hardening]
+    image: ghcr.io/${IMAGE_OWNER:?}/flash-api:${IMAGE_TAG:-latest}
+    env_file:
+      - ${FLASH_ENV_FILE:-/etc/flash/flash.env}
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      REDIS_URL: redis://redis:6379/0
+      FLASH_ENV: production
+      GUNICORN_CMD_ARGS: "--workers=${API_WORKERS:-3} --timeout=60 --access-logfile=- --error-logfile=-"
+    read_only: true
+    tmpfs:
+      - /tmp
+    volumes:
+      - kyc_docs:/var/lib/flash/kyc
+    deploy:
+      replicas: ${API_REPLICAS:-2}
+    mem_limit: 512m
+    depends_on:
+      db: {condition: service_healthy}
+      redis: {condition: service_healthy}
+
+  # One-shot : `docker compose … run --rm migrate`. Ne tourne jamais en service.
+  migrate:
+    image: ghcr.io/${IMAGE_OWNER:?}/flash-api:${IMAGE_TAG:-latest}
+    profiles: ["tools"]
+    env_file:
+      - ${FLASH_ENV_FILE:-/etc/flash/flash.env}
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+    entrypoint: ["flash", "db", "upgrade"]
+    restart: "no"
+    depends_on:
+      db: {condition: service_healthy}
+
+  db:
+    <<: [*restart, *logging]
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
+      POSTGRES_DB: ${POSTGRES_DB:?}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    mem_limit: 512m
+
+  redis:
+    <<: [*restart, *logging, *hardening]
+    image: redis:7-alpine
+    command: ["redis-server", "--save", "300", "10", "--appendonly", "yes", "--loglevel", "warning"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+    mem_limit: 256m
+
+  backup:
+    <<: [*restart, *logging]
+    build:
+      context: ./backup
+    env_file:
+      - ${FLASH_ENV_FILE:-/etc/flash/flash.env}
+    environment:
+      PGHOST: db
+      PGUSER: ${POSTGRES_USER}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      PGDATABASE: ${POSTGRES_DB}
+      BACKUP_CRON: ${BACKUP_CRON:-17 2 * * *}
+      BACKUP_GPG_RECIPIENT: ${BACKUP_GPG_RECIPIENT:?clé publique GPG requise}
+      # Rétention : 7 quotidiennes, 4 hebdo, 6 mensuelles.
+      RETENTION_DAILY: "7"
+      RETENTION_WEEKLY: "4"
+      RETENTION_MONTHLY: "6"
+      # Copie hors-site optionnelle (rclone remote configuré via RCLONE_CONFIG).
+      OFFSITE_REMOTE: ${OFFSITE_REMOTE:-}
+    volumes:
+      - backup_data:/backups
+      - ${RCLONE_CONFIG:-/dev/null}:/root/.config/rclone/rclone.conf:ro
+    security_opt:
+      - no-new-privileges:true
+    depends_on:
+      db: {condition: service_healthy}
+    mem_limit: 128m
+
+volumes:
+  db_data:
+  redis_data:
+  kyc_docs:
+  backup_data:
+  caddy_data:
+  caddy_config:
