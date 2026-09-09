@@ -11,14 +11,21 @@ Cible : dev local en Docker (API + Web + Postgres + Redis + Mailhog), production
   `depends_on` avec healthchecks. `.env.example` complet + `.env` git‑ignoré.
 - [x] **INFRA-002** · `backend/Dockerfile` multi‑stage (base deps → runtime gunicorn),
   utilisateur non‑root, `HEALTHCHECK`, image finale slim.
-- [ ] **INFRA-003** · `web/Dockerfile` multi‑stage (build Vite → serveur statique Caddy),
-  config runtime injectée (`window.__FLASH_CONFIG__`).
-- [ ] **INFRA-004** · `Makefile` / `justfile` : `up`, `down`, `logs`, `migrate`, `seed`,
-  `test`, `lint`, `fmt`, `openapi`, `shell`.
-- [ ] **INFRA-005** · Script `scripts/wait-for-db.sh` + entrypoint API (applique les
-  migrations Alembic au démarrage en dev, pas en prod).
-- [ ] **INFRA-006** · `docker-compose.override.yml` d'exemple pour brancher un débogueur
-  et monter le code en volume.
+- [x] **INFRA-003** · `web/Dockerfile` multi‑stage : `deps` (npm ci) → `dev` (Vite HMR)
+  → `build` (bundle) → `runtime` (Caddy `:80` + SPA fallback + en-têtes de sécurité).
+  Config runtime `window.__FLASH_CONFIG__` écrite dans `/srv/config.js` par
+  `docker-entrypoint.sh` au démarrage ; `HEALTHCHECK` wget. (livré avec `WEB-012`)
+- [x] **INFRA-004** · `Makefile` à la racine : `up`/`up-web`/`down`/`down-v`/`logs`/`ps`,
+  `migrate`/`makemigration`/`seed`/`reference`/`dbshell`/`shell`, `openapi` (dump +
+  `gen:api`), `lint`/`fmt`, `test`/`test-backend`/`test-web`, `build`, `clean`. `make`
+  seul affiche l'aide auto-générée.
+- [x] **INFRA-005** · `backend/scripts/wait-for-db.sh` (POSIX sh, gère le suffixe
+  `+psycopg`, N tentatives) appelé par `dev-entrypoint.sh` → `flash db upgrade` +
+  `flash reference seed` + `flash serve --reload`. En prod l'image démarre gunicorn
+  directement ; la migration est un job dédié du pipeline (voir `infra/deploy/`).
+- [x] **INFRA-006** · `infra/docker-compose.override.yml.example` : lance l'API sous
+  `debugpy` (port 5678, attache IDE), surcharge `FLASH_LOG_LEVEL=DEBUG`. Fichier
+  `infra/docker-compose.override.yml` git-ignoré, fusionné automatiquement par compose.
 
 ## CI (INFRA-007 → INFRA-013)
 

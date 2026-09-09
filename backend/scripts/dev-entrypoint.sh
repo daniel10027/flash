@@ -1,25 +1,15 @@
 #!/usr/bin/env sh
-# Entrypoint de développement : attend la base, applique les migrations, lance l'API
-# avec rechargement automatique.
+# Entrypoint de développement : attend la base, applique les migrations, seed le
+# référentiel, puis lance l'API avec rechargement automatique.
+#
+# En PRODUCTION, l'image ne passe PAS par ce script : la migration Alembic est un
+# job dédié du pipeline de déploiement (voir infra/deploy/), et le conteneur `api`
+# démarre directement gunicorn.
 set -eu
 
-echo "[flash] attente de PostgreSQL…"
-python - <<'PY'
-import os, time, sys
-import psycopg
+DIR=$(dirname "$0")
 
-url = os.environ["DATABASE_URL"].replace("+psycopg", "")
-for attempt in range(60):
-    try:
-        with psycopg.connect(url, connect_timeout=2):
-            break
-    except Exception as exc:  # noqa: BLE001
-        print(f"  ... ({attempt + 1}/60) {exc.__class__.__name__}")
-        time.sleep(1)
-else:
-    sys.exit("PostgreSQL indisponible")
-print("[flash] PostgreSQL prêt")
-PY
+sh "$DIR/wait-for-db.sh"
 
 echo "[flash] migrations Alembic…"
 flash db upgrade

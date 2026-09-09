@@ -1,0 +1,36 @@
+# INFRA-006 — surcharge locale d'exemple.
+#
+#   cp infra/docker-compose.override.yml.example infra/docker-compose.override.yml
+#
+# `docker compose` fusionne automatiquement `docker-compose.override.yml` s'il existe.
+# Ce fichier est git-ignoré : adapte-le librement à ta machine.
+#
+# Il montre deux usages :
+#   1. brancher un débogueur Python (debugpy) sur l'API ;
+#   2. surcharger des variables sans toucher au `.env` partagé.
+
+name: flash
+
+services:
+  api:
+    # Lance l'API sous debugpy et attend l'attache de l'IDE sur le port 5678.
+    # VS Code : "Python: Remote Attach" -> localhost:5678, pathMappings
+    #   localWorkspaceFolder/backend  ->  /app
+    command: >-
+      sh -c "sh /app/scripts/wait-for-db.sh
+      && flash db upgrade
+      && flash reference seed
+      && python -m debugpy --listen 0.0.0.0:5678
+         -m flask --app flash.interface.wsgi:app run --host 0.0.0.0 --port 8000 --reload"
+    environment:
+      FLASH_LOG_LEVEL: DEBUG
+      # PYDEVD_DISABLE_FILE_VALIDATION: "1"
+    ports:
+      - "5678:5678"
+
+  # Décommente pour aussi déboguer les jobs planifiés.
+  # jobs:
+  #   extends:
+  #     file: docker-compose.yml
+  #     service: api
+  #   command: ["flash", "run-jobs", "--loop"]
