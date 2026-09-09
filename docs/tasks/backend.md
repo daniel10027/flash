@@ -145,8 +145,11 @@ Chaque tâche livrée : code complet + tests + doc, **zéro `TODO`**.
   fonctionne donc entre workers gunicorn (classe worker asynchrone requise en prod).
   En-têtes `text/event-stream`, `Cache-Control: no-cache`, `X-Accel-Buffering: no`,
   `retry: 3000`.
-- [ ] **BE-043** · Verrous & concurrence : verrou pessimiste par wallet dans l'UoW,
-  test de course (deux transferts simultanés ne doivent pas passer le solde en négatif).
+- [x] **BE-043** · Verrous & concurrence : `WalletRepository.get_for_update`
+  (`SELECT … FOR UPDATE`) déjà utilisé par `SendP2PTransfer` / cash / marchand. Test de
+  course d'intégration (`tests/infrastructure/test_wallet_concurrency.py`, sur l'`Engine`
+  réel) : deux transferts de 8 000 lancés via une barrière de threads sur un solde de
+  10 000 → exactement un `ok`, un `InsufficientFunds`, solde final = 1 936 ≥ 0.
 - [ ] **BE-044** · Job `expire_withdrawal_codes` (planifié) + `flask flash run-jobs`.
 - [ ] **BE-045** · Job `reconcile_wallet_balances` : recompute depuis le ledger, alerte
   si écart, endpoint back‑office pour lancer à la demande.

@@ -1,6 +1,6 @@
 # Flash — Map de développement
 
-> **Dernière mise à jour : 2026-09-08**
+> **Dernière mise à jour : 2026-09-09**
 > **Phase 1 terminée + Phase 2 : BE-025 → BE-042**
 > (auth, numéros, wallets, transfert + **annulation**, **demandes de paiement**,
 > **paiement marchand QR** + **remboursement**, **dépôt & retrait cash agent**,
@@ -54,10 +54,14 @@
 > « Transfert envoyé », un dépôt agent « Dépôt reçu » ; **SSE** : `retry` + trame
 > `event: notification` (rattrapage `Last-Event-ID`) + `: keep-alive`, en-têtes
 > `text/event-stream` corrects.
-> 647 tests unit + 11 d'intégration (Postgres réel), couverture 100 % domain+application,
+> **Concurrence (BE-043)** : `SELECT … FOR UPDATE` sur le portefeuille (déjà en place)
+> prouvé par un test de course d'intégration — deux transferts simultanés sur un solde
+> insuffisant : exactement un passe, l'autre `InsufficientFunds`, solde jamais négatif.
+> 647 tests unit + 12 d'intégration (Postgres réel), couverture 100 % domain+application,
 > ruff + mypy stricts.
-> **Prochaine : BE-043 (test de course wallet), BE-044/045 (jobs d'expiration &
-> réconciliation), BE-046 (seed de démo), BE-047+ (Phase 3 : coffre / épargne / carte).**
+> **Prochaine : BE-044/045 (jobs d'expiration des codes / demandes / QR &
+> réconciliation des soldes), BE-046 (seed de démo), BE-047+ (Phase 3 :
+> coffre / épargne / carte).**
 
 Ce fichier est la vue d'ensemble. Le détail (une ligne = une tâche cochable) est dans
 `docs/tasks/`. On avance **dans l'ordre des identifiants** à l'intérieur de chaque lot,
@@ -75,7 +79,7 @@ mais les lots Backend / Infra avancent en priorité car Web et Mobile en dépend
 | Lot | Fichier détaillé | Fait / Total |
 |-----|------------------|--------------|
 | Fondations & docs | ce fichier | 6 / 6 |
-| Backend (BE) | [docs/tasks/backend.md](docs/tasks/backend.md) | 42 / 78 |
+| Backend (BE) | [docs/tasks/backend.md](docs/tasks/backend.md) | 43 / 78 |
 | Web (WEB) | [docs/tasks/frontend-web.md](docs/tasks/frontend-web.md) | 0 / 46 |
 | Mobile (MOB) | [docs/tasks/mobile.md](docs/tasks/mobile.md) | 0 / 44 |
 | Infra & CI/CD (INFRA) | [docs/tasks/infra.md](docs/tasks/infra.md) | 2 / 24 |
@@ -99,7 +103,7 @@ Domaine partagé (Money, Currency, Country), identité (User, PhoneNumber ≤ 5)
 auth (téléphone + PIN + OTP, JWT), erreurs & idempotence, tests unitaires du domaine.
 → `BE-001` à `BE-024`.
 
-## Phase 2 — Cas d'usage cœur (en cours : 18 / 22)
+## Phase 2 — Cas d'usage cœur (en cours : 19 / 22)
 
 Ouverture de compte, KYC par paliers, transfert P2P (frais 0,8 %), paiement marchand par
 QR, dépôt cash agent, retrait cash agent (code de retrait), annulation / remboursement,
