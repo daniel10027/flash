@@ -8,6 +8,7 @@ from datetime import UTC, datetime
 from flash.domain.audit.entry import (
     GENESIS_HASH,
     AuditEntry,
+    audit_chain_report,
     compute_entry_hash,
     verify_chain,
 )
@@ -76,6 +77,47 @@ def test_verify_chain_rejects_gap_and_broken_link_and_tamper() -> None:
     assert verify_chain([e1, _entry(3, e1.entry_hash)]) is False  # trou de séquence
     assert verify_chain([e1, _entry(2, "deadbeef")]) is False  # prev_hash cassé
     assert verify_chain([e1, replace(e2, after={"x": 1})]) is False  # ligne altérée
+
+
+def test_chain_report_happy_path_counts_entries() -> None:
+    e1 = _entry(1, GENESIS_HASH)
+    e2 = _entry(2, e1.entry_hash)
+    report = audit_chain_report([e1, e2])
+    assert report.intact is True
+    assert report.checked == 2
+    assert report.broken_at is None and report.reason is None
+    assert audit_chain_report([]).to_dict() == {
+        "intact": True,
+        "checked": 0,
+        "broken_at": None,
+        "reason": None,
+    }
+
+
+def test_chain_report_localises_sequence_gap() -> None:
+    e1 = _entry(1, GENESIS_HASH)
+    report = audit_chain_report([e1, _entry(3, e1.entry_hash)])
+    assert report.intact is False
+    assert report.broken_at == 3
+    assert report.checked == 2
+    assert report.reason is not None and "séquence" in report.reason
+
+
+def test_chain_report_localises_broken_prev_hash() -> None:
+    e1 = _entry(1, GENESIS_HASH)
+    report = audit_chain_report([e1, _entry(2, "deadbeef")])
+    assert report.intact is False
+    assert report.broken_at == 2
+    assert report.reason is not None and "prev_hash" in report.reason
+
+
+def test_chain_report_localises_tampered_content() -> None:
+    e1 = _entry(1, GENESIS_HASH)
+    e2 = _entry(2, e1.entry_hash)
+    report = audit_chain_report([e1, replace(e2, after={"x": 1})])
+    assert report.intact is False
+    assert report.broken_at == 2
+    assert report.reason is not None and "altér" in report.reason
 
 
 def test_to_dict_roundtrips_fields() -> None:

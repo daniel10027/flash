@@ -1,4 +1,4 @@
-"""Intégration : ``SqlAlchemyAuditLog`` + ``SqlAlchemyReferenceEditor`` (BE-062)."""
+"""Intégration : ``SqlAlchemyAuditLog`` + ``SqlAlchemyReferenceEditor`` (BE-062/078)."""
 
 from __future__ import annotations
 
@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 import pytest
 from sqlalchemy.orm import Session, sessionmaker
 
+from flash.domain.audit.ports import AuditFilter
 from flash.domain.country.reference import Country, Operator
 from flash.domain.shared.identifiers import CountryCode
 from flash.domain.shared.money import Currency
@@ -53,6 +54,40 @@ def test_audit_log_chains_and_verifies(session_factory: sessionmaker[Session]) -
     recent = log.recent(limit=1)
     assert [e.sequence for e in recent] == [2]
     assert log.recent(before_sequence=2)[0].sequence == 1
+
+
+def test_audit_query_filters_and_reports_integrity(
+    session_factory: sessionmaker[Session],
+) -> None:
+    log = SqlAlchemyAuditLog(session_factory, Uuid7Generator())
+    log.append(
+        actor="key:admin", role="admin", action="country.create",
+        resource_type="country", resource_id="CI", before=None, after={"n": 1}, now=T0,
+    )
+    log.append(
+        actor="key:compliance", role="compliance", action="account.freeze",
+        resource_type="account", resource_id="acc-1", before={"f": False},
+        after={"f": True}, now=T0.replace(day=2),
+    )
+    log.append(
+        actor="key:admin", role="admin", action="account.freeze",
+        resource_type="account", resource_id="acc-2", before={"f": False},
+        after={"f": True}, now=T0.replace(day=10),
+    )
+
+    by_actor = log.query(AuditFilter(actor="key:admin"))
+    assert [e.sequence for e in by_actor] == [3, 1]
+
+    by_action = log.query(AuditFilter(action="account.freeze", resource_type="account"))
+    assert [e.resource_id for e in by_action] == ["acc-2", "acc-1"]
+
+    windowed = log.query(
+        AuditFilter(start=T0, end=T0.replace(day=3))
+    )
+    assert [e.sequence for e in windowed] == [2, 1]
+
+    report = log.verify_report()
+    assert report.intact is True and report.checked == 3 and report.broken_at is None
 
 
 def test_sql_editor_writes_and_reads_back(session_factory: sessionmaker[Session]) -> None:

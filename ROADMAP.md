@@ -1,7 +1,7 @@
 # Flash — Map de développement
 
 > **Dernière mise à jour : 2026-09-09**
-> **Phases 1-3 complètes · Phase 4 : BE-061→077 (… conformité AML, exports réglementaires) — BE-068 partiel · reste BE-078**
+> **Phases 1-3 complètes · Phase 4 : BE-061→078 livrés (… conformité AML, exports réglementaires, registre d'audit consultable) — BE-068 partiel**
 > (auth, numéros, wallets, transfert + **annulation**, **demandes de paiement**,
 > **paiement marchand QR** + **remboursement**, **dépôt & retrait cash agent**,
 > relevé + **reçu détaillé**, **KYC**, **notifications** + **flux SSE**, **jobs
@@ -45,7 +45,7 @@
 > `/v1/notifications` (liste + curseur + `unread`, `/<id>/read`, `/read-all`) et
 > **SSE `/v1/notifications/stream`** (`RedisNotificationBus` pub/sub, rattrapage
 > `Last-Event-ID` depuis le journal, keep-alive).
-> **111 chemins** : `auth` (6), `phones` (5), `wallets` (2), `transfers` (2),
+> **112 chemins** : `auth` (6), `phones` (5), `wallets` (2), `transfers` (2),
 > `payment-requests` (4), `merchant` (15), `merchant-payments` (1), `merchant/v1`
 > (public, 4), `statement` (1), `receipts` (1), `notifications` (4), `withdrawals` (2),
 > `agent` (8), `kyc` (4), `vault` (6), `savings` (5), `cards` (8),
@@ -53,8 +53,8 @@
 > `reference` (2), `admin/kyc` (1), `admin` ops (9), `admin/merchants` (1),
 > `admin/agents` (1), `admin/accounts` (6) + `admin/transactions` (1) +
 > `admin/tickets` (3), `admin/compliance` (4), `admin/reports` (3),
-> `admin/reference` (5) + `admin/audit` (1) + `/health*`, `/openapi.json`, `/docs`,
-> `/redoc`.
+> `admin/reference` (5) + `admin/audit` (2, dont `/verify`) + `/health*`,
+> `/openapi.json`, `/docs`, `/redoc`.
 > **Tout vérifié end-to-end via docker compose** : cash, KYC, demandes de paiement,
 > paiement marchand, annulation / remboursement (soldes restaurés, rejeu → 409),
 > reçus (out/in, 404 pour un tiers, REVERSED) ; un transfert génère « Argent reçu » /
@@ -206,14 +206,22 @@
 > `GET …/monthly?year&month&currency=` (CSV d'un mois, une ligne par posting, filtre
 > devise/zone). Lectures seules, rôles `finance` / `admin`. Ports ledger
 > `list_accounts` / `list_between` ajoutés.
-> **111 chemins.** 1271 tests unit + 31 d'intégration (Postgres réel), couverture 100 %
+> **Registre d'audit consultable (BE-078)** : `GET /v1/admin/audit` filtré
+> (`actor` / `action` / `resource_type` / `resource_id` / `start` / `end` / `limit` /
+> `before_sequence`, plus récentes d'abord ; `?verify=1` joint le rapport d'intégrité),
+> `GET /v1/admin/audit/verify` (contrôle de toute la chaîne chaînée par hachage :
+> `intact`, `checked`, `broken_at`, `reason` — 409 si rompue). Le registre reste
+> append-only + chaîné (BE-062) ; ports `AuditLog.query` / `verify_report` +
+> `audit_chain_report` (localise la 1re rupture). Rôles `admin` / `compliance`, pas de
+> migration.
+> **112 chemins.** 1299 tests unit + 32 d'intégration (Postgres réel), couverture 100 %
 > domain+application, ruff + mypy stricts.
-> **Phases 1-3 terminées. Phase 4 en cours** : `BE-061` → `BE-077` livrés (référentiel,
-> audit chaîné, grille multi-pays, interop opérateurs, marchands complets, agents
-> enrichis + espace agent, back-office comptes & support, conformité AML, exports
-> réglementaires) ; `BE-068` partiel. Migrations `f4b7c2109ea3`, `a8e3d5f10c47`,
-> `b6c1e9d47f20`, `c7d2f4a91b38`, `d4e8a1c6b923`, `e1f4b7c92a05`, `f2a9c1e83b47`,
-> `a3c7e91d5f28`, `b8d1f6a2c904`.
+> **Phases 1-3 terminées. Phase 4 livrée** : `BE-061` → `BE-078` (référentiel,
+> audit chaîné + registre consultable, grille multi-pays, interop opérateurs, marchands
+> complets, agents enrichis + espace agent, back-office comptes & support, conformité
+> AML, exports réglementaires) ; `BE-068` partiel. Migrations `f4b7c2109ea3`,
+> `a8e3d5f10c47`, `b6c1e9d47f20`, `c7d2f4a91b38`, `d4e8a1c6b923`, `e1f4b7c92a05`,
+> `f2a9c1e83b47`, `a3c7e91d5f28`, `b8d1f6a2c904`.
 
 Ce fichier est la vue d'ensemble. Le détail (une ligne = une tâche cochable) est dans
 `docs/tasks/`. On avance **dans l'ordre des identifiants** à l'intérieur de chaque lot,
@@ -299,7 +307,8 @@ charge, revue sécurité (OWASP ASVS, secrets, rate‑limit), doc API publiée, 
 
 ## Prochaine action
 
-**Phases 1-3 terminées.** **Phase 4 en cours** : `BE-061` (référentiel `Country`/`Operator`
+**Phases 1-3 terminées.** **Phase 4 backend livrée** (`BE-061` → `BE-078`, `BE-068`
+partiel) : `BE-061` (référentiel `Country`/`Operator`
 + `ReferenceDirectory` static / SQL / cache Redis + `flash reference seed`), `BE-063`
 (grille réellement par pays : CI 0,8 %, SN 1,0 %, CM/GA 0,9 % en XAF), et `BE-062` *partiel*
 (CRUD `countries`/`operators` sous rôle `admin`/`compliance` + **registre d'audit chaîné
@@ -338,10 +347,14 @@ d'équilibre, `GetLedgerJournal`, `ExportMonthlyLedger` CSV ; ports ledger
 `list_accounts` / `list_between` ; blueprint `/v1/admin/reports`, rôles `finance`/`admin`
 — lectures seules, pas de migration).
 
-Prochaine : `BE-078` (registre d'audit consultable qui/quoi/quand/avant-après avec
-filtres actor/action/ressource/période, contrôle d'intégrité de la chaîne). Reste de
-`BE-068` (sous-comptes caisses/employés). Reste de `BE-062` : `pricing_rules` / `limits`
-éditables (tables + repos).
+`BE-078` **livré** (registre d'audit consultable : `QueryAuditLog` filtré
+actor/action/ressource/période + curseur, `VerifyAuditChain` avec `audit_chain_report`
+qui localise la 1re rupture ; ports `AuditLog.query` / `verify_report` ; blueprint
+`/v1/admin/audit` + `/verify`, rôles `admin`/`compliance` — le registre reste
+append-only + chaîné par hachage de BE-062, pas de migration).
+
+Prochaine : reste de `BE-068` (sous-comptes caisses/employés), reste de `BE-062`
+(`pricing_rules` / `limits` éditables : tables + repos). **Phase 4 backend livrée.**
 
 ✅ Phase 2 livrée : `BE-029` (KYC), `BE-032` (demandes de paiement), `BE-033` (marchand
 QR), `BE-034` → `BE-036` (cash agent), `BE-037` (annulation / remboursement), `BE-038`

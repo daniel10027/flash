@@ -364,8 +364,19 @@ Chaque tâche livrée : code complet + tests + doc, **zéro `TODO`**.
   zone XOF/XAF, `Content-Disposition: attachment`). Lectures seules, RBAC `finance` / `admin`.
   Ports ledger `list_between(start, end, *, limit)` + `list_accounts()` ajoutés (repo SQL +
   in-memory + round-trip Postgres). Pas de migration.
-- [ ] **BE-078** · Registre d'audit consultable (qui/quoi/quand/avant‑après) pour toutes
-  les actions sensibles, immuable (append‑only + hash chaîné).
+- [x] **BE-078** · Registre d'audit consultable (qui/quoi/quand/avant‑après). Le registre
+  reste **append‑only + hash chaîné** (BE-062) ; cette tâche ajoute la *lecture*.
+  `domain/audit/entry.py` : `audit_chain_report()` → `ChainReport(intact, checked,
+  broken_at, reason)` qui localise la **première rupture** (trou de séquence,
+  `prev_hash` incohérent, contenu altéré) ; `verify_chain` réécrit par‑dessus. Port
+  `AuditLog` : `query(AuditFilter)` (actor / action / resource_type / resource_id /
+  start / end / limit / before_sequence, plus récentes d'abord) + `verify_report()`
+  (impl SQL `WHERE` + in‑memory + round‑trip Postgres). `application/audit/registry.py` :
+  `QueryAuditLog` (parse ISO, `end > start`, `?verify` joint le rapport) et
+  `VerifyAuditChain`. Blueprint `interface/http/audit.py` : `GET /v1/admin/audit`
+  (filtres, `?verify=1`) et `GET /v1/admin/audit/verify` (409 si chaîne rompue), RBAC
+  `admin` / `compliance` — l'ancienne route de `admin_reference.py` est déplacée ici.
+  Pas de migration.
 
 ## Transverse (au fil des phases)
 

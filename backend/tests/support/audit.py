@@ -1,4 +1,8 @@
-"""Registre d'audit en mémoire pour les tests — même chaînage par hachage."""
+"""Registre d'audit en mémoire pour les tests — même chaînage par hachage.
+
+Permet aussi d'injecter des entrées corrompues (``_entries``) pour tester le contrôle
+d'intégrité.
+"""
 
 from __future__ import annotations
 
@@ -6,7 +10,13 @@ from collections.abc import Mapping
 from datetime import datetime
 from typing import Any
 
-from flash.domain.audit.entry import GENESIS_HASH, AuditEntry, verify_chain
+from flash.domain.audit.entry import (
+    GENESIS_HASH,
+    AuditEntry,
+    ChainReport,
+    audit_chain_report,
+)
+from flash.domain.audit.ports import AuditFilter
 
 
 class InMemoryAuditLog:
@@ -47,13 +57,31 @@ class InMemoryAuditLog:
     def recent(
         self, *, limit: int = 100, before_sequence: int | None = None
     ) -> list[AuditEntry]:
+        return self.query(AuditFilter(limit=limit, before_sequence=before_sequence))
+
+    def query(self, filters: AuditFilter, /) -> list[AuditEntry]:
         rows = list(reversed(self._entries))
-        if before_sequence is not None:
-            rows = [e for e in rows if e.sequence < before_sequence]
-        return rows[: min(max(limit, 1), 500)]
+        if filters.actor is not None:
+            rows = [e for e in rows if e.actor == filters.actor]
+        if filters.action is not None:
+            rows = [e for e in rows if e.action == filters.action]
+        if filters.resource_type is not None:
+            rows = [e for e in rows if e.resource_type == filters.resource_type]
+        if filters.resource_id is not None:
+            rows = [e for e in rows if e.resource_id == filters.resource_id]
+        if filters.start is not None:
+            rows = [e for e in rows if e.occurred_at >= filters.start]
+        if filters.end is not None:
+            rows = [e for e in rows if e.occurred_at < filters.end]
+        if filters.before_sequence is not None:
+            rows = [e for e in rows if e.sequence < filters.before_sequence]
+        return rows[: min(max(filters.limit, 1), 500)]
 
     def verify(self) -> bool:
-        return verify_chain(list(self._entries))
+        return self.verify_report().intact
+
+    def verify_report(self) -> ChainReport:
+        return audit_chain_report(list(self._entries))
 
 
 __all__ = ["InMemoryAuditLog"]

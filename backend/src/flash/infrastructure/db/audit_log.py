@@ -15,7 +15,13 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 
-from flash.domain.audit.entry import GENESIS_HASH, AuditEntry, verify_chain
+from flash.domain.audit.entry import (
+    GENESIS_HASH,
+    AuditEntry,
+    ChainReport,
+    audit_chain_report,
+)
+from flash.domain.audit.ports import AuditFilter
 from flash.domain.shared.ports import IdGenerator
 from flash.infrastructure.db.models import AuditEntryModel
 
@@ -95,19 +101,39 @@ class SqlAlchemyAuditLog:
     def recent(
         self, *, limit: int = 100, before_sequence: int | None = None
     ) -> list[AuditEntry]:
+        return self.query(
+            AuditFilter(limit=limit, before_sequence=before_sequence)
+        )
+
+    def query(self, filters: AuditFilter, /) -> list[AuditEntry]:
         with self._session_factory() as session:
             stmt = select(AuditEntryModel).order_by(AuditEntryModel.sequence.desc())
-            if before_sequence is not None:
-                stmt = stmt.where(AuditEntryModel.sequence < before_sequence)
-            stmt = stmt.limit(min(max(limit, 1), 500))
+            if filters.actor is not None:
+                stmt = stmt.where(AuditEntryModel.actor == filters.actor)
+            if filters.action is not None:
+                stmt = stmt.where(AuditEntryModel.action == filters.action)
+            if filters.resource_type is not None:
+                stmt = stmt.where(AuditEntryModel.resource_type == filters.resource_type)
+            if filters.resource_id is not None:
+                stmt = stmt.where(AuditEntryModel.resource_id == filters.resource_id)
+            if filters.start is not None:
+                stmt = stmt.where(AuditEntryModel.occurred_at >= filters.start)
+            if filters.end is not None:
+                stmt = stmt.where(AuditEntryModel.occurred_at < filters.end)
+            if filters.before_sequence is not None:
+                stmt = stmt.where(AuditEntryModel.sequence < filters.before_sequence)
+            stmt = stmt.limit(min(max(filters.limit, 1), 500))
             return [_to_domain(m) for m in session.scalars(stmt)]
 
     def verify(self) -> bool:
+        return self.verify_report().intact
+
+    def verify_report(self) -> ChainReport:
         with self._session_factory() as session:
             rows = session.scalars(
                 select(AuditEntryModel).order_by(AuditEntryModel.sequence.asc())
             )
-            return verify_chain([_to_domain(m) for m in rows])
+            return audit_chain_report([_to_domain(m) for m in rows])
 
 
 __all__ = ["SqlAlchemyAuditLog"]

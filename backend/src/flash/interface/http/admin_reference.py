@@ -14,8 +14,6 @@ from flash.application.reference.admin import (
     DeleteCountryCommand,
     DeleteOperator,
     DeleteOperatorCommand,
-    ListAuditEntries,
-    ListAuditEntriesCommand,
     UpsertCountry,
     UpsertCountryCommand,
     UpsertOperator,
@@ -138,20 +136,7 @@ def reload_reference() -> tuple[Response, int]:
     return jsonify({"reloaded": True, "version": version}), 200
 
 
-# ------------------------------------------------------------------ audit
-@bp.get("/audit")
-@_MANAGE
-@document(summary="Registre d'audit (entrées récentes, chaînées)", tags=["admin"], secured=False)
-def list_audit() -> tuple[Response, int]:
-    limit = request.args.get("limit", type=int) or 100
-    before = request.args.get("before_sequence", type=int)
-    entries = ListAuditEntries(audit=deps().audit).execute(
-        ListAuditEntriesCommand(limit=limit, before_sequence=before)
-    )
-    payload: dict[str, object] = {"entries": [e.to_dict() for e in entries]}
-    if request.args.get("verify") == "1":
-        payload["intact"] = deps().audit.verify()
-    return jsonify(payload), 200
+# Le registre d'audit est exposé par ``interface.http.audit`` (``GET /v1/admin/audit``).
 
 
 def _role() -> str:

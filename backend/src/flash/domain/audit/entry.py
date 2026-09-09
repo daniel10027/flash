@@ -144,20 +144,69 @@ class AuditEntry:
         }
 
 
-def verify_chain(entries: list[AuditEntry]) -> bool:
-    """Vrai si la liste (triée par ``sequence`` croissant) forme une chaîne intègre."""
+@dataclass(frozen=True, slots=True)
+class ChainReport:
+    """Résultat détaillé du contrôle d'intégrité de la chaîne d'audit."""
+
+    intact: bool
+    checked: int
+    broken_at: int | None  # ``sequence`` de la première entrée fautive
+    reason: str | None
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "intact": self.intact,
+            "checked": self.checked,
+            "broken_at": self.broken_at,
+            "reason": self.reason,
+        }
+
+
+def audit_chain_report(entries: list[AuditEntry]) -> ChainReport:
+    """Contrôle la chaîne (entrées triées par ``sequence`` croissant) et localise la
+    première rupture : trou / réordonnancement de séquence, ``prev_hash`` incohérent
+    (suppression, insertion) ou contenu altéré."""
     expected_prev = GENESIS_HASH
     expected_seq = 1
+    checked = 0
     for entry in entries:
+        checked += 1
         if entry.sequence != expected_seq:
-            return False
+            return ChainReport(
+                intact=False,
+                checked=checked,
+                broken_at=entry.sequence,
+                reason=f"séquence attendue {expected_seq}, trouvée {entry.sequence}",
+            )
         if entry.prev_hash != expected_prev:
-            return False
+            return ChainReport(
+                intact=False,
+                checked=checked,
+                broken_at=entry.sequence,
+                reason="prev_hash ne correspond pas au hachage de l'entrée précédente",
+            )
         if not entry.is_intact:
-            return False
+            return ChainReport(
+                intact=False,
+                checked=checked,
+                broken_at=entry.sequence,
+                reason="entry_hash ne correspond pas au contenu (entrée altérée)",
+            )
         expected_prev = entry.entry_hash
         expected_seq += 1
-    return True
+    return ChainReport(intact=True, checked=checked, broken_at=None, reason=None)
 
 
-__all__ = ["GENESIS_HASH", "AuditEntry", "compute_entry_hash", "verify_chain"]
+def verify_chain(entries: list[AuditEntry]) -> bool:
+    """Vrai si la liste (triée par ``sequence`` croissant) forme une chaîne intègre."""
+    return audit_chain_report(entries).intact
+
+
+__all__ = [
+    "GENESIS_HASH",
+    "AuditEntry",
+    "ChainReport",
+    "audit_chain_report",
+    "compute_entry_hash",
+    "verify_chain",
+]

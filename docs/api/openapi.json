@@ -5669,7 +5669,30 @@
     },
     "/v1/admin/audit": {
       "get": {
-        "summary": "Registre d'audit (entrées récentes, chaînées)",
+        "summary": "Registre d'audit : consultation filtrée (qui/quoi/ressource/période)",
+        "tags": [
+          "admin"
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès"
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/audit/verify": {
+      "get": {
+        "summary": "Registre d'audit : contrôle d'intégrité de la chaîne chaînée par hachage",
         "tags": [
           "admin"
         ],
