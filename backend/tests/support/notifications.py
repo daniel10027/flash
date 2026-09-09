@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections import defaultdict
+from collections.abc import Iterator
 from datetime import UTC, datetime
 
 from flash.application.notifications.model import Notification
@@ -60,6 +62,11 @@ class InMemoryNotificationRepository:
             rows = [n for n in rows if n.id < before]
         return rows[:limit]
 
+    def list_since(self, user_id: str, after_id: str, *, limit: int = 100) -> list[Notification]:
+        rows = [n for n in self._by_id.values() if n.user_id == user_id and n.id > after_id]
+        rows.sort(key=lambda n: n.id)
+        return rows[:limit]
+
     def count_unread(self, user_id: str) -> int:
         return sum(1 for n in self._by_id.values() if n.user_id == user_id and not n.is_read)
 
@@ -88,8 +95,39 @@ class InMemoryNotificationRepository:
         return count
 
 
+class InMemoryNotificationBus:
+    """Bus de test façon pub/sub : un ``publish`` est perdu si personne n'écoute.
+
+    ``subscribe`` s'enregistre, livre ce qui est publié tant qu'il itère, puis émet un
+    ``None`` (keep-alive) et se termine — flux borné pour les tests. ``prime`` permet à
+    un test de mettre des notifications « en vol » juste avant l'abonnement.
+    """
+
+    def __init__(self) -> None:
+        self._primed: dict[str, list[Notification]] = defaultdict(list)
+        self._listeners: set[str] = set()
+
+    def prime(self, notification: Notification) -> None:
+        self._primed[notification.user_id].append(notification)
+
+    def publish(self, notification: Notification) -> None:
+        if notification.user_id in self._listeners:
+            self._primed[notification.user_id].append(notification)
+
+    def subscribe(self, user_id: str) -> Iterator[Notification | None]:
+        self._listeners.add(user_id)
+        try:
+            queue = self._primed[user_id]
+            while queue:
+                yield queue.pop(0)
+            yield None  # keep-alive puis fin (test borné)
+        finally:
+            self._listeners.discard(user_id)
+
+
 __all__ = [
     "BoomChannel",
+    "InMemoryNotificationBus",
     "InMemoryNotificationRepository",
     "RecordingChannel",
     "RecordingNotifier",

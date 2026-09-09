@@ -1,10 +1,10 @@
 # Flash — Map de développement
 
 > **Dernière mise à jour : 2026-09-08**
-> **Phase 1 terminée + Phase 2 : BE-025 → BE-041** (SSE `BE-042` mis à part)
+> **Phase 1 terminée + Phase 2 : BE-025 → BE-042**
 > (auth, numéros, wallets, transfert + **annulation**, **demandes de paiement**,
 > **paiement marchand QR** + **remboursement**, **dépôt & retrait cash agent**,
-> relevé + **reçu détaillé**, **KYC**, **notifications**).
+> relevé + **reçu détaillé**, **KYC**, **notifications** + **flux SSE**).
 > Domaine complet (identity + PIN Argon2, wallet, ledger partie double, pricing 0,8 %,
 > limits, référentiel pays, **agent + ordre cash**). Application : `RegisterUser`, auth
 > (`Login`/`VerifyOtp`/`ResendOtp` + `TokenService`), gestion des numéros,
@@ -37,25 +37,27 @@
 > ou référence métier), du point de vue de l'appelant (parties prenantes seulement,
 > sinon 404), avec statut `COMPLETED` / `REVERSED`. Projection factorisée avec
 > `ListStatement`.
-> **Notifications (BE-040/041)** : port `Notifier` + canaux (in-app table `notifications`,
-> SMTP, FCM stub, log). `NotificationDispatcher` mappe les événements de l'outbox
-> (transfert / cash / marchand / KYC) en notifications, branché post-commit via
-> `NotifyingEventPublisher` (best-effort). Blueprint `/v1/notifications` (liste + curseur
-> + `unread`, `/<id>/read`, `/read-all`). Le flux SSE reste `BE-042`.
-> **37 chemins** : `auth` (6), `phones` (5), `wallets` (2), `transfers` (2),
+> **Notifications (BE-040/041/042)** : port `Notifier` + canaux (in-app table
+> `notifications`, bus temps réel, SMTP, FCM stub, log). `NotificationDispatcher` mappe
+> les événements de l'outbox (transfert / cash / marchand / KYC) en notifications,
+> branché post-commit via `NotifyingEventPublisher` (best-effort). Blueprint
+> `/v1/notifications` (liste + curseur + `unread`, `/<id>/read`, `/read-all`) et
+> **SSE `/v1/notifications/stream`** (`RedisNotificationBus` pub/sub, rattrapage
+> `Last-Event-ID` depuis le journal, keep-alive).
+> **38 chemins** : `auth` (6), `phones` (5), `wallets` (2), `transfers` (2),
 > `payment-requests` (4), `merchant` (4), `merchant-payments` (1), `statement` (1),
-> `receipts` (1), `notifications` (3), `withdrawals` (2), `agent` (2), `kyc` (4),
+> `receipts` (1), `notifications` (4), `withdrawals` (2), `agent` (2), `kyc` (4),
 > `admin/kyc` (1) + `/health*`, `/openapi.json`, `/docs`, `/redoc`.
 > **Tout vérifié end-to-end via docker compose** : cash, KYC, demandes de paiement,
 > paiement marchand, annulation / remboursement (soldes restaurés, rejeu → 409),
-> reçus (out/in, 404 pour un tiers, REVERSED) ; un transfert de 15 000 génère
-> « Argent reçu » (destinataire) + « Transfert envoyé » (émetteur), un dépôt agent
-> génère « Dépôt reçu », marquage lu OK.
-> 637 tests unit + 11 d'intégration (Postgres réel), couverture 100 % domain+application,
+> reçus (out/in, 404 pour un tiers, REVERSED) ; un transfert génère « Argent reçu » /
+> « Transfert envoyé », un dépôt agent « Dépôt reçu » ; **SSE** : `retry` + trame
+> `event: notification` (rattrapage `Last-Event-ID`) + `: keep-alive`, en-têtes
+> `text/event-stream` corrects.
+> 647 tests unit + 11 d'intégration (Postgres réel), couverture 100 % domain+application,
 > ruff + mypy stricts.
-> **Prochaine : BE-042 (SSE `/v1/notifications/stream`, Redis pub/sub),
-> BE-043 (test de course wallet), BE-044/045 (jobs d'expiration & réconciliation),
-> BE-046 (seed de démo).**
+> **Prochaine : BE-043 (test de course wallet), BE-044/045 (jobs d'expiration &
+> réconciliation), BE-046 (seed de démo), BE-047+ (Phase 3 : coffre / épargne / carte).**
 
 Ce fichier est la vue d'ensemble. Le détail (une ligne = une tâche cochable) est dans
 `docs/tasks/`. On avance **dans l'ordre des identifiants** à l'intérieur de chaque lot,
@@ -73,7 +75,7 @@ mais les lots Backend / Infra avancent en priorité car Web et Mobile en dépend
 | Lot | Fichier détaillé | Fait / Total |
 |-----|------------------|--------------|
 | Fondations & docs | ce fichier | 6 / 6 |
-| Backend (BE) | [docs/tasks/backend.md](docs/tasks/backend.md) | 41 / 78 |
+| Backend (BE) | [docs/tasks/backend.md](docs/tasks/backend.md) | 42 / 78 |
 | Web (WEB) | [docs/tasks/frontend-web.md](docs/tasks/frontend-web.md) | 0 / 46 |
 | Mobile (MOB) | [docs/tasks/mobile.md](docs/tasks/mobile.md) | 0 / 44 |
 | Infra & CI/CD (INFRA) | [docs/tasks/infra.md](docs/tasks/infra.md) | 2 / 24 |
@@ -97,7 +99,7 @@ Domaine partagé (Money, Currency, Country), identité (User, PhoneNumber ≤ 5)
 auth (téléphone + PIN + OTP, JWT), erreurs & idempotence, tests unitaires du domaine.
 → `BE-001` à `BE-024`.
 
-## Phase 2 — Cas d'usage cœur (en cours : 17 / 22)
+## Phase 2 — Cas d'usage cœur (en cours : 18 / 22)
 
 Ouverture de compte, KYC par paliers, transfert P2P (frais 0,8 %), paiement marchand par
 QR, dépôt cash agent, retrait cash agent (code de retrait), annulation / remboursement,

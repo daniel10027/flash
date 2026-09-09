@@ -71,6 +71,19 @@ class SqlAlchemyNotificationRepository:
         with self._session_factory() as session:
             return [_to_domain(m) for m in session.scalars(stmt)]
 
+    def list_since(self, user_id: str, after_id: str, *, limit: int = 100) -> list[Notification]:
+        stmt = (
+            select(NotificationModel)
+            .where(
+                NotificationModel.user_id == user_id,
+                NotificationModel.id > after_id,
+            )
+            .order_by(NotificationModel.id.asc())
+            .limit(limit)
+        )
+        with self._session_factory() as session:
+            return [_to_domain(m) for m in session.scalars(stmt)]
+
     def count_unread(self, user_id: str) -> int:
         stmt = (
             select(func.count())

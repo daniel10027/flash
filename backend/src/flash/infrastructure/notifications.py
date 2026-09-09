@@ -19,7 +19,11 @@ from email.message import EmailMessage
 import structlog
 
 from flash.application.notifications.model import Notification
-from flash.application.notifications.ports import NotificationChannel, NotificationRepository
+from flash.application.notifications.ports import (
+    NotificationBus,
+    NotificationChannel,
+    NotificationRepository,
+)
 
 _log = structlog.get_logger("flash.notifications")
 
@@ -40,6 +44,16 @@ class InAppChannel(NotificationChannel):
 
     def send(self, notification: Notification) -> None:
         self._repo.add(notification)
+
+
+class BusChannel(NotificationChannel):
+    """Republie la notification sur le bus temps réel (pour les flux SSE)."""
+
+    def __init__(self, bus: NotificationBus) -> None:
+        self._bus = bus
+
+    def send(self, notification: Notification) -> None:
+        self._bus.publish(notification)
 
 
 class SmtpEmailChannel(NotificationChannel):
@@ -99,6 +113,7 @@ class FanOutNotifier:
 
 
 __all__ = [
+    "BusChannel",
     "FanOutNotifier",
     "FcmPushChannel",
     "InAppChannel",

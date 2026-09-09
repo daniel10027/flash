@@ -15,7 +15,7 @@ from flash.application.auth.tokens import TokenService
 from flash.application.cash.ports import WithdrawalCodes
 from flash.application.identity.documents import DocumentStore
 from flash.application.notifications.dispatcher import NotificationDispatcher
-from flash.application.notifications.ports import NotificationRepository
+from flash.application.notifications.ports import NotificationBus, NotificationRepository
 from flash.application.ports import OtpService
 from flash.application.services import AppServices
 from flash.domain.country.directory import CountryDirectory, StaticCountryDirectory
@@ -34,7 +34,9 @@ from flash.infrastructure.documents import LocalFilesystemDocumentStore
 from flash.infrastructure.events import LoggingEventPublisher, NotifyingEventPublisher
 from flash.infrastructure.ids import Uuid7Generator
 from flash.infrastructure.limits import NullLimitCounter, build_limit_repository
+from flash.infrastructure.notification_bus import RedisNotificationBus
 from flash.infrastructure.notifications import (
+    BusChannel,
     FanOutNotifier,
     FcmPushChannel,
     InAppChannel,
@@ -63,6 +65,7 @@ class Deps:
     admin_api_key: str
     reversal_window: timedelta
     notifications: NotificationRepository
+    notification_bus: NotificationBus
 
 
 def build_app_services(settings: Settings) -> AppServices:
@@ -73,6 +76,7 @@ def build_app_services(settings: Settings) -> AppServices:
     notifier = FanOutNotifier(
         [
             InAppChannel(SqlAlchemyNotificationRepository(session_factory)),
+            BusChannel(RedisNotificationBus(get_redis())),
             SmtpEmailChannel(
                 host=settings.smtp_host, port=settings.smtp_port, sender=settings.smtp_from
             ),
@@ -115,6 +119,7 @@ def build_deps(settings: Settings, *, tokens: TokenService) -> Deps:
         admin_api_key=settings.admin_api_key,
         reversal_window=timedelta(seconds=settings.reversal_window_seconds),
         notifications=SqlAlchemyNotificationRepository(get_session_factory()),
+        notification_bus=RedisNotificationBus(get_redis()),
     )
 
 

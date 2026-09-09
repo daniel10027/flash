@@ -136,9 +136,15 @@ Chaque tâche livrée : code complet + tests + doc, **zéro `TODO`**.
   `wallets`, `transfers` (+ `cancel`), `payment-requests`, `merchant` / `merchant-payments`,
   `withdrawals` / `agent` (cash), `kyc` / `admin/kyc`, `statement`, `receipts`,
   `notifications`. Schémas pydantic in/out + OpenAPI 3.1 (`/docs`, `/redoc`,
-  `docs/api/openapi.json`, 37 chemins).
-- [ ] **BE-042** · SSE `/v1/notifications/stream` (auth, keep‑alive, reprise par
-  `Last-Event-ID`, backend Redis pub/sub).
+  `docs/api/openapi.json`, 38 chemins).
+- [x] **BE-042** · SSE `GET /v1/notifications/stream` (auth). `NotificationStream`
+  compose : rattrapage depuis le journal si `Last-Event-ID` (id > last, ordre chrono,
+  dédoublonné avec le live), puis abonnement au bus temps réel. Bus
+  `RedisNotificationBus` (pub/sub `flash:notif:<user>`, keep-alive `: keep-alive` à
+  chaque expiration du poll) branché comme canal (`BusChannel`) du `FanOutNotifier` —
+  fonctionne donc entre workers gunicorn (classe worker asynchrone requise en prod).
+  En-têtes `text/event-stream`, `Cache-Control: no-cache`, `X-Accel-Buffering: no`,
+  `retry: 3000`.
 - [ ] **BE-043** · Verrous & concurrence : verrou pessimiste par wallet dans l'UoW,
   test de course (deux transferts simultanés ne doivent pas passer le solde en négatif).
 - [ ] **BE-044** · Job `expire_withdrawal_codes` (planifié) + `flask flash run-jobs`.

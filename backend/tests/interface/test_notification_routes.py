@@ -116,3 +116,55 @@ class TestNotificationEndpoints:
             headers=auth,
         )
         assert resp.status_code == 200 and resp.get_json()["updated"] is False
+
+
+class TestNotificationStream:
+    def test_stream_requires_auth(self, client: FlaskClient) -> None:
+        assert client.get("/v1/notifications/stream").status_code == 401
+
+    def test_stream_emits_sse_frames_for_new_notification(
+        self, client: FlaskClient, uow: InMemoryUnitOfWork
+    ) -> None:
+        sender = _onboard(client, "+2250700000001", "sse-s-longenough")
+        recipient = _onboard(client, "+2250700000002", "sse-r-longenough")
+        _fund(uow, "+2250700000001", 100_000)
+        client.post(
+            "/v1/transfers",
+            json={"recipient_phone_number": "+2250700000002", "amount_minor": 7_000},
+            headers={**sender, "Idempotency-Key": "sse-trx-0001"},
+        )
+
+        # sans Last-Event-ID le flux ne rejoue pas l'historique ; on en fournit un
+        # antérieur à toute notification pour forcer le rattrapage depuis le journal.
+        resp = client.get("/v1/notifications/stream", headers={**recipient, "Last-Event-ID": "0"})
+        assert resp.status_code == 200
+        assert resp.mimetype == "text/event-stream"
+        assert resp.headers["Cache-Control"] == "no-cache"
+        body = resp.get_data(as_text=True)
+        assert "event: notification" in body
+        assert '"kind": "MONEY_IN"' in body
+        assert ": keep-alive" in body  # tick final du bus de test
+
+    def test_stream_replays_missed_with_last_event_id(
+        self, client: FlaskClient, uow: InMemoryUnitOfWork
+    ) -> None:
+        sender = _onboard(client, "+2250700000001", "sse2-s-longenough")
+        recipient = _onboard(client, "+2250700000002", "sse2-r-longenough")
+        _fund(uow, "+2250700000001", 100_000)
+        for i in range(2):
+            client.post(
+                "/v1/transfers",
+                json={"recipient_phone_number": "+2250700000002", "amount_minor": 1_000},
+                headers={**sender, "Idempotency-Key": f"sse2-trx-{i}"},
+            )
+        inbox = client.get("/v1/notifications", headers=recipient).get_json()
+        oldest_id = inbox["items"][-1]["id"]  # la plus ancienne
+
+        resp = client.get(
+            "/v1/notifications/stream",
+            headers={**recipient, "Last-Event-ID": oldest_id},
+        )
+        body = resp.get_data(as_text=True)
+        # la plus ancienne est exclue (strictement supérieur), la seconde est rejouée
+        assert body.count("event: notification") == 1
+        assert f"id: {oldest_id}" not in body

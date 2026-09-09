@@ -13,7 +13,7 @@ from flash.infrastructure.codes import PepperedWithdrawalCodes
 from flash.infrastructure.documents import InMemoryDocumentStore
 from flash.infrastructure.events import NotifyingEventPublisher
 from flash.infrastructure.limits import NullLimitCounter, build_limit_repository
-from flash.infrastructure.notifications import FanOutNotifier, InAppChannel
+from flash.infrastructure.notifications import BusChannel, FanOutNotifier, InAppChannel
 from flash.infrastructure.pricing import build_pricing_repository
 from flash.interface.container import Deps
 from flash.interface.security.wiring import SecurityBundle
@@ -24,7 +24,10 @@ from tests.support.fakes import (
     RecordingEventPublisher,
     SeqIdGenerator,
 )
-from tests.support.notifications import InMemoryNotificationRepository
+from tests.support.notifications import (
+    InMemoryNotificationBus,
+    InMemoryNotificationRepository,
+)
 from tests.support.otp import RecordingOtpService
 from tests.support.repositories import InMemoryUnitOfWork
 from tests.support.security import build_test_security
@@ -41,8 +44,11 @@ def build_test_deps(
     the_clock = clock or FixedClock()
     ids = SeqIdGenerator()
     notifications = InMemoryNotificationRepository()
+    notification_bus = InMemoryNotificationBus()
     dispatcher = NotificationDispatcher(
-        notifier=FanOutNotifier([InAppChannel(notifications)]), clock=the_clock, ids=ids
+        notifier=FanOutNotifier([InAppChannel(notifications), BusChannel(notification_bus)]),
+        clock=the_clock,
+        ids=ids,
     )
     services = AppServices(
         uow=lambda: uow,
@@ -65,6 +71,7 @@ def build_test_deps(
         admin_api_key="test-admin-key",
         reversal_window=timedelta(hours=1),
         notifications=notifications,
+        notification_bus=notification_bus,
     )
 
 
