@@ -1,0 +1,79 @@
+name: web-ci
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "web/**"
+      - "docs/api/openapi.json"
+      - ".github/workflows/web-ci.yml"
+  pull_request:
+    paths:
+      - "web/**"
+      - "docs/api/openapi.json"
+      - ".github/workflows/web-ci.yml"
+
+concurrency:
+  group: web-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint-type-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Client API en phase avec l'OpenAPI
+        run: |
+          npm run gen:api
+          git diff --exit-code src/shared/api/schema.d.ts
+
+      - name: Lint + format
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: "Tests unitaires + couverture (WEB-T1, seuil 80 % sur features/)"
+        run: npm run test:cov
+
+      - name: Build
+        run: npm run build
+
+      - name: Cache des navigateurs Playwright
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('web/package-lock.json') }}
+          restore-keys: playwright-${{ runner.os }}-
+
+      - name: Playwright — navigateurs
+        run: npx playwright install --with-deps chromium
+
+      - name: "E2E (WEB-T2, parcours inscription → dépôt → transfert → retrait → paiement)"
+        run: npm run e2e
+
+      - name: "Lighthouse (WEB-T3, perf / a11y / best-practices / seo >= 90)"
+        run: npm run lighthouse
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: web-reports
+          path: |
+            web/playwright-report
+            web/coverage
+            web/.lighthouseci
+          if-no-files-found: ignore

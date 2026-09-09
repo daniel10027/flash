@@ -6,5 +6,6 @@ coverage
 *.local
 playwright-report
 test-results
+.lighthouseci
 
 *.tsbuildinfo

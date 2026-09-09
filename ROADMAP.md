@@ -263,9 +263,9 @@ mais les lots Backend / Infra avancent en priorité car Web et Mobile en dépend
 |-----|------------------|--------------|
 | Fondations & docs | ce fichier | 6 / 6 |
 | Backend (BE) | [docs/tasks/backend.md](docs/tasks/backend.md) | 70 / 78 + transverses BE-T1→T6 |
-| Web (WEB) | [docs/tasks/frontend-web.md](docs/tasks/frontend-web.md) | 46 / 49 (socle, client, agent, back-office) |
+| Web (WEB) | [docs/tasks/frontend-web.md](docs/tasks/frontend-web.md) | 49 / 49 ✅ (socle, client, agent, back-office, transverse) |
 | Mobile (MOB) | [docs/tasks/mobile.md](docs/tasks/mobile.md) | 0 / 44 |
-| Infra & CI/CD (INFRA) | [docs/tasks/infra.md](docs/tasks/infra.md) | 3 / 24 |
+| Infra & CI/CD (INFRA) | [docs/tasks/infra.md](docs/tasks/infra.md) | 4 / 24 |
 | Design & marque (DSN) | [docs/tasks/design.md](docs/tasks/design.md) | 0 / 10 |
 
 ---
@@ -311,7 +311,7 @@ console d'administration (support, conformité, litiges), export réglementaire.
 Auth, tableau de bord, transfert, QR (scan + présenter), historique + reçus, coffre,
 épargne, carte, gestion des 5 numéros, profil / KYC, **espace agent** (dépôt/retrait,
 float, commissions), **back‑office** (rôles). i18n FR (+ EN), thème bordeaux, PWA.
-→ `WEB-001` à `WEB-046`.
+→ `WEB-001` à `WEB-046` + transverse `WEB-T1`/`T2`/`T3`.
 
 ## Phase 6 — Mobile (Flutter)
 
@@ -397,7 +397,7 @@ confirm}` (réinitialisation par OTP, silencieuse si compte inconnu, révoque to
 sessions) ; `GET /v1/admin/kyc/submissions[?status]` + `/{case_id}` + `/{case_id}/documents/
 {kind}` (file des dossiers, détail, octets d'une pièce `no-store`).
 
-**Front web `web/` : `WEB-001` → `WEB-046` livrés** (46/49 ; reste transverse `WEB-047→049`).
+**Front web `web/` : `WEB-001` → `WEB-046` + transverse `WEB-T1`/`T2`/`T3` livrés (49/49 — Phase 5 terminée).**
 Vite + React 18 + TS strict ; `design/tokens.json` (bordeaux) → CSS ; `shared/ui` + galerie
 `/ui` ; client API typé généré depuis `openapi.json` + `apiFetch` (Idempotency-Key,
 X-Request-ID, refresh 401) ; session + garde de routes ; layout responsive ; i18n FR ;
@@ -411,12 +411,20 @@ oublié » (réinitialisation par OTP), notifications (SSE). **Espace agent** : 
 **Back-office** (arbre `/admin/*` séparé, clé `X-Admin-Key`) : comptes (gel, contre-passation
 forcée, notes), KYC (file par statut + aperçu des pièces + statuer), AML (statuer + export
 STR), référentiel (grille / plafonds), finance (balance, journal, export), audit (+ contrôle
-d'intégrité de la chaîne). `tsc` + ESLint + Prettier OK, 10 tests Vitest, build OK, e2e
-Playwright. Correctif backend au passage : `openapi.py` hisse les `$defs` Pydantic dans
-`components/schemas`.
+d'intégrité de la chaîne). Correctif backend au passage : `openapi.py` hisse les `$defs`
+Pydantic dans `components/schemas`.
 
-Prochaine : transverse web (`WEB-047` tests E2E parcours, `WEB-048` perf/Lighthouse,
-`WEB-049` i18n complète), puis `MOB-*`, `INFRA` (CD/VPS), `DSN-*`.
+**Transverse web `WEB-T1`/`T2`/`T3` livrés** : couverture Vitest `provider: v8` sur
+`src/features/**` (seuils 80/70/80 dans `vite.config.ts`), 51 tests dans
+`tests/features/` (~92 % stmts) ; `e2e/journey.spec.ts` — parcours inscription → dépôt
+agent → transfert → retrait → paiement marchand avec banque simulée en mémoire
+(`page.route`, solde vérifié à chaque étape, `serviceWorkers: 'block'`) ; Lighthouse CI
+(`lighthouserc.json`, `@lhci/cli`, `staticDistDir`) — `performance`/`accessibility`/
+`best-practices`/`seo` ≥ 0,9 en `error` (obtenu 1,0). `public/config.js` (repli config
+runtime). `.github/workflows/web-ci.yml` (INFRA-008) : gen:api diff, lint, typecheck,
+`test:cov`, build, Playwright (cache navigateurs), Lighthouse.
+
+Prochaine : `MOB-*` (app Flutter), `INFRA` (CD/VPS), `DSN-*` (identité visuelle).
 
 ✅ Phase 2 livrée : `BE-029` (KYC), `BE-032` (demandes de paiement), `BE-033` (marchand
 QR), `BE-034` → `BE-036` (cash agent), `BE-037` (annulation / remboursement), `BE-038`

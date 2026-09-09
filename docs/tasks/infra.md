@@ -26,8 +26,12 @@ Cible : dev local en Docker (API + Web + Postgres + Redis + Mailhog), production
   (services Postgres + Redis → tests d'intégration & de migrations inclus), seuil
   `fail_under = 90`, diff `docs/api/openapi.json` ↔ `flash openapi dump`, upload
   `coverage.xml`. Cache pip sur `pyproject.toml`, `concurrency` par ref. (livré avec `BE-T1`)
-- [ ] **INFRA-008** · `.github/workflows/web-ci.yml` : eslint, typecheck, vitest,
-  build, Playwright (navigateurs en cache), Lighthouse CI.
+- [x] **INFRA-008** · `.github/workflows/web-ci.yml` : gen:api (diff `schema.d.ts`),
+  `npm run lint` (eslint + prettier), `typecheck`, `test:cov` (couverture `features/`
+  seuil 80 %), `build`, Playwright (navigateurs en cache `~/.cache/ms-playwright`),
+  Lighthouse CI (`npm run lighthouse`). Upload `playwright-report` + `coverage` +
+  `.lighthouseci`. Cache npm sur `package-lock.json`, `concurrency` par ref. (livré
+  avec `WEB-T1`/`T2`/`T3`)
 - [ ] **INFRA-009** · `.github/workflows/mobile-ci.yml` : `flutter analyze`, `flutter
   test`, golden, build APK debug en artefact.
 - [ ] **INFRA-010** · `.github/workflows/openapi-check.yml` : régénère `openapi.json` et

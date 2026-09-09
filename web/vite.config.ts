@@ -65,5 +65,13 @@ export default defineConfig({
     setupFiles: ['./tests/setup.ts'],
     css: true,
     exclude: ['e2e/**', 'node_modules/**'],
+    coverage: {
+      provider: 'v8',
+      // WEB-T1 — la logique métier vit dans `features/` : hooks + briques d'écran.
+      include: ['src/features/**/*.{ts,tsx}'],
+      exclude: ['src/features/**/*.css', 'src/features/layout/AppLayout.tsx'],
+      reporter: ['text', 'html', 'lcov'],
+      thresholds: { statements: 80, branches: 70, functions: 80, lines: 80 },
+    },
   },
 });

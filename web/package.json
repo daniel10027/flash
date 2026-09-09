@@ -14,8 +14,10 @@
     "format": "prettier --write .",
     "typecheck": "tsc -b --noEmit",
     "test": "vitest run",
+    "test:cov": "vitest run --coverage",
     "test:watch": "vitest",
     "e2e": "playwright test",
+    "lighthouse": "lhci autorun",
     "gen:api": "openapi-typescript ../docs/api/openapi.json -o src/shared/api/schema.d.ts",
     "tokens": "node scripts/build-tokens.mjs"
   },
@@ -32,6 +34,7 @@
     "zustand": "^4.5.5"
   },
   "devDependencies": {
+    "@lhci/cli": "^0.14.0",
     "@playwright/test": "^1.47.2",
     "@testing-library/jest-dom": "^6.5.0",
     "@testing-library/react": "^16.0.1",
@@ -43,6 +46,7 @@
     "@typescript-eslint/eslint-plugin": "^8.8.0",
     "@typescript-eslint/parser": "^8.8.0",
     "@vitejs/plugin-react": "^4.3.2",
+    "@vitest/coverage-v8": "^2.1.9",
     "eslint": "^8.57.1",
     "eslint-plugin-jsx-a11y": "^6.10.0",
     "eslint-plugin-react-hooks": "^4.6.2",

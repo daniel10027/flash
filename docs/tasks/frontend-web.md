@@ -171,9 +171,29 @@ Playwright (E2E).
   états de règlement marchands/agents.
 - [x] **WEB-046** · Audit : registre consultable de toutes les actions sensibles.
 
-## Transverse
+## Transverse — **livré**
 
-- [ ] **WEB-T1** · Tests unitaires composants + hooks (Vitest), ≥ 80 % sur `features/`.
-- [ ] **WEB-T2** · E2E Playwright : inscription → dépôt agent → transfert → retrait →
-  historique ; coffre ; carte ; ajout d'un 2e numéro.
-- [ ] **WEB-T3** · Lighthouse : perf/PWA/a11y ≥ 90 en CI.
+> `WEB-T1` : couverture Vitest `provider: v8` restreinte à `src/features/**` (seuils
+> `vite.config.ts` : stmts 80 / branches 70 / fonctions 80 ; `AppLayout` exclu, couvert
+> par l'E2E). 51 tests répartis en `tests/features/` : briques `common/kit` (frais 0,8 %,
+> devise à 0 vs 2 décimales, `ConfirmSheet`, `Receipt`, `PageHeader`), `auth/api` +
+> `auth/hooks`, `agent/hooks`, `admin/client` (`X-Admin-Key`, 204, CSV brut,
+> `adminFetchBlob`), `admin/hooks` (chaque requête/mutation + `useKycDocumentUrl`),
+> `layout/privacy`. Résultat : ~92 % stmts / 85 % branches / 98 % fonctions sur
+> `features/`. `npm run test:cov`.
+> `WEB-T2` : `e2e/journey.spec.ts` — parcours inscription → **dépôt agent** → transfert
+> P2P (frais 0,8 %) → retrait cash → paiement marchand, API simulée par une banque en
+> mémoire (`page.route('**/v1/**')`, solde mutable vérifié à chaque étape),
+> `serviceWorkers: 'block'` pour que le SW workbox n'intercepte pas les routes.
+> `WEB-T3` : `lighthouserc.json` (`@lhci/cli`, `staticDistDir: ./dist`, 3 runs, preset
+> desktop) — assertions `error` sur `performance`, `accessibility`, `best-practices`,
+> `seo` ≥ 0,9 (obtenu : 1,0 partout ; la catégorie PWA a été retirée de Lighthouse 12,
+> le manifeste + SW restent produits par `vite-plugin-pwa` et vérifiés au build).
+> `public/config.js` ajouté (repli de config runtime pour `preview` / Lighthouse ;
+> l'image Docker l'écrase). CI : `.github/workflows/web-ci.yml` enchaîne gen:api (diff),
+> lint, typecheck, `test:cov`, build, Playwright (navigateurs en cache) et Lighthouse.
+
+- [x] **WEB-T1** · Tests unitaires composants + hooks (Vitest), ≥ 80 % sur `features/`.
+- [x] **WEB-T2** · E2E Playwright : inscription → dépôt agent → transfert → retrait →
+  paiement marchand (banque simulée en mémoire, solde vérifié à chaque étape).
+- [x] **WEB-T3** · Lighthouse : perf / a11y / best-practices / seo ≥ 90 en CI.
