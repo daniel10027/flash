@@ -39,16 +39,27 @@ Cible : dev local en Docker (API + Web + Postgres + Redis + Mailhog), production
   Lighthouse CI (`npm run lighthouse`). Upload `playwright-report` + `coverage` +
   `.lighthouseci`. Cache npm sur `package-lock.json`, `concurrency` par ref. (livré
   avec `WEB-T1`/`T2`/`T3`)
-- [ ] **INFRA-009** · `.github/workflows/mobile-ci.yml` : `flutter analyze`, `flutter
-  test`, golden, build APK debug en artefact.
-- [ ] **INFRA-010** · `.github/workflows/openapi-check.yml` : régénère `openapi.json` et
-  échoue si divergence avec le fichier commité ; schemathesis contre l'API de test.
-- [ ] **INFRA-011** · Build & push images : `ghcr.io/<org>/flash-api` et `flash-web`,
-  taggées par `sha` + `latest` sur `main`. SBOM + scan Trivy (échec sur CVE haute).
-- [ ] **INFRA-012** · `pre-commit` (ruff, black/ruff-format, end-of-file, detect-secrets,
-  hadolint) + doc d'installation.
-- [ ] **INFRA-013** · Protection de branche `main` : CI verte obligatoire, 1 review,
-  pas de push direct.
+- [x] **INFRA-009** · `.github/workflows/mobile-ci.yml` : `dart format --set-exit-if-changed`,
+  `flutter analyze`, `flutter test --coverage` (widget + provider + golden), `flutter
+  build apk --debug --flavor dev` en artefact + `lcov.info`. Cache Flutter, `paths:
+  mobile/**` (dormant tant que `mobile/` n'existe pas).
+- [x] **INFRA-010** · `.github/workflows/openapi-check.yml` : job `spec-in-sync`
+  (`flash openapi dump` ↔ `docs/api/openapi.json`, message d'erreur explicite) + job
+  `contract` (`pytest -m contract`, schemathesis, services Postgres + Redis).
+- [x] **INFRA-011** · `.github/workflows/images.yml` : matrice `flash-api` (target
+  `prod`) / `flash-web` (target `runtime`), push `ghcr.io/<owner>/<image>` taggé
+  `sha-<long>` + `latest` (main) + `vX` (tags), cache `type=gha`, `provenance` +
+  `sbom` buildx, scan Trivy `HIGH,CRITICAL` `ignore-unfixed` `exit-code 1`, rapport
+  SARIF uploadé.
+- [x] **INFRA-012** · `.pre-commit-config.yaml` : hooks `pre-commit-hooks` (EOF,
+  trailing-whitespace, merge-conflict, check-yaml/json, large-files, line-ending),
+  `ruff` + `ruff-format` (backend), `prettier` (web), `hadolint` (Dockerfile),
+  `detect-secrets` (`--baseline .secrets.baseline`, révisions Alembic exclues).
+  Instructions d'installation en tête de fichier.
+- [x] **INFRA-013** · `.github/CODEOWNERS` + `.github/BRANCH_PROTECTION.md` +
+  `.github/branch-protection.json` (payload `gh api -X PUT .../branches/main/protection`) :
+  4 checks requis, `strict`, 1 review CODEOWNERS avec `dismiss_stale`, historique
+  linéaire, `enforce_admins`, pas de force-push ni suppression.
 
 ## CD & VPS (INFRA-014 → INFRA-021)
 
