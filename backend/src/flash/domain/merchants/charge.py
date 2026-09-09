@@ -14,6 +14,7 @@ from flash.domain.merchants.events import (
     MerchantChargeExpired,
     MerchantChargeOpened,
 )
+from flash.domain.merchants.merchant import PaymentChannel
 from flash.domain.shared.errors import InvalidAccountState, InvalidInput
 from flash.domain.shared.events import EventRecorder
 from flash.domain.shared.identifiers import EntityId
@@ -41,6 +42,8 @@ class MerchantCharge(EventRecorder):
         expires_at: datetime,
         paid_by: EntityId | None = None,
         ledger_transaction_id: EntityId | None = None,
+        sub_account_id: EntityId | None = None,
+        channel: PaymentChannel = PaymentChannel.QR,
     ) -> None:
         super().__init__()
         if amount.currency.code != currency_code:
@@ -59,6 +62,8 @@ class MerchantCharge(EventRecorder):
         self.expires_at = expires_at
         self.paid_by = paid_by
         self.ledger_transaction_id = ledger_transaction_id
+        self.sub_account_id = sub_account_id
+        self.channel = channel
 
     @classmethod
     def open(
@@ -70,6 +75,8 @@ class MerchantCharge(EventRecorder):
         reference: str,
         now: datetime,
         expires_at: datetime,
+        sub_account_id: EntityId | None = None,
+        channel: PaymentChannel = PaymentChannel.QR,
     ) -> MerchantCharge:
         charge = cls(
             id=charge_id,
@@ -80,6 +87,8 @@ class MerchantCharge(EventRecorder):
             status=MerchantChargeStatus.PENDING,
             created_at=now,
             expires_at=expires_at,
+            sub_account_id=sub_account_id,
+            channel=channel,
         )
         charge.record_event(
             MerchantChargeOpened(

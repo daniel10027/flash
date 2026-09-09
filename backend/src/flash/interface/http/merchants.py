@@ -44,6 +44,14 @@ from flash.application.merchants.settlement import (
     SettleMerchantNow,
     SettleMerchantNowCommand,
 )
+from flash.application.merchants.sub_accounts import (
+    CreateSubAccount,
+    CreateSubAccountCommand,
+    ListSubAccounts,
+    ListSubAccountsCommand,
+    UpdateSubAccount,
+    UpdateSubAccountCommand,
+)
 from flash.application.merchants.webhooks import (
     ClearMerchantWebhook,
     ClearMerchantWebhookCommand,
@@ -86,6 +94,7 @@ class CreateChargeRequest(ApiModel):
     amount_minor: int = Field(gt=0, examples=[25_000])
     reference: str = Field(min_length=1, max_length=80, examples=["Table 4"])
     ttl_minutes: int = Field(default=60, ge=1, le=1440)
+    sub_account_id: str | None = Field(default=None, max_length=36)
 
 
 @merchant_bp.post("/charges")
@@ -105,9 +114,79 @@ def create_charge() -> tuple[Response, int]:
             amount_minor=body.amount_minor,
             reference=body.reference,
             ttl_minutes=body.ttl_minutes,
+            sub_account_id=body.sub_account_id,
         )
     )
     return jsonify(view.to_dict()), 201
+
+
+# ------------------------------------------------------------------ caisses / employés
+class SubAccountRequest(ApiModel):
+    kind: str = Field(examples=["TILL", "EMPLOYEE"])
+    label: str = Field(min_length=1, max_length=60, examples=["Caisse 1"])
+    external_ref: str | None = Field(default=None, max_length=40)
+
+
+class UpdateSubAccountRequest(ApiModel):
+    label: str | None = Field(default=None, min_length=1, max_length=60)
+    external_ref: str | None = Field(default=None, max_length=40)
+    active: bool | None = None
+
+
+@merchant_bp.post("/sub-accounts")
+@require_auth
+@rate_limit(name="merchant-sub-account", limit=30, per_seconds=60, subject="user")
+@document(
+    summary="Créer une caisse ou un employé (attribution des encaissements)",
+    tags=["merchants"],
+    status_code=201,
+    request_schema=SubAccountRequest.model_json_schema(),
+)
+def create_sub_account() -> tuple[Response, int]:
+    body = SubAccountRequest.model_validate(_json())
+    view = CreateSubAccount(services=deps().services).execute(
+        CreateSubAccountCommand(
+            merchant_user_id=str(current_principal().user_id),
+            kind=body.kind,
+            label=body.label,
+            external_ref=body.external_ref,
+        )
+    )
+    return jsonify(view.to_dict()), 201
+
+
+@merchant_bp.get("/sub-accounts")
+@require_auth
+@document(summary="Lister les caisses / employés du marchand", tags=["merchants"])
+def list_sub_accounts() -> tuple[Response, int]:
+    views = ListSubAccounts(services=deps().services).execute(
+        ListSubAccountsCommand(
+            merchant_user_id=str(current_principal().user_id),
+            include_inactive=request.args.get("include_inactive", "1") != "0",
+        )
+    )
+    return jsonify({"sub_accounts": [v.to_dict() for v in views]}), 200
+
+
+@merchant_bp.patch("/sub-accounts/<sub_account_id>")
+@require_auth
+@document(
+    summary="Mettre à jour une caisse / un employé (libellé, activation)",
+    tags=["merchants"],
+    request_schema=UpdateSubAccountRequest.model_json_schema(),
+)
+def update_sub_account(sub_account_id: str) -> tuple[Response, int]:
+    body = UpdateSubAccountRequest.model_validate(_json())
+    view = UpdateSubAccount(services=deps().services).execute(
+        UpdateSubAccountCommand(
+            merchant_user_id=str(current_principal().user_id),
+            sub_account_id=sub_account_id,
+            label=body.label,
+            external_ref=body.external_ref,
+            active=body.active,
+        )
+    )
+    return jsonify(view.to_dict()), 200
 
 
 # ------------------------------------------------------------------ KYB
@@ -228,7 +307,10 @@ def merchant_poster() -> Response:
 @document(summary="Encaissements du marchand", tags=["merchants"])
 def merchant_payments() -> tuple[Response, int]:
     lines = ListMerchantPayments(services=deps().services).execute(
-        ListMerchantPaymentsCommand(merchant_user_id=str(current_principal().user_id))
+        ListMerchantPaymentsCommand(
+            merchant_user_id=str(current_principal().user_id),
+            sub_account_id=request.args.get("sub_account_id"),
+        )
     )
     return jsonify({"payments": [line.to_dict() for line in lines]}), 200
 
@@ -330,6 +412,7 @@ class PayMerchantRequest(ApiModel):
     merchant_id: str = Field(min_length=8, max_length=64)
     amount_minor: int | None = Field(default=None, gt=0, examples=[25_000])
     charge_id: str | None = Field(default=None, min_length=8, max_length=64)
+    sub_account_id: str | None = Field(default=None, max_length=36)
 
 
 @merchant_payments_bp.post("")
@@ -351,6 +434,7 @@ def pay_merchant() -> tuple[Response, int]:
             idempotency_key=_idem_key(),
             amount_minor=body.amount_minor,
             charge_id=body.charge_id,
+            sub_account_id=body.sub_account_id,
         )
     )
     return jsonify(receipt.to_dict()), 201

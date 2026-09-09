@@ -25,6 +25,7 @@ from flash.domain.merchants.charge import MerchantCharge, MerchantChargeStatus
 from flash.domain.merchants.merchant import Merchant
 from flash.domain.merchants.payment import MerchantPayment
 from flash.domain.merchants.settlement import MerchantSettlement
+from flash.domain.merchants.sub_account import MerchantSubAccount
 from flash.domain.merchants.webhook import MerchantWebhookDelivery
 from flash.domain.operators.transfer import OperatorTransfer
 from flash.domain.payments.request import PaymentRequest, PaymentRequestStatus
@@ -485,6 +486,33 @@ class InMemoryMerchantChargeRepository(_Tracking):
     def save(self, charge: MerchantCharge) -> None:
         self._by_id[str(charge.id)] = charge
         self._track(charge)
+
+
+class InMemoryMerchantSubAccountRepository(_Tracking):
+    def __init__(self) -> None:
+        super().__init__()
+        self._by_id: dict[str, MerchantSubAccount] = {}
+
+    def get(self, sub_account_id: EntityId) -> MerchantSubAccount | None:
+        sub = self._by_id.get(str(sub_account_id))
+        if sub is not None:
+            self._track(sub)
+        return sub
+
+    def list_for_merchant(self, merchant_id: EntityId) -> list[MerchantSubAccount]:
+        rows = [s for s in self._by_id.values() if s.merchant_id == merchant_id]
+        rows.sort(key=lambda s: s.created_at)
+        for s in rows:
+            self._track(s)
+        return rows
+
+    def add(self, sub_account: MerchantSubAccount) -> None:
+        self._by_id[str(sub_account.id)] = sub_account
+        self._track(sub_account)
+
+    def save(self, sub_account: MerchantSubAccount) -> None:
+        self._by_id[str(sub_account.id)] = sub_account
+        self._track(sub_account)
 
 
 class InMemoryMerchantPaymentRepository(_Tracking):
@@ -973,6 +1001,7 @@ class InMemoryUnitOfWork:
         merchant_charges: InMemoryMerchantChargeRepository | None = None,
         merchant_payments: InMemoryMerchantPaymentRepository | None = None,
         merchant_settlements: InMemoryMerchantSettlementRepository | None = None,
+        merchant_sub_accounts: InMemoryMerchantSubAccountRepository | None = None,
         merchant_api_keys: InMemoryMerchantApiKeyRepository | None = None,
         merchant_webhooks: InMemoryMerchantWebhookDeliveryRepository | None = None,
         vaults: InMemoryVaultRepository | None = None,
@@ -996,6 +1025,9 @@ class InMemoryUnitOfWork:
         self.merchant_payments = merchant_payments or InMemoryMerchantPaymentRepository()
         self.merchant_settlements = (
             merchant_settlements or InMemoryMerchantSettlementRepository()
+        )
+        self.merchant_sub_accounts = (
+            merchant_sub_accounts or InMemoryMerchantSubAccountRepository()
         )
         self.merchant_api_keys = (
             merchant_api_keys or InMemoryMerchantApiKeyRepository()
@@ -1050,6 +1082,7 @@ class InMemoryUnitOfWork:
             *self.merchant_charges.seen,
             *self.merchant_payments.seen,
             *self.merchant_settlements.seen,
+            *self.merchant_sub_accounts.seen,
             *self.merchant_api_keys.seen,
             *self.merchant_webhooks.seen,
             *self.vaults.seen,

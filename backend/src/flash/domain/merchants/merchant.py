@@ -9,12 +9,14 @@ marchand (``MERCHANT_PAYABLE`` → ``BANK_SETTLEMENT``).
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from datetime import datetime, timedelta
 from decimal import ROUND_FLOOR
 from enum import StrEnum
 
 from flash.domain.merchants.bank_account import BankAccount
 from flash.domain.merchants.events import (
+    MerchantChannelFeeChanged,
     MerchantEnrolled,
     MerchantKybApproved,
     MerchantKybRejected,
@@ -34,6 +36,13 @@ _MAX_FEE_BPS = 1_000  # 10 %
 class MerchantStatus(StrEnum):
     ACTIVE = "ACTIVE"
     SUSPENDED = "SUSPENDED"
+
+
+class PaymentChannel(StrEnum):
+    """Canal d'encaissement — sert aux **frais négociés par canal** (reste de BE-068)."""
+
+    QR = "QR"  # QR statique / dynamique, encaissement en présentiel
+    API = "API"  # API marchande publique ``/merchant/v1`` (e-commerce, à distance)
 
 
 class KybStatus(StrEnum):
@@ -80,12 +89,19 @@ class Merchant(EventRecorder):
         kyb_reason: str | None = None,
         webhook_url: str | None = None,
         webhook_secret: str | None = None,
+        channel_fees: Mapping[str, int] | None = None,
     ) -> None:
         super().__init__()
         if not display_name.strip():
             raise ValueError("Le nom commercial est requis.")
         if not 0 <= fee_bps <= _MAX_FEE_BPS:
             raise ValueError("fee_bps hors bornes (0 à 1000).")
+        self.channel_fees: dict[str, int] = {}
+        for raw_channel, bps in (channel_fees or {}).items():
+            channel = PaymentChannel(raw_channel)
+            if not 0 <= bps <= _MAX_FEE_BPS:
+                raise ValueError("fee_bps négocié hors bornes (0 à 1000).")
+            self.channel_fees[channel.value] = bps
         self.id = id
         self.user_id = user_id
         self.display_name = display_name.strip()
@@ -140,10 +156,49 @@ class Merchant(EventRecorder):
         if self.status is not MerchantStatus.ACTIVE:
             raise InvalidAccountState("Ce marchand est suspendu.", status=self.status.value)
 
-    def fee_for(self, amount: Money) -> Money:
+    def effective_fee_bps(self, channel: PaymentChannel = PaymentChannel.QR) -> int:
+        """Commission applicable : override négocié du canal, sinon ``fee_bps``."""
+        return self.channel_fees.get(channel.value, self.fee_bps)
+
+    def fee_for(
+        self, amount: Money, *, channel: PaymentChannel = PaymentChannel.QR
+    ) -> Money:
         if amount.currency != self.currency:
             raise ValueError("Devise du montant différente de celle du marchand.")
-        return amount.percentage(self.fee_bps, rounding=ROUND_FLOOR)
+        return amount.percentage(
+            self.effective_fee_bps(channel), rounding=ROUND_FLOOR
+        )
+
+    def set_channel_fee(
+        self, *, channel: PaymentChannel, fee_bps: int, now: datetime
+    ) -> None:
+        """Fixe une commission négociée pour un canal (back-office)."""
+        if not 0 <= fee_bps <= _MAX_FEE_BPS:
+            raise InvalidInput("fee_bps négocié hors bornes (0 à 1000).")
+        self.channel_fees[channel.value] = fee_bps
+        self.record_event(
+            MerchantChannelFeeChanged(
+                occurred_at=now,
+                aggregate_id=str(self.id),
+                merchant_id=str(self.id),
+                channel=channel.value,
+                fee_bps=fee_bps,
+            )
+        )
+
+    def clear_channel_fee(self, *, channel: PaymentChannel, now: datetime) -> None:
+        """Retire l'override d'un canal : retour au ``fee_bps`` par défaut."""
+        if self.channel_fees.pop(channel.value, None) is None:
+            raise InvalidInput("Aucune commission négociée pour ce canal.")
+        self.record_event(
+            MerchantChannelFeeChanged(
+                occurred_at=now,
+                aggregate_id=str(self.id),
+                merchant_id=str(self.id),
+                channel=channel.value,
+                fee_bps=None,
+            )
+        )
 
     def suspend(self, reason: str, now: datetime) -> None:
         if self.status is MerchantStatus.SUSPENDED:
@@ -295,4 +350,10 @@ class Merchant(EventRecorder):
         return f"Merchant(id={self.id!s}, name={self.display_name!r}, fee_bps={self.fee_bps})"
 
 
-__all__ = ["KybStatus", "Merchant", "MerchantStatus", "SettlementFrequency"]
+__all__ = [
+    "KybStatus",
+    "Merchant",
+    "MerchantStatus",
+    "PaymentChannel",
+    "SettlementFrequency",
+]

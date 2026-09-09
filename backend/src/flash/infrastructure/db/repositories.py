@@ -28,6 +28,7 @@ from flash.domain.merchants.charge import MerchantCharge
 from flash.domain.merchants.merchant import Merchant
 from flash.domain.merchants.payment import MerchantPayment
 from flash.domain.merchants.settlement import MerchantSettlement
+from flash.domain.merchants.sub_account import MerchantSubAccount
 from flash.domain.merchants.webhook import MerchantWebhookDelivery
 from flash.domain.operators.transfer import OperatorTransfer
 from flash.domain.payments.request import PaymentRequest
@@ -55,6 +56,7 @@ from flash.infrastructure.db.models import (
     MerchantModel,
     MerchantPaymentModel,
     MerchantSettlementModel,
+    MerchantSubAccountModel,
     MerchantWebhookDeliveryModel,
     OperatorTransferModel,
     PaymentRequestModel,
@@ -588,6 +590,46 @@ class SqlAlchemyMerchantChargeRepository:
     def save(self, charge: MerchantCharge) -> None:
         self._session.merge(mappers.merchant_charge_to_model(charge))
         self._tracker.track(charge)
+
+
+class SqlAlchemyMerchantSubAccountRepository:
+    def __init__(self, session: Session, tracker: _AggregateTracker) -> None:
+        self._session = session
+        self._tracker = tracker
+
+    def _load(
+        self, model: MerchantSubAccountModel | None
+    ) -> MerchantSubAccount | None:
+        if model is None:
+            return None
+        sub = mappers.merchant_sub_account_to_domain(model)
+        self._tracker.track(sub)
+        return sub
+
+    def get(self, sub_account_id: EntityId) -> MerchantSubAccount | None:
+        return self._load(
+            self._session.get(MerchantSubAccountModel, str(sub_account_id))
+        )
+
+    def list_for_merchant(self, merchant_id: EntityId) -> list[MerchantSubAccount]:
+        stmt = (
+            select(MerchantSubAccountModel)
+            .where(MerchantSubAccountModel.merchant_id == str(merchant_id))
+            .order_by(MerchantSubAccountModel.created_at.asc())
+        )
+        return [
+            s
+            for s in (self._load(m) for m in self._session.scalars(stmt))
+            if s is not None
+        ]
+
+    def add(self, sub_account: MerchantSubAccount) -> None:
+        self._session.add(mappers.merchant_sub_account_to_model(sub_account))
+        self._tracker.track(sub_account)
+
+    def save(self, sub_account: MerchantSubAccount) -> None:
+        self._session.merge(mappers.merchant_sub_account_to_model(sub_account))
+        self._tracker.track(sub_account)
 
 
 class SqlAlchemyMerchantPaymentRepository:
@@ -1183,6 +1225,7 @@ __all__ = [
     "SqlAlchemyMerchantPaymentRepository",
     "SqlAlchemyMerchantRepository",
     "SqlAlchemyMerchantSettlementRepository",
+    "SqlAlchemyMerchantSubAccountRepository",
     "SqlAlchemyMerchantWebhookDeliveryRepository",
     "SqlAlchemyOperatorTransferRepository",
     "SqlAlchemyPaymentRequestRepository",

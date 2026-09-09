@@ -21,8 +21,9 @@ from flash.domain.ledger.chart import AccountType
 from flash.domain.ledger.transaction import LedgerTransaction
 from flash.domain.limits.limits import KycPolicy, LimitPolicy
 from flash.domain.merchants.charge import MerchantCharge
-from flash.domain.merchants.merchant import Merchant
+from flash.domain.merchants.merchant import Merchant, PaymentChannel
 from flash.domain.merchants.payment import MerchantPayment
+from flash.domain.merchants.sub_account import MerchantSubAccount
 from flash.domain.shared.errors import InvalidAccountState, InvalidInput
 from flash.domain.shared.identifiers import EntityId, IdempotencyKey
 from flash.domain.shared.money import Money
@@ -35,6 +36,23 @@ _MAX_CHARGE_TTL_MINUTES = 24 * 60
 class NotAMerchant(InvalidAccountState):
     code = "NOT_A_MERCHANT"
     message = "Ce compte n'est pas un marchand."
+
+
+def _resolve_sub_account(
+    uow: WorkUnitOfWork, *, merchant_id: EntityId, raw_id: str | None
+) -> MerchantSubAccount | None:
+    """Charge la caisse / l'employé demandé(e) et vérifie qu'il / elle appartient au
+    marchand et reste actif(ve)."""
+    if not raw_id:
+        return None
+    try:
+        sub = uow.merchant_sub_accounts.get(EntityId(raw_id))
+    except ValueError as exc:
+        raise InvalidInput("Identifiant de caisse / employé invalide.") from exc
+    if sub is None or sub.merchant_id != merchant_id:
+        raise InvalidInput("Cette caisse / cet employé n'appartient pas à ce marchand.")
+    sub.ensure_usable()
+    return sub
 
 
 # ============================================================== enrôlement
@@ -143,6 +161,8 @@ class CreateMerchantChargeCommand(Command):
     amount_minor: int
     reference: str
     ttl_minutes: int = 60
+    sub_account_id: str | None = None
+    channel: PaymentChannel = PaymentChannel.QR
 
 
 @dataclass(frozen=True, slots=True)
@@ -156,6 +176,8 @@ class MerchantChargeView:
     qr_payload: str
     created_at: str
     expires_at: str
+    sub_account_id: str | None
+    channel: str
 
     @classmethod
     def of(cls, charge: MerchantCharge) -> MerchantChargeView:
@@ -169,6 +191,8 @@ class MerchantChargeView:
             qr_payload=charge.dynamic_qr_payload(),
             created_at=charge.created_at.isoformat(),
             expires_at=charge.expires_at.isoformat(),
+            sub_account_id=str(charge.sub_account_id) if charge.sub_account_id else None,
+            channel=charge.channel.value,
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -182,6 +206,8 @@ class MerchantChargeView:
             "qr_payload": self.qr_payload,
             "created_at": self.created_at,
             "expires_at": self.expires_at,
+            "sub_account_id": self.sub_account_id,
+            "channel": self.channel,
         }
 
 
@@ -204,6 +230,9 @@ class CreateMerchantCharge(UseCase[CreateMerchantChargeCommand, MerchantChargeVi
             if merchant is None:
                 raise NotAMerchant()
             merchant.ensure_active()
+            sub = _resolve_sub_account(
+                uow, merchant_id=merchant.id, raw_id=command.sub_account_id
+            )
             charge = MerchantCharge.open(
                 charge_id=charge_id,
                 merchant_id=merchant.id,
@@ -211,6 +240,8 @@ class CreateMerchantCharge(UseCase[CreateMerchantChargeCommand, MerchantChargeVi
                 reference=command.reference,
                 now=now,
                 expires_at=now + timedelta(minutes=ttl),
+                sub_account_id=sub.id if sub is not None else None,
+                channel=command.channel,
             )
             uow.merchant_charges.add(charge)
             captured.append(MerchantChargeView.of(charge))
@@ -227,6 +258,8 @@ class PayMerchantCommand(Command):
     idempotency_key: str
     amount_minor: int | None = None
     charge_id: str | None = None
+    sub_account_id: str | None = None
+    channel: PaymentChannel = PaymentChannel.QR
 
 
 @dataclass(frozen=True, slots=True)
@@ -319,6 +352,16 @@ class PayMerchant(UseCase[PayMerchantCommand, MerchantPaymentReceipt]):
                 amount = Money(command.amount_minor or 0, merchant.currency)
                 reference = f"QR-{payment_id}"
 
+            # Attribution caisse / employé : celle de la demande, sinon celle passée
+            # explicitement pour un QR statique.
+            if charge is not None and charge.sub_account_id is not None:
+                sub_account_id: EntityId | None = charge.sub_account_id
+            else:
+                sub = _resolve_sub_account(
+                    uow, merchant_id=merchant.id, raw_id=command.sub_account_id
+                )
+                sub_account_id = sub.id if sub is not None else None
+
             wallets = uow.wallets.list_for_user(payer.id)
             if not wallets:  # pragma: no cover
                 raise InvalidInput("Aucun portefeuille pour ce compte.")
@@ -333,7 +376,9 @@ class PayMerchant(UseCase[PayMerchantCommand, MerchantPaymentReceipt]):
                 amount=amount,
             )
 
-            fee = merchant.fee_for(amount)
+            # Canal effectif : celui de la demande payée, sinon celui du paiement direct.
+            channel = charge.channel if charge is not None else command.channel
+            fee = merchant.fee_for(amount, channel=channel)
             payer_acc = uow.ledger.ensure_account(
                 account_type=AccountType.CLIENT_LIABILITY,
                 currency=merchant.currency,
@@ -376,6 +421,7 @@ class PayMerchant(UseCase[PayMerchantCommand, MerchantPaymentReceipt]):
                 ledger_transaction_id=txn_id,
                 now=now,
                 charge_id=charge.id if charge is not None else None,
+                sub_account_id=sub_account_id,
             )
             uow.merchant_payments.add(payment)
             uow.wallets.save(payer_wallet)
@@ -410,6 +456,7 @@ class PayMerchant(UseCase[PayMerchantCommand, MerchantPaymentReceipt]):
 @dataclass(frozen=True, slots=True)
 class ListMerchantPaymentsCommand(Command):
     merchant_user_id: str
+    sub_account_id: str | None = None  # filtre : paiements d'une caisse / d'un employé
 
 
 @dataclass(frozen=True, slots=True)
@@ -422,6 +469,7 @@ class MerchantPaymentLine:
     reference: str
     status: str
     occurred_at: str
+    sub_account_id: str | None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -433,6 +481,7 @@ class MerchantPaymentLine:
             "reference": self.reference,
             "status": self.status,
             "occurred_at": self.occurred_at,
+            "sub_account_id": self.sub_account_id,
         }
 
 
@@ -446,6 +495,7 @@ class ListMerchantPayments(UseCase[ListMerchantPaymentsCommand, list[MerchantPay
             if merchant is None:
                 raise NotAMerchant()
             payments = uow.merchant_payments.list_for_merchant(merchant.id)
+            wanted = command.sub_account_id or None
             return [
                 MerchantPaymentLine(
                     payment_id=str(p.id),
@@ -456,8 +506,11 @@ class ListMerchantPayments(UseCase[ListMerchantPaymentsCommand, list[MerchantPay
                     reference=p.reference,
                     status=p.status.value,
                     occurred_at=p.created_at.isoformat(),
+                    sub_account_id=str(p.sub_account_id) if p.sub_account_id else None,
                 )
                 for p in payments
+                if wanted is None
+                or (p.sub_account_id is not None and str(p.sub_account_id) == wanted)
             ]
 
 

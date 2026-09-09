@@ -29,6 +29,7 @@ from flash.application.merchants.refund import (
     RefundMerchantPayment,
     RefundMerchantPaymentCommand,
 )
+from flash.domain.merchants.merchant import PaymentChannel
 from flash.domain.shared.errors import InvalidInput, MerchantApiKeyInvalid
 from flash.interface.container import deps
 from flash.interface.http.schemas import ApiModel
@@ -75,6 +76,7 @@ class CreateChargeBody(ApiModel):
     amount_minor: int = Field(gt=0, examples=[25_000])
     reference: str = Field(min_length=1, max_length=80, examples=["Commande #4821"])
     ttl_minutes: int = Field(default=60, ge=1, le=1440)
+    sub_account_id: str | None = Field(default=None, max_length=36)
 
 
 @bp.post("/charges")
@@ -94,6 +96,8 @@ def create_charge() -> tuple[Response, int]:
             amount_minor=body.amount_minor,
             reference=body.reference,
             ttl_minutes=body.ttl_minutes,
+            sub_account_id=body.sub_account_id,
+            channel=PaymentChannel.API,
         )
     )
     return jsonify(view.to_dict()), 201
@@ -152,7 +156,10 @@ def refund_charge(charge_id: str) -> tuple[Response, int]:
 def list_payments() -> tuple[Response, int]:
     principal = _merchant()
     lines = ListMerchantPayments(services=deps().services).execute(
-        ListMerchantPaymentsCommand(merchant_user_id=principal.merchant_user_id)
+        ListMerchantPaymentsCommand(
+            merchant_user_id=principal.merchant_user_id,
+            sub_account_id=request.args.get("sub_account_id"),
+        )
     )
     return jsonify({"payments": [line.to_dict() for line in lines]}), 200
 

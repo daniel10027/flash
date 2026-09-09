@@ -481,6 +481,61 @@ class TestMerchantRoundtrip:
             assert p.net_to_merchant == Money(24_750, XOF)
             assert uow.merchant_payments.get_by_ledger_transaction_id(txn_id) is not None
 
+    def test_merchant_sub_accounts_and_channel_fees_persist(
+        self, session_factory: sessionmaker[Session]
+    ) -> None:
+        from flash.domain.merchants.merchant import Merchant, PaymentChannel
+        from flash.domain.merchants.sub_account import (
+            MerchantSubAccount,
+            SubAccountKind,
+        )
+
+        clock = FixedClock(T0)
+        owner = _new_user("+2250700000061")
+        merchant = Merchant.enroll(
+            merchant_id=EntityId(str(uuid7())),
+            user_id=owner.id,
+            display_name="Chez Awa",
+            category="RESTAURANT",
+            currency=XOF,
+            fee_bps=80,
+            now=T0,
+        )
+        merchant.set_channel_fee(channel=PaymentChannel.API, fee_bps=200, now=T0)
+        sub = MerchantSubAccount.open(
+            sub_account_id=EntityId(str(uuid7())),
+            merchant_id=merchant.id,
+            kind=SubAccountKind.TILL,
+            label="Caisse 1",
+            now=T0,
+            external_ref="T-01",
+        )
+
+        with SqlAlchemyUnitOfWork(session_factory, clock) as uow:
+            uow.users.add(owner)
+            uow.commit()
+        with SqlAlchemyUnitOfWork(session_factory, clock) as uow:
+            uow.merchants.add(merchant)
+            uow.merchant_sub_accounts.add(sub)
+            uow.commit()
+
+        with SqlAlchemyUnitOfWork(session_factory, clock) as uow:
+            reloaded = uow.merchants.get_by_user_id(owner.id)
+            assert reloaded is not None
+            assert reloaded.channel_fees == {"API": 200}
+            assert reloaded.effective_fee_bps(PaymentChannel.API) == 200
+            assert reloaded.effective_fee_bps(PaymentChannel.QR) == 80
+            [row] = uow.merchant_sub_accounts.list_for_merchant(merchant.id)
+            assert row.label == "Caisse 1" and row.external_ref == "T-01"
+            assert row.kind is SubAccountKind.TILL and row.active is True
+
+            row.update(now=T0, label="Caisse principale", active=False)
+            uow.merchant_sub_accounts.save(row)
+            uow.commit()
+
+        with SqlAlchemyUnitOfWork(session_factory, clock) as uow:
+            [row] = uow.merchant_sub_accounts.list_for_merchant(merchant.id)
+            assert row.label == "Caisse principale" and row.active is False
 
     def test_merchant_kyb_and_api_key_persist(
         self, session_factory: sessionmaker[Session]

@@ -8,7 +8,7 @@ from uuid import UUID
 import pytest
 
 from flash.domain.merchants.charge import MerchantCharge, MerchantChargeStatus
-from flash.domain.merchants.merchant import Merchant, MerchantStatus
+from flash.domain.merchants.merchant import Merchant, MerchantStatus, PaymentChannel
 from flash.domain.merchants.payment import MerchantPayment, MerchantPaymentStatus
 from flash.domain.shared.errors import InvalidAccountState, InvalidInput
 from flash.domain.shared.identifiers import EntityId
@@ -241,6 +241,68 @@ class TestMerchantPayment:
         payment.attach_settlement(EntityId(str(UUID(int=42))))
         with pytest.raises(InvalidAccountState, match="déjà rattaché"):
             payment.attach_settlement(EntityId(str(UUID(int=43))))
+
+
+class TestChannelFees:
+    def test_default_channel_uses_fee_bps(self) -> None:
+        merchant = _merchant(fee_bps=80)
+        assert merchant.effective_fee_bps(PaymentChannel.QR) == 80
+        assert merchant.effective_fee_bps(PaymentChannel.API) == 80
+        assert merchant.fee_for(Money(10_000, XOF)) == Money(80, XOF)
+
+    def test_set_channel_fee_overrides_only_that_channel(self) -> None:
+        merchant = _merchant(fee_bps=80)
+        merchant.set_channel_fee(channel=PaymentChannel.API, fee_bps=150, now=T0)
+        assert merchant.effective_fee_bps(PaymentChannel.API) == 150
+        assert merchant.effective_fee_bps(PaymentChannel.QR) == 80
+        assert merchant.fee_for(Money(10_000, XOF), channel=PaymentChannel.API) == Money(
+            150, XOF
+        )
+        assert [e.name for e in merchant.pull_events()] == ["MerchantChannelFeeChanged"]
+
+    def test_clear_channel_fee_returns_to_default(self) -> None:
+        merchant = _merchant(fee_bps=80)
+        merchant.set_channel_fee(channel=PaymentChannel.API, fee_bps=150, now=T0)
+        merchant.pull_events()
+        merchant.clear_channel_fee(channel=PaymentChannel.API, now=T0)
+        assert merchant.effective_fee_bps(PaymentChannel.API) == 80
+        assert merchant.channel_fees == {}
+        assert [e.name for e in merchant.pull_events()] == ["MerchantChannelFeeChanged"]
+
+    def test_clear_unknown_channel_rejected(self) -> None:
+        with pytest.raises(InvalidInput, match="Aucune commission négociée"):
+            _merchant().clear_channel_fee(channel=PaymentChannel.QR, now=T0)
+
+    def test_set_out_of_bounds_rejected(self) -> None:
+        with pytest.raises(InvalidInput, match="hors bornes"):
+            _merchant().set_channel_fee(channel=PaymentChannel.QR, fee_bps=5000, now=T0)
+
+    def test_constructor_loads_valid_channel_fees(self) -> None:
+        merchant = Merchant(
+            id=MID,
+            user_id=UID,
+            display_name="x",
+            category="c",
+            currency=XOF,
+            fee_bps=80,
+            created_at=T0,
+            channel_fees={"QR": 60, "API": 120},
+        )
+        assert merchant.channel_fees == {"QR": 60, "API": 120}
+        assert merchant.effective_fee_bps(PaymentChannel.QR) == 60
+
+    def test_constructor_validates_channel_fees(self) -> None:
+        with pytest.raises(ValueError, match="hors bornes"):
+            Merchant(
+                id=MID,
+                user_id=UID,
+                display_name="x",
+                category="c",
+                currency=XOF,
+                fee_bps=80,
+                created_at=T0,
+                channel_fees={"QR": 99_999},
+            )
 
 
 def _payment(*, amount: Money | None = None, fee: Money | None = None) -> MerchantPayment:

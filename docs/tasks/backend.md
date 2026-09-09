@@ -275,11 +275,27 @@ Chaque tâche livrée : code complet + tests + doc, **zéro `TODO`**.
   brut, `OPERATOR_WEBHOOK_SECRET`). Idempotent par `reference` (rejeu → `applied:false`) ;
   refus 422 si opérateur ≠ émetteur ou référence inconnue. Table `operator_transfers`,
   migration `b6c1e9d47f20`.
-- [~] **BE-068** · `domain/merchants/` enrichi : VO `BankAccount` (IBAN/RIB masqué),
+- [x] **BE-068** · `domain/merchants/` enrichi : VO `BankAccount` (IBAN/RIB masqué),
   `SettlementFrequency` (MANUAL/DAILY/WEEKLY/MONTHLY), `Merchant.configure_settlement`
   (compte bancaire + échéance `next_settlement_at`), `due_for_settlement` /
-  `advance_settlement_schedule` / `record_settlement`. *Reste : sous‑comptes
-  caisses/employés, frais négociés par canal.*
+  `advance_settlement_schedule` / `record_settlement`.
+  **Sous‑comptes caisses / employés** : agrégat `MerchantSubAccount` (`kind` TILL /
+  EMPLOYEE, `label`, `external_ref`, `active`) — **étiquette d'attribution**, pas de
+  wallet ni de compte ledger. Port `MerchantSubAccountRepository` (+ SQL + in‑memory +
+  UoW). Use cases `application/merchants/sub_accounts.py` (`CreateSubAccount` plafonné à
+  200, `ListSubAccounts`, `UpdateSubAccount`). Routes libre‑service
+  `POST/GET/PATCH /v1/merchant/sub-accounts`. `MerchantCharge` / `MerchantPayment`
+  portent un `sub_account_id` optionnel (repris de la demande à défaut) ;
+  `PayMerchantCommand` / `CreateMerchantChargeCommand` l'acceptent, `ListMerchantPayments`
+  filtre dessus. **Frais négociés par canal** : `PaymentChannel` (`QR` présentiel /
+  `API` distant), `Merchant.channel_fees` + `fee_for(amount, channel=)` /
+  `effective_fee_bps` / `set_channel_fee` / `clear_channel_fee` (event
+  `MerchantChannelFeeChanged`). `MerchantCharge.channel` mémorise l'origine ; l'API
+  publique crée des demandes `channel=API`. Back‑office `application/merchants/channel_fees.py`
+  (`SetMerchantChannelFee` / `ClearMerchantChannelFee` / `GetMerchantFees`) exposé par
+  `PUT/DELETE /v1/admin/merchants/<id>/channel-fees/<canal>` + `GET …/fees` (rôles
+  `admin`/`compliance`). Migration `d1e4b7a2f9c6` (`merchant_sub_accounts`,
+  `merchants.channel_fees`, `merchant_*.sub_account_id`, `merchant_charges.channel`).
 - [x] **BE-069** · KYB marchand : `Merchant.kyb_status` (PENDING/APPROVED/REJECTED),
   `submit_kyb` / `approve_kyb` / `reject_kyb` / `ensure_kyb_approved` + events.
   `SubmitMerchantKyb` (`POST /v1/merchant/kyb`), `ReviewMerchantKyb`

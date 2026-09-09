@@ -504,6 +504,9 @@ class MerchantModel(Base):
     kyb_reason: Mapped[str | None] = mapped_column(String(200), nullable=True)
     webhook_url: Mapped[str | None] = mapped_column(String(300), nullable=True)
     webhook_secret: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    channel_fees: Mapped[dict[str, int]] = mapped_column(
+        JSONB, nullable=False, default=dict, server_default=text("'{}'::jsonb")
+    )
     created_at: Mapped[datetime] = mapped_column(TZDateTime, nullable=False)
 
     __table_args__ = (
@@ -534,6 +537,8 @@ class MerchantChargeModel(Base):
     expires_at: Mapped[datetime] = mapped_column(TZDateTime, nullable=False)
     paid_by: Mapped[str | None] = mapped_column(_UUID, nullable=True)
     ledger_transaction_id: Mapped[str | None] = mapped_column(_UUID, nullable=True)
+    sub_account_id: Mapped[str | None] = mapped_column(_UUID, nullable=True)
+    channel: Mapped[str] = mapped_column(String(8), nullable=False, default="QR")
 
     __table_args__ = (
         CheckConstraint("amount_minor > 0", name="amount_positive"),
@@ -559,12 +564,30 @@ class MerchantPaymentModel(Base):
     status: Mapped[str] = mapped_column(String(12), nullable=False)
     ledger_transaction_id: Mapped[str] = mapped_column(_UUID, nullable=False, unique=True)
     settlement_id: Mapped[str | None] = mapped_column(_UUID, nullable=True)
+    sub_account_id: Mapped[str | None] = mapped_column(_UUID, nullable=True)
     created_at: Mapped[datetime] = mapped_column(TZDateTime, nullable=False)
 
     __table_args__ = (
         Index("ix_merchant_payments_merchant_id", "merchant_id"),
         Index("ix_merchant_payments_settlement_id", "settlement_id"),
+        Index("ix_merchant_payments_sub_account_id", "sub_account_id"),
     )
+
+
+class MerchantSubAccountModel(Base):
+    __tablename__ = "merchant_sub_accounts"
+
+    id: Mapped[str] = mapped_column(_UUID, primary_key=True)
+    merchant_id: Mapped[str] = mapped_column(
+        ForeignKey("merchants.id", ondelete="CASCADE"), nullable=False
+    )
+    kind: Mapped[str] = mapped_column(String(12), nullable=False)
+    label: Mapped[str] = mapped_column(String(60), nullable=False)
+    external_ref: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_at: Mapped[datetime] = mapped_column(TZDateTime, nullable=False)
+
+    __table_args__ = (Index("ix_merchant_sub_accounts_merchant_id", "merchant_id"),)
 
 
 class MerchantSettlementModel(Base):
@@ -831,6 +854,7 @@ __all__ = [
     "MerchantModel",
     "MerchantPaymentModel",
     "MerchantSettlementModel",
+    "MerchantSubAccountModel",
     "MerchantWebhookDeliveryModel",
     "NotificationModel",
     "OperatorModel",

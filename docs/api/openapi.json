@@ -2404,6 +2404,19 @@
                     "minimum": 1,
                     "title": "Ttl Minutes",
                     "type": "integer"
+                  },
+                  "sub_account_id": {
+                    "anyOf": [
+                      {
+                        "maxLength": 36,
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "title": "Sub Account Id"
                   }
                 },
                 "required": [
@@ -2411,6 +2424,189 @@
                   "reference"
                 ],
                 "title": "CreateChargeRequest",
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/merchant/sub-accounts": {
+      "post": {
+        "summary": "Créer une caisse ou un employé (attribution des encaissements)",
+        "tags": [
+          "merchants"
+        ],
+        "responses": {
+          "201": {
+            "description": "Succès"
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "examples": [
+                      "TILL",
+                      "EMPLOYEE"
+                    ],
+                    "title": "Kind",
+                    "type": "string"
+                  },
+                  "label": {
+                    "examples": [
+                      "Caisse 1"
+                    ],
+                    "maxLength": 60,
+                    "minLength": 1,
+                    "title": "Label",
+                    "type": "string"
+                  },
+                  "external_ref": {
+                    "anyOf": [
+                      {
+                        "maxLength": 40,
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "title": "External Ref"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "label"
+                ],
+                "title": "SubAccountRequest",
+                "type": "object"
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "summary": "Lister les caisses / employés du marchand",
+        "tags": [
+          "merchants"
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès"
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/v1/merchant/sub-accounts/{sub_account_id}": {
+      "patch": {
+        "summary": "Mettre à jour une caisse / un employé (libellé, activation)",
+        "tags": [
+          "merchants"
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès"
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "label": {
+                    "anyOf": [
+                      {
+                        "maxLength": 60,
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "title": "Label"
+                  },
+                  "external_ref": {
+                    "anyOf": [
+                      {
+                        "maxLength": 40,
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "title": "External Ref"
+                  },
+                  "active": {
+                    "anyOf": [
+                      {
+                        "type": "boolean"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "title": "Active"
+                  }
+                },
+                "title": "UpdateSubAccountRequest",
                 "type": "object"
               }
             }
@@ -2965,6 +3161,19 @@
                     ],
                     "default": null,
                     "title": "Charge Id"
+                  },
+                  "sub_account_id": {
+                    "anyOf": [
+                      {
+                        "maxLength": 36,
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "title": "Sub Account Id"
                   }
                 },
                 "required": [
@@ -3041,6 +3250,19 @@
                     "minimum": 1,
                     "title": "Ttl Minutes",
                     "type": "integer"
+                  },
+                  "sub_account_id": {
+                    "anyOf": [
+                      {
+                        "maxLength": 36,
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "title": "Sub Account Id"
                   }
                 },
                 "required": [
@@ -6045,6 +6267,99 @@
                 ],
                 "title": "ReviewKybRequest",
                 "type": "object"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/merchants/{merchant_id}/fees": {
+      "get": {
+        "summary": "Back-office : commission par défaut + overrides négociés par canal",
+        "tags": [
+          "admin"
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès"
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/merchants/{merchant_id}/channel-fees/{channel}": {
+      "put": {
+        "summary": "Back-office : fixer la commission négociée d'un canal (QR / API)",
+        "tags": [
+          "admin"
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès"
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "fee_bps": {
+                    "examples": [
+                      70
+                    ],
+                    "maximum": 1000,
+                    "minimum": 0,
+                    "title": "Fee Bps",
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "fee_bps"
+                ],
+                "title": "ChannelFeeRequest",
+                "type": "object"
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Back-office : retirer l'override d'un canal (retour au tarif par défaut)",
+        "tags": [
+          "admin"
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès"
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
               }
             }
           }

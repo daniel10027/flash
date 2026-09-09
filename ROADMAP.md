@@ -1,7 +1,7 @@
 # Flash — Map de développement
 
 > **Dernière mise à jour : 2026-09-09**
-> **Phases 1-3 complètes · Phase 4 : BE-061→078 livrés (… conformité AML, exports réglementaires, registre d'audit consultable) — BE-068 partiel**
+> **Phases 1-3 complètes · Phase 4 backend TERMINÉE : BE-061→078 livrés (… conformité AML, exports réglementaires, registre d'audit consultable, sous-comptes marchands & frais par canal)**
 > (auth, numéros, wallets, transfert + **annulation**, **demandes de paiement**,
 > **paiement marchand QR** + **remboursement**, **dépôt & retrait cash agent**,
 > relevé + **reçu détaillé**, **KYC**, **notifications** + **flux SSE**, **jobs
@@ -45,12 +45,13 @@
 > `/v1/notifications` (liste + curseur + `unread`, `/<id>/read`, `/read-all`) et
 > **SSE `/v1/notifications/stream`** (`RedisNotificationBus` pub/sub, rattrapage
 > `Last-Event-ID` depuis le journal, keep-alive).
-> **116 chemins** : `auth` (6), `phones` (5), `wallets` (2), `transfers` (2),
-> `payment-requests` (4), `merchant` (15), `merchant-payments` (1), `merchant/v1`
+> **120 chemins** : `auth` (6), `phones` (5), `wallets` (2), `transfers` (2),
+> `payment-requests` (4), `merchant` (17, dont `sub-accounts`), `merchant-payments` (1),
+> `merchant/v1`
 > (public, 4), `statement` (1), `receipts` (1), `notifications` (4), `withdrawals` (2),
 > `agent` (8), `kyc` (4), `vault` (6), `savings` (5), `cards` (8),
 > `cards/authorizations` (4), `operators` (3) + `operators/callbacks` (1),
-> `reference` (2), `admin/kyc` (1), `admin` ops (9), `admin/merchants` (1),
+> `reference` (2), `admin/kyc` (1), `admin` ops (9), `admin/merchants` (3, KYB + frais/canal),
 > `admin/agents` (1), `admin/accounts` (6) + `admin/transactions` (1) +
 > `admin/tickets` (3), `admin/compliance` (4), `admin/reports` (3),
 > `admin/reference` (9, dont `pricing` / `limits` éditables) +
@@ -221,14 +222,23 @@
 > `…/limits[/<pays>/<palier>/<op>]` (rôles `admin`/`compliance`, chaque mutation auditée
 > `pricing_rule.*` / `limit_rule.*`). `flash reference seed` charge aussi la grille et les
 > plafonds. Câblage : `REFERENCE_SOURCE=db` → base, sinon jeu par défaut en lecture seule.
-> **116 chemins.** 1326 tests unit + 35 d'intégration (Postgres réel), couverture 100 %
+> **Sous-comptes marchands & frais par canal (reste de BE-068)** : agrégat
+> `MerchantSubAccount` (caisse `TILL` / employé `EMPLOYEE`, simple **étiquette
+> d'attribution**), CRUD libre-service `/v1/merchant/sub-accounts` (POST/GET/PATCH) ;
+> les paiements (QR statique, demande, API) portent un `sub_account_id` optionnel et le
+> relevé filtre dessus. `PaymentChannel` (`QR` / `API`) + `Merchant.channel_fees` :
+> commission négociée par canal côté back-office
+> (`PUT/DELETE /v1/admin/merchants/<id>/channel-fees/<canal>`, `GET …/fees`), sinon
+> `fee_bps` par défaut. Migration `d1e4b7a2f9c6`.
+> **120 chemins.** 1367 tests unit + 36 d'intégration (Postgres réel), couverture 100 %
 > domain+application, ruff + mypy stricts.
-> **Phases 1-3 terminées. Phase 4 livrée** : `BE-061` → `BE-078` (référentiel + grille /
-> plafonds éditables, audit chaîné + registre consultable, grille multi-pays, interop
-> opérateurs, marchands complets, agents enrichis + espace agent, back-office comptes &
-> support, conformité AML, exports réglementaires) ; `BE-068` partiel. Migrations
-> `f4b7c2109ea3`, `a8e3d5f10c47`, `b6c1e9d47f20`, `c7d2f4a91b38`, `d4e8a1c6b923`,
-> `e1f4b7c92a05`, `f2a9c1e83b47`, `a3c7e91d5f28`, `b8d1f6a2c904`, `c3f5a9e0d182`.
+> **Phases 1-3 terminées. Phase 4 backend TERMINÉE** : `BE-061` → `BE-078` livrés
+> (référentiel + grille / plafonds éditables, audit chaîné + registre consultable, grille
+> multi-pays, interop opérateurs, marchands complets — sous-comptes & frais par canal
+> inclus —, agents enrichis + espace agent, back-office comptes & support, conformité
+> AML, exports réglementaires). Migrations `f4b7c2109ea3`, `a8e3d5f10c47`,
+> `b6c1e9d47f20`, `c7d2f4a91b38`, `d4e8a1c6b923`, `e1f4b7c92a05`, `f2a9c1e83b47`,
+> `a3c7e91d5f28`, `b8d1f6a2c904`, `c3f5a9e0d182`, `d1e4b7a2f9c6`.
 
 Ce fichier est la vue d'ensemble. Le détail (une ligne = une tâche cochable) est dans
 `docs/tasks/`. On avance **dans l'ordre des identifiants** à l'intérieur de chaque lot,
@@ -246,7 +256,7 @@ mais les lots Backend / Infra avancent en priorité car Web et Mobile en dépend
 | Lot | Fichier détaillé | Fait / Total |
 |-----|------------------|--------------|
 | Fondations & docs | ce fichier | 6 / 6 |
-| Backend (BE) | [docs/tasks/backend.md](docs/tasks/backend.md) | 69 / 78 (+ BE-068 partiel) |
+| Backend (BE) | [docs/tasks/backend.md](docs/tasks/backend.md) | 70 / 78 |
 | Web (WEB) | [docs/tasks/frontend-web.md](docs/tasks/frontend-web.md) | 0 / 46 |
 | Mobile (MOB) | [docs/tasks/mobile.md](docs/tasks/mobile.md) | 0 / 44 |
 | Infra & CI/CD (INFRA) | [docs/tasks/infra.md](docs/tasks/infra.md) | 2 / 24 |
@@ -365,8 +375,14 @@ Reste de `BE-062` **livré** (grille tarifaire & plafonds éditables : tables
 `/v1/admin/reference/pricing` et `…/limits`, `flash reference seed` étendu, migration
 `c3f5a9e0d182`).
 
-Prochaine : reste de `BE-068` (sous-comptes caisses/employés, frais négociés par canal).
-**Phase 4 backend livrée** (`BE-061` → `BE-078`).
+Reste de `BE-068` **livré** (agrégat `MerchantSubAccount` caisses/employés + CRUD
+`/v1/merchant/sub-accounts` + attribution `sub_account_id` sur les paiements et le
+relevé ; `PaymentChannel` QR/API + `Merchant.channel_fees` négociés sous
+`/v1/admin/merchants/<id>/channel-fees/<canal>` ; migration `d1e4b7a2f9c6`).
+
+**Phase 4 backend TERMINÉE** (`BE-061` → `BE-078`). Prochaine : Phase 5 ou lots
+transverses (`BE-T1` couverture CI, `BE-T3` contrats OpenAPI), et les fronts Web /
+Mobile qui dépendent de cette API.
 
 ✅ Phase 2 livrée : `BE-029` (KYC), `BE-032` (demandes de paiement), `BE-033` (marchand
 QR), `BE-034` → `BE-036` (cash agent), `BE-037` (annulation / remboursement), `BE-038`

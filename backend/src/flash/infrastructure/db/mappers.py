@@ -32,10 +32,12 @@ from flash.domain.merchants.merchant import (
     KybStatus,
     Merchant,
     MerchantStatus,
+    PaymentChannel,
     SettlementFrequency,
 )
 from flash.domain.merchants.payment import MerchantPayment, MerchantPaymentStatus
 from flash.domain.merchants.settlement import MerchantSettlement, MerchantSettlementStatus
+from flash.domain.merchants.sub_account import MerchantSubAccount, SubAccountKind
 from flash.domain.merchants.webhook import (
     MerchantWebhookDelivery,
     MerchantWebhookStatus,
@@ -68,6 +70,7 @@ from flash.infrastructure.db.models import (
     MerchantModel,
     MerchantPaymentModel,
     MerchantSettlementModel,
+    MerchantSubAccountModel,
     MerchantWebhookDeliveryModel,
     OperatorModel,
     OperatorTransferModel,
@@ -470,6 +473,7 @@ def merchant_to_domain(model: MerchantModel) -> Merchant:
         kyb_reason=model.kyb_reason,
         webhook_url=model.webhook_url,
         webhook_secret=model.webhook_secret,
+        channel_fees=dict(model.channel_fees or {}),
     )
 
 
@@ -496,6 +500,7 @@ def merchant_to_model(merchant: Merchant) -> MerchantModel:
         kyb_reason=merchant.kyb_reason,
         webhook_url=merchant.webhook_url,
         webhook_secret=merchant.webhook_secret,
+        channel_fees=dict(merchant.channel_fees),
         created_at=merchant.created_at,
     )
 
@@ -616,6 +621,8 @@ def merchant_charge_to_domain(model: MerchantChargeModel) -> MerchantCharge:
         ledger_transaction_id=(
             EntityId(model.ledger_transaction_id) if model.ledger_transaction_id else None
         ),
+        sub_account_id=EntityId(model.sub_account_id) if model.sub_account_id else None,
+        channel=PaymentChannel(model.channel),
     )
 
 
@@ -633,6 +640,8 @@ def merchant_charge_to_model(charge: MerchantCharge) -> MerchantChargeModel:
         ledger_transaction_id=(
             str(charge.ledger_transaction_id) if charge.ledger_transaction_id else None
         ),
+        sub_account_id=str(charge.sub_account_id) if charge.sub_account_id else None,
+        channel=charge.channel.value,
     )
 
 
@@ -651,6 +660,7 @@ def merchant_payment_to_domain(model: MerchantPaymentModel) -> MerchantPayment:
         created_at=model.created_at,
         charge_id=EntityId(model.charge_id) if model.charge_id else None,
         settlement_id=EntityId(model.settlement_id) if model.settlement_id else None,
+        sub_account_id=EntityId(model.sub_account_id) if model.sub_account_id else None,
     )
 
 
@@ -667,7 +677,32 @@ def merchant_payment_to_model(payment: MerchantPayment) -> MerchantPaymentModel:
         status=payment.status.value,
         ledger_transaction_id=str(payment.ledger_transaction_id),
         settlement_id=str(payment.settlement_id) if payment.settlement_id else None,
+        sub_account_id=str(payment.sub_account_id) if payment.sub_account_id else None,
         created_at=payment.created_at,
+    )
+
+
+def merchant_sub_account_to_domain(model: MerchantSubAccountModel) -> MerchantSubAccount:
+    return MerchantSubAccount(
+        id=EntityId(model.id),
+        merchant_id=EntityId(model.merchant_id),
+        kind=SubAccountKind(model.kind),
+        label=model.label,
+        created_at=model.created_at,
+        external_ref=model.external_ref,
+        active=model.active,
+    )
+
+
+def merchant_sub_account_to_model(sub: MerchantSubAccount) -> MerchantSubAccountModel:
+    return MerchantSubAccountModel(
+        id=str(sub.id),
+        merchant_id=str(sub.merchant_id),
+        kind=sub.kind.value,
+        label=sub.label,
+        external_ref=sub.external_ref,
+        active=sub.active,
+        created_at=sub.created_at,
     )
 
 
@@ -1010,6 +1045,8 @@ __all__ = [
     "merchant_payment_to_model",
     "merchant_settlement_to_domain",
     "merchant_settlement_to_model",
+    "merchant_sub_account_to_domain",
+    "merchant_sub_account_to_model",
     "merchant_to_domain",
     "merchant_to_model",
     "merchant_webhook_delivery_to_domain",

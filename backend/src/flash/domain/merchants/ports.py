@@ -10,6 +10,7 @@ from flash.domain.merchants.charge import MerchantCharge
 from flash.domain.merchants.merchant import Merchant
 from flash.domain.merchants.payment import MerchantPayment
 from flash.domain.merchants.settlement import MerchantSettlement
+from flash.domain.merchants.sub_account import MerchantSubAccount
 from flash.domain.merchants.webhook import MerchantWebhookDelivery
 from flash.domain.shared.identifiers import EntityId
 
@@ -98,6 +99,17 @@ class MerchantApiKeyRepository(Protocol):
 
 
 @runtime_checkable
+class MerchantSubAccountRepository(Protocol):
+    def get(self, sub_account_id: EntityId) -> MerchantSubAccount | None: ...
+
+    def list_for_merchant(self, merchant_id: EntityId) -> list[MerchantSubAccount]: ...
+
+    def add(self, sub_account: MerchantSubAccount) -> None: ...
+
+    def save(self, sub_account: MerchantSubAccount) -> None: ...
+
+
+@runtime_checkable
 class MerchantWebhookDeliveryRepository(Protocol):
     def get(self, delivery_id: EntityId) -> MerchantWebhookDelivery | None: ...
 
@@ -124,5 +136,6 @@ __all__ = [
     "MerchantPaymentRepository",
     "MerchantRepository",
     "MerchantSettlementRepository",
+    "MerchantSubAccountRepository",
     "MerchantWebhookDeliveryRepository",
 ]

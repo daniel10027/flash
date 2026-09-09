@@ -145,9 +145,31 @@ class MerchantWebhookExhausted(DomainEvent):
     last_error: str
 
 
+@dataclass(frozen=True, slots=True, kw_only=True)
+class MerchantChannelFeeChanged(DomainEvent):
+    merchant_id: str
+    channel: str
+    fee_bps: int | None  # ``None`` = override retiré, retour au ``fee_bps`` par défaut
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class MerchantSubAccountOpened(DomainEvent):
+    merchant_id: str
+    kind: str
+    label: str
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class MerchantSubAccountUpdated(DomainEvent):
+    merchant_id: str
+    active: bool
+    label: str
+
+
 __all__ = [
     "MerchantApiKeyIssued",
     "MerchantApiKeyRevoked",
+    "MerchantChannelFeeChanged",
     "MerchantChargeCancelled",
     "MerchantChargeExpired",
     "MerchantChargeOpened",
@@ -161,6 +183,8 @@ __all__ = [
     "MerchantSettlementFailed",
     "MerchantSettlementOpened",
     "MerchantSettlementPaid",
+    "MerchantSubAccountOpened",
+    "MerchantSubAccountUpdated",
     "MerchantSuspended",
     "MerchantWebhookConfigured",
     "MerchantWebhookDelivered",

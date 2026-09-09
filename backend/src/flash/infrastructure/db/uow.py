@@ -33,6 +33,7 @@ from flash.infrastructure.db.repositories import (
     SqlAlchemyMerchantPaymentRepository,
     SqlAlchemyMerchantRepository,
     SqlAlchemyMerchantSettlementRepository,
+    SqlAlchemyMerchantSubAccountRepository,
     SqlAlchemyMerchantWebhookDeliveryRepository,
     SqlAlchemyOperatorTransferRepository,
     SqlAlchemyPaymentRequestRepository,
@@ -72,6 +73,9 @@ class SqlAlchemyUnitOfWork:
         self.merchant_charges = SqlAlchemyMerchantChargeRepository(self._session, self)
         self.merchant_payments = SqlAlchemyMerchantPaymentRepository(self._session, self)
         self.merchant_settlements = SqlAlchemyMerchantSettlementRepository(self._session, self)
+        self.merchant_sub_accounts = SqlAlchemyMerchantSubAccountRepository(
+            self._session, self
+        )
         self.merchant_api_keys = SqlAlchemyMerchantApiKeyRepository(self._session, self)
         self.merchant_webhooks = SqlAlchemyMerchantWebhookDeliveryRepository(
             self._session, self

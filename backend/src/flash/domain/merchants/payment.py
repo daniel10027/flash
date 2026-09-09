@@ -36,6 +36,7 @@ class MerchantPayment(EventRecorder):
         created_at: datetime,
         charge_id: EntityId | None = None,
         settlement_id: EntityId | None = None,
+        sub_account_id: EntityId | None = None,
     ) -> None:
         super().__init__()
         if amount.currency.code != currency_code or fee.currency.code != currency_code:
@@ -56,6 +57,7 @@ class MerchantPayment(EventRecorder):
         self.created_at = created_at
         self.charge_id = charge_id
         self.settlement_id = settlement_id
+        self.sub_account_id = sub_account_id
 
     @classmethod
     def record(
@@ -70,6 +72,7 @@ class MerchantPayment(EventRecorder):
         ledger_transaction_id: EntityId,
         now: datetime,
         charge_id: EntityId | None = None,
+        sub_account_id: EntityId | None = None,
     ) -> MerchantPayment:
         payment = cls(
             id=payment_id,
@@ -83,6 +86,7 @@ class MerchantPayment(EventRecorder):
             ledger_transaction_id=ledger_transaction_id,
             created_at=now,
             charge_id=charge_id,
+            sub_account_id=sub_account_id,
         )
         payment.record_event(
             MerchantPaymentCompleted(
