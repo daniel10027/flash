@@ -408,9 +408,30 @@ Chaque tâche livrée : code complet + tests + doc, **zéro `TODO`**.
 
 ## Transverse (au fil des phases)
 
-- [ ] **BE-T1** · Couverture ≥ 90 % `domain/` + `application/` (garde‑fou CI).
-- [ ] **BE-T2** · Tests d'intégration DB réels (Postgres) sur repos + migrations + UoW.
-- [ ] **BE-T3** · Tests de contrat OpenAPI (schemathesis) sur toutes les routes.
-- [ ] **BE-T4** · Journalisation d'audit + métriques Prometheus (`/metrics`).
-- [ ] **BE-T5** · `docs/api/errors.md` maintenu exhaustif (tous les `code`).
-- [ ] **BE-T6** · Script de charge (locust) : transferts concurrents, objectif p95.
+- [x] **BE-T1** · Couverture ≥ 90 % `domain/` + `application/` (réelle : **100 %**,
+  `fail_under = 90` dans `pyproject.toml`). Garde-fou CI : `.github/workflows/backend-ci.yml`
+  (ruff + mypy stricts + `pytest --cov` avec Postgres & Redis en services, + diff
+  `docs/api/openapi.json` ↔ `flash openapi dump`).
+- [x] **BE-T2** · `tests/infrastructure/test_migrations.py` (marqueur `integration`,
+  Postgres réel, base jetable `<db>_migrations`) : `upgrade head` estampille la dernière
+  révision, round-trip `downgrade base` → `upgrade head` (toutes les `downgrade()`
+  fonctionnent), et `compare_metadata` : le schéma migré == modèles ORM (aux
+  `server_default` près). Les repos + UoW ont déjà ~36 tests d'intégration Postgres.
+- [x] **BE-T3** · `tests/interface/test_openapi_contract.py` (schemathesis, marqueur
+  `contract`) : le schéma est chargé depuis l'app (test deps en mémoire), chaque
+  opération est générée puis vérifiée `not_a_server_error` (137 opérations couvertes).
+  Points d'infra (`/health*`, `/metrics`, doc) exclus.
+- [x] **BE-T4** · `interface/metrics.py` : `CollectorRegistry` **dédié par app**,
+  `flash_http_requests_total{method,endpoint,status}` (compteur),
+  `flash_http_request_duration_seconds` (histogramme), `flash_http_requests_in_progress`
+  (jauge). `GET /metrics` en texte Prometheus, hors OpenAPI. Le libellé `endpoint` est le
+  **gabarit** de route (cardinalité bornée). Journalisation JSON structlog déjà en place
+  (`configure_logging`) + registre d'audit chaîné (BE-062/078).
+- [x] **BE-T5** · `docs/api/errors.md` : enveloppe, table des statuts, tous les `code`
+  groupés par domaine (avec le contenu de `details`). Exhaustivité vérifiée par
+  `tests/interface/test_errors_doc.py` (parcourt les sous-classes de `DomainError`, la
+  table `_STATUS_BY_CODE` et les codes synthétisés par l'interface).
+- [x] **BE-T6** · `backend/loadtest/locustfile.py` (+ `README.md`) : scénario transferts
+  P2P concurrents (10) + `GET /wallets` (3) + `GET /statement` (1). Jetons d'accès signés
+  côté script pour les comptes de démo (`flash seed`). `--headless` **sort en code ≠ 0**
+  si p95 `POST /v1/transfers` > 300 ms ou taux d'erreur > 1 % (`events.quitting`).

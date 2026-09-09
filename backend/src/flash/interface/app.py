@@ -46,6 +46,7 @@ from flash.interface.http import transfers as transfers_routes
 from flash.interface.http import vault as vault_routes
 from flash.interface.http import wallets as wallets_routes
 from flash.interface.logging import configure_logging
+from flash.interface.metrics import register_metrics
 from flash.interface.openapi import register_docs
 from flash.interface.security.auth import Unauthenticated
 from flash.interface.security.wiring import SecurityBundle, build_security, register_security
@@ -79,6 +80,7 @@ def create_app(
     _register_request_context(app, settings)
     _register_error_handlers(app)
     _register_health(app)
+    register_metrics(app)
     register_docs(app)
     app.register_blueprint(auth_routes.bp)
     app.register_blueprint(reference_routes.bp)

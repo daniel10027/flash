@@ -1,7 +1,7 @@
 # Flash — Map de développement
 
 > **Dernière mise à jour : 2026-09-09**
-> **Phases 1-3 complètes · Phase 4 backend TERMINÉE : BE-061→078 livrés (… conformité AML, exports réglementaires, registre d'audit consultable, sous-comptes marchands & frais par canal)**
+> **Phases 1-3 complètes · Phase 4 backend TERMINÉE : BE-061→078 + transverses BE-T1→T6 livrés (… conformité AML, exports réglementaires, audit consultable, sous-comptes marchands & frais/canal, CI GitHub Actions, métriques Prometheus, contrats OpenAPI, test de charge)**
 > (auth, numéros, wallets, transfert + **annulation**, **demandes de paiement**,
 > **paiement marchand QR** + **remboursement**, **dépôt & retrait cash agent**,
 > relevé + **reçu détaillé**, **KYC**, **notifications** + **flux SSE**, **jobs
@@ -230,8 +230,14 @@
 > commission négociée par canal côté back-office
 > (`PUT/DELETE /v1/admin/merchants/<id>/channel-fees/<canal>`, `GET …/fees`), sinon
 > `fee_bps` par défaut. Migration `d1e4b7a2f9c6`.
-> **120 chemins.** 1367 tests unit + 36 d'intégration (Postgres réel), couverture 100 %
-> domain+application, ruff + mypy stricts.
+> **Lots transverses `BE-T1` → `BE-T6` livrés** : CI GitHub Actions
+> (`.github/workflows/backend-ci.yml` : ruff + mypy + `pytest --cov` avec Postgres/Redis
+> + diff OpenAPI), tests de migrations Alembic (upgrade / round-trip / diff modèles),
+> tests de contrat OpenAPI (schemathesis, 137 opérations), métriques Prometheus
+> `GET /metrics` (hors OpenAPI), `docs/api/errors.md` exhaustif (garde-fou
+> `test_errors_doc.py`), script de charge locust (`backend/loadtest/`, SLO p95 < 300 ms).
+> **120 chemins.** 1375 tests unit + 39 d'intégration + contrat OpenAPI (schemathesis),
+> couverture 100 % domain+application, ruff + mypy stricts.
 > **Phases 1-3 terminées. Phase 4 backend TERMINÉE** : `BE-061` → `BE-078` livrés
 > (référentiel + grille / plafonds éditables, audit chaîné + registre consultable, grille
 > multi-pays, interop opérateurs, marchands complets — sous-comptes & frais par canal
@@ -256,10 +262,10 @@ mais les lots Backend / Infra avancent en priorité car Web et Mobile en dépend
 | Lot | Fichier détaillé | Fait / Total |
 |-----|------------------|--------------|
 | Fondations & docs | ce fichier | 6 / 6 |
-| Backend (BE) | [docs/tasks/backend.md](docs/tasks/backend.md) | 70 / 78 |
+| Backend (BE) | [docs/tasks/backend.md](docs/tasks/backend.md) | 70 / 78 + transverses BE-T1→T6 |
 | Web (WEB) | [docs/tasks/frontend-web.md](docs/tasks/frontend-web.md) | 0 / 46 |
 | Mobile (MOB) | [docs/tasks/mobile.md](docs/tasks/mobile.md) | 0 / 44 |
-| Infra & CI/CD (INFRA) | [docs/tasks/infra.md](docs/tasks/infra.md) | 2 / 24 |
+| Infra & CI/CD (INFRA) | [docs/tasks/infra.md](docs/tasks/infra.md) | 3 / 24 |
 | Design & marque (DSN) | [docs/tasks/design.md](docs/tasks/design.md) | 0 / 10 |
 
 ---
@@ -380,9 +386,11 @@ Reste de `BE-068` **livré** (agrégat `MerchantSubAccount` caisses/employés + 
 relevé ; `PaymentChannel` QR/API + `Merchant.channel_fees` négociés sous
 `/v1/admin/merchants/<id>/channel-fees/<canal>` ; migration `d1e4b7a2f9c6`).
 
-**Phase 4 backend TERMINÉE** (`BE-061` → `BE-078`). Prochaine : Phase 5 ou lots
-transverses (`BE-T1` couverture CI, `BE-T3` contrats OpenAPI), et les fronts Web /
-Mobile qui dépendent de cette API.
+**Phase 4 backend TERMINÉE** (`BE-061` → `BE-078`) + **lots transverses `BE-T1` → `BE-T6`
+livrés** (CI GitHub Actions, tests de migrations, contrats OpenAPI schemathesis, métriques
+Prometheus `/metrics`, `docs/api/errors.md` exhaustif, test de charge locust). Prochaine :
+`INFRA` (déploiement VPS, CD) et les fronts Web (`WEB-*`) / Mobile (`MOB-*`) qui dépendent
+de cette API.
 
 ✅ Phase 2 livrée : `BE-029` (KYC), `BE-032` (demandes de paiement), `BE-033` (marchand
 QR), `BE-034` → `BE-036` (cash agent), `BE-037` (annulation / remboursement), `BE-038`

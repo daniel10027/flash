@@ -89,7 +89,7 @@ def build_spec(app: Flask) -> dict[str, Any]:
 
     paths: dict[str, Any] = {}
     for rule in app.url_map.iter_rules():
-        if rule.rule.startswith(("/static", "/openapi", "/docs", "/redoc")):
+        if rule.rule.startswith(("/static", "/openapi", "/docs", "/redoc", "/metrics")):
             continue
         view = app.view_functions.get(rule.endpoint)
         operation: Operation | None = getattr(view, _ATTR, None)

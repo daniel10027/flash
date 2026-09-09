@@ -22,8 +22,10 @@ Cible : dev local en Docker (API + Web + Postgres + Redis + Mailhog), production
 
 ## CI (INFRA-007 → INFRA-013)
 
-- [ ] **INFRA-007** · `.github/workflows/backend-ci.yml` : ruff, mypy, pytest (+ Postgres
-  service), couverture avec seuil, upload rapport. Cache pip.
+- [x] **INFRA-007** · `.github/workflows/backend-ci.yml` : ruff, mypy, `pytest --cov`
+  (services Postgres + Redis → tests d'intégration & de migrations inclus), seuil
+  `fail_under = 90`, diff `docs/api/openapi.json` ↔ `flash openapi dump`, upload
+  `coverage.xml`. Cache pip sur `pyproject.toml`, `concurrency` par ref. (livré avec `BE-T1`)
 - [ ] **INFRA-008** · `.github/workflows/web-ci.yml` : eslint, typecheck, vitest,
   build, Playwright (navigateurs en cache), Lighthouse CI.
 - [ ] **INFRA-009** · `.github/workflows/mobile-ci.yml` : `flutter analyze`, `flutter
