@@ -60,6 +60,30 @@ class FundsUnvaulted(DomainEvent):
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
+class FundsSaved(DomainEvent):
+    """Des fonds ont quitté le disponible pour un plan d'épargne."""
+
+    amount_minor: int
+    currency: str
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class FundsUnsaved(DomainEvent):
+    """Des fonds sont revenus d'un plan d'épargne au disponible."""
+
+    amount_minor: int
+    currency: str
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class SavingsInterestCredited(DomainEvent):
+    """Des intérêts d'épargne ont été capitalisés (nouvelle valeur, hors disponible)."""
+
+    amount_minor: int
+    currency: str
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
 class WalletFrozen(DomainEvent):
     reason: str
 
@@ -98,9 +122,12 @@ class TransferReversed(DomainEvent):
 __all__ = [
     "FundsReleased",
     "FundsReserved",
+    "FundsSaved",
+    "FundsUnsaved",
     "FundsUnvaulted",
     "FundsVaulted",
     "ReservationSettled",
+    "SavingsInterestCredited",
     "TransferCompleted",
     "TransferReversed",
     "WalletCredited",

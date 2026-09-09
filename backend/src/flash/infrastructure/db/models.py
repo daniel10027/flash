@@ -82,6 +82,7 @@ class WalletModel(Base):
     available_minor: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
     reserved_minor: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
     vaulted_minor: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
+    saved_minor: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
     created_at: Mapped[datetime] = mapped_column(TZDateTime, nullable=False)
 
     __table_args__ = (
@@ -89,6 +90,7 @@ class WalletModel(Base):
         CheckConstraint("available_minor >= 0", name="available_non_negative"),
         CheckConstraint("reserved_minor >= 0", name="reserved_non_negative"),
         CheckConstraint("vaulted_minor >= 0", name="vaulted_non_negative"),
+        CheckConstraint("saved_minor >= 0", name="saved_non_negative"),
     )
 
 
@@ -116,6 +118,42 @@ class VaultPocketModel(Base):
     __table_args__ = (
         CheckConstraint("balance_minor >= 0", name="pocket_balance_non_negative"),
         Index("ix_vault_pockets_wallet_id", "wallet_id"),
+    )
+
+
+class SavingsPlanModel(Base):
+    __tablename__ = "savings_plans"
+
+    id: Mapped[str] = mapped_column(_UUID, primary_key=True)
+    wallet_id: Mapped[str] = mapped_column(
+        ForeignKey("wallets.id", ondelete="RESTRICT"), nullable=False
+    )
+    user_id: Mapped[str] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
+    )
+    currency: Mapped[str] = mapped_column(_CCY, nullable=False)
+    name: Mapped[str] = mapped_column(String(60), nullable=False)
+    balance_minor: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
+    annual_rate_bps: Mapped[int] = mapped_column(SmallInteger, nullable=False, default=0)
+    frequency: Mapped[str] = mapped_column(String(8), nullable=False, default="NONE")
+    contribution_minor: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
+    target_minor: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    target_date: Mapped[datetime | None] = mapped_column(TZDateTime, nullable=True)
+    next_contribution_at: Mapped[datetime | None] = mapped_column(TZDateTime, nullable=True)
+    last_accrual_at: Mapped[datetime] = mapped_column(TZDateTime, nullable=False)
+    accrued_micro: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
+    status: Mapped[str] = mapped_column(String(8), nullable=False, default="ACTIVE")
+    created_at: Mapped[datetime] = mapped_column(TZDateTime, nullable=False)
+
+    __table_args__ = (
+        CheckConstraint("balance_minor >= 0", name="plan_balance_non_negative"),
+        CheckConstraint("accrued_micro >= 0", name="plan_accrued_non_negative"),
+        Index("ix_savings_plans_user_id", "user_id"),
+        Index(
+            "ix_savings_plans_due",
+            "next_contribution_at",
+            postgresql_where=text("status = 'ACTIVE' AND next_contribution_at IS NOT NULL"),
+        ),
     )
 
 
@@ -446,6 +484,7 @@ __all__ = [
     "OutboxModel",
     "PaymentRequestModel",
     "PhoneNumberModel",
+    "SavingsPlanModel",
     "UserModel",
     "VaultPocketModel",
     "WalletModel",

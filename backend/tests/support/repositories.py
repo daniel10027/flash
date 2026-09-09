@@ -20,6 +20,7 @@ from flash.domain.merchants.charge import MerchantCharge, MerchantChargeStatus
 from flash.domain.merchants.merchant import Merchant
 from flash.domain.merchants.payment import MerchantPayment
 from flash.domain.payments.request import PaymentRequest, PaymentRequestStatus
+from flash.domain.savings.plan import SavingsPlan, SavingsPlanStatus
 from flash.domain.shared.errors import PhoneNumberAlreadyLinked
 from flash.domain.shared.events import DomainEvent, EventRecorder
 from flash.domain.shared.identifiers import EntityId, Msisdn
@@ -477,6 +478,60 @@ class InMemoryVaultRepository(_Tracking):
         self._track(vault)
 
 
+class InMemorySavingsPlanRepository(_Tracking):
+    def __init__(self) -> None:
+        super().__init__()
+        self._by_id: dict[str, SavingsPlan] = {}
+
+    def get(self, plan_id: EntityId) -> SavingsPlan | None:
+        plan = self._by_id.get(str(plan_id))
+        if plan is not None:
+            self._track(plan)
+        return plan
+
+    def get_for_update(self, plan_id: EntityId) -> SavingsPlan:
+        plan = self._by_id.get(str(plan_id))
+        if plan is None:
+            raise KeyError(plan_id)
+        self._track(plan)
+        return plan
+
+    def list_for_user(self, user_id: EntityId) -> list[SavingsPlan]:
+        rows = [p for p in self._by_id.values() if p.user_id == user_id]
+        rows.sort(key=lambda p: p.created_at, reverse=True)
+        for p in rows:
+            self._track(p)
+        return rows
+
+    def list_active(
+        self, *, limit: int = 500, after: EntityId | None = None
+    ) -> list[SavingsPlan]:
+        rows = sorted(
+            (p for p in self._by_id.values() if p.status is SavingsPlanStatus.ACTIVE),
+            key=lambda p: str(p.id),
+        )
+        if after is not None:
+            rows = [p for p in rows if str(p.id) > str(after)]
+        for p in rows[:limit]:
+            self._track(p)
+        return rows[:limit]
+
+    def list_contributions_due(self, now: datetime, *, limit: int = 500) -> list[SavingsPlan]:
+        rows = [p for p in self._by_id.values() if p.contribution_due(now)]
+        rows.sort(key=lambda p: p.next_contribution_at or now)
+        for p in rows[:limit]:
+            self._track(p)
+        return rows[:limit]
+
+    def add(self, plan: SavingsPlan) -> None:
+        self._by_id[str(plan.id)] = plan
+        self._track(plan)
+
+    def save(self, plan: SavingsPlan) -> None:
+        self._by_id[str(plan.id)] = plan
+        self._track(plan)
+
+
 class InMemoryUnitOfWork:
     """Frontière transactionnelle en mémoire."""
 
@@ -494,6 +549,7 @@ class InMemoryUnitOfWork:
         merchant_charges: InMemoryMerchantChargeRepository | None = None,
         merchant_payments: InMemoryMerchantPaymentRepository | None = None,
         vaults: InMemoryVaultRepository | None = None,
+        savings: InMemorySavingsPlanRepository | None = None,
     ) -> None:
         self.users = users or InMemoryUserRepository()
         self.wallets = wallets or InMemoryWalletRepository()
@@ -506,6 +562,7 @@ class InMemoryUnitOfWork:
         self.merchant_charges = merchant_charges or InMemoryMerchantChargeRepository()
         self.merchant_payments = merchant_payments or InMemoryMerchantPaymentRepository()
         self.vaults = vaults or InMemoryVaultRepository()
+        self.savings = savings or InMemorySavingsPlanRepository()
         self.committed = False
         self.rolled_back = False
         self._extra_events: list[DomainEvent] = []
@@ -541,6 +598,7 @@ class InMemoryUnitOfWork:
             *self.merchant_charges.seen,
             *self.merchant_payments.seen,
             *self.vaults.seen,
+            *self.savings.seen,
         ):
             events.extend(aggregate.pull_events())
         events.extend(self._extra_events)
@@ -557,6 +615,7 @@ __all__ = [
     "InMemoryMerchantPaymentRepository",
     "InMemoryMerchantRepository",
     "InMemoryPaymentRequestRepository",
+    "InMemorySavingsPlanRepository",
     "InMemoryUnitOfWork",
     "InMemoryUserRepository",
     "InMemoryVaultRepository",

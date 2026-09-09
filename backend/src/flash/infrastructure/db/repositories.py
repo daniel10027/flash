@@ -23,6 +23,7 @@ from flash.domain.merchants.charge import MerchantCharge
 from flash.domain.merchants.merchant import Merchant
 from flash.domain.merchants.payment import MerchantPayment
 from flash.domain.payments.request import PaymentRequest
+from flash.domain.savings.plan import SavingsPlan
 from flash.domain.shared.errors import PhoneNumberAlreadyLinked
 from flash.domain.shared.events import EventRecorder
 from flash.domain.shared.identifiers import EntityId, Msisdn
@@ -42,6 +43,7 @@ from flash.infrastructure.db.models import (
     MerchantPaymentModel,
     PaymentRequestModel,
     PhoneNumberModel,
+    SavingsPlanModel,
     UserModel,
     VaultPocketModel,
     WalletModel,
@@ -571,6 +573,77 @@ class SqlAlchemyVaultRepository:
         self._tracker.track(vault)
 
 
+class SqlAlchemySavingsPlanRepository:
+    def __init__(self, session: Session, tracker: _AggregateTracker) -> None:
+        self._session = session
+        self._tracker = tracker
+
+    def _load(self, model: SavingsPlanModel | None) -> SavingsPlan | None:
+        if model is None:
+            return None
+        plan = mappers.savings_plan_to_domain(model)
+        self._tracker.track(plan)
+        return plan
+
+    def get(self, plan_id: EntityId) -> SavingsPlan | None:
+        return self._load(self._session.get(SavingsPlanModel, str(plan_id)))
+
+    def get_for_update(self, plan_id: EntityId) -> SavingsPlan:
+        stmt = (
+            select(SavingsPlanModel).where(SavingsPlanModel.id == str(plan_id)).with_for_update()
+        )
+        model = self._session.scalars(stmt).first()
+        if model is None:
+            raise KeyError(plan_id)
+        loaded = self._load(model)
+        assert loaded is not None
+        return loaded
+
+    def list_for_user(self, user_id: EntityId) -> list[SavingsPlan]:
+        stmt = (
+            select(SavingsPlanModel)
+            .where(SavingsPlanModel.user_id == str(user_id))
+            .order_by(SavingsPlanModel.created_at.desc())
+        )
+        return [p for p in (self._load(m) for m in self._session.scalars(stmt)) if p is not None]
+
+    def list_active(
+        self, *, limit: int = 500, after: EntityId | None = None
+    ) -> list[SavingsPlan]:
+        stmt = (
+            select(SavingsPlanModel)
+            .where(SavingsPlanModel.status == "ACTIVE")
+            .order_by(SavingsPlanModel.id.asc())
+            .limit(limit)
+        )
+        if after is not None:
+            stmt = stmt.where(SavingsPlanModel.id > str(after))
+        return [p for p in (self._load(m) for m in self._session.scalars(stmt)) if p is not None]
+
+    def list_contributions_due(self, now: datetime, *, limit: int = 500) -> list[SavingsPlan]:
+        stmt = (
+            select(SavingsPlanModel)
+            .where(
+                SavingsPlanModel.status == "ACTIVE",
+                SavingsPlanModel.frequency != "NONE",
+                SavingsPlanModel.next_contribution_at.is_not(None),
+                SavingsPlanModel.next_contribution_at <= now,
+            )
+            .order_by(SavingsPlanModel.next_contribution_at.asc())
+            .limit(limit)
+            .with_for_update()
+        )
+        return [p for p in (self._load(m) for m in self._session.scalars(stmt)) if p is not None]
+
+    def add(self, plan: SavingsPlan) -> None:
+        self._session.add(mappers.savings_plan_to_model(plan))
+        self._tracker.track(plan)
+
+    def save(self, plan: SavingsPlan) -> None:
+        self._session.merge(mappers.savings_plan_to_model(plan))
+        self._tracker.track(plan)
+
+
 def _new_account_id() -> EntityId:
     return EntityId(str(uuid7()))
 
@@ -584,6 +657,7 @@ __all__ = [
     "SqlAlchemyMerchantPaymentRepository",
     "SqlAlchemyMerchantRepository",
     "SqlAlchemyPaymentRequestRepository",
+    "SqlAlchemySavingsPlanRepository",
     "SqlAlchemyUserRepository",
     "SqlAlchemyVaultRepository",
     "SqlAlchemyWalletRepository",

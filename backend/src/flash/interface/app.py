@@ -28,6 +28,7 @@ from flash.interface.http import merchants as merchant_routes
 from flash.interface.http import notifications as notification_routes
 from flash.interface.http import payment_requests as payment_request_routes
 from flash.interface.http import phones as phones_routes
+from flash.interface.http import savings as savings_routes
 from flash.interface.http import statement as statement_routes
 from flash.interface.http import transfers as transfers_routes
 from flash.interface.http import vault as vault_routes
@@ -82,6 +83,7 @@ def create_app(
     app.register_blueprint(merchant_routes.merchant_payments_bp)
     app.register_blueprint(notification_routes.bp)
     app.register_blueprint(vault_routes.bp)
+    app.register_blueprint(savings_routes.bp)
     app.register_blueprint(admin_ops_routes.bp)
     return app
 

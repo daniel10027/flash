@@ -177,16 +177,27 @@ Chaque tâche livrée : code complet + tests + doc, **zéro `TODO`**.
 - [x] **BE-049** · `OpenVaultPocket` (nom, objectif optionnel, « verrouillé jusqu'à
   date » ISO 8601), `RenameVaultPocket`, `CloseVaultPocket` (vide obligatoire →
   `PocketNotEmpty`). Retrait avant échéance → `PocketLocked`.
-- [ ] **BE-050** · `domain/savings/plan.py` : `SavingsPlan` (objectif montant/date,
-  fréquence de versement, source wallet, statut, taux annuel).
-- [ ] **BE-051** · `OpenSavingsPlan` / `CloseSavingsPlan` (rapatrie au wallet).
-- [ ] **BE-052** · Job `run_scheduled_savings` : prélève les versements dus (échoue
-  proprement si solde insuffisant → notification, réessai).
-- [ ] **BE-053** · Job `accrue_savings_interest` : calcul quotidien prorata, crédite
-  mensuellement via `LedgerTransaction.interest` (`interest_expense`). Tests de calcul.
-- [~] **BE-054** · Blueprints `vault` (fait : `GET /v1/vault`, `POST /v1/vault/pockets`,
-  `PATCH`/`DELETE /v1/vault/pockets/<id>`, `deposit`/`withdraw` + schémas + OpenAPI +
-  notifications `VAULT`), `savings` (à faire avec BE-050 → BE-053).
+- [x] **BE-050** · `domain/savings/plan.py` : `SavingsPlan` (objectif montant/date,
+  `SavingsFrequency` NONE/WEEKLY/MONTHLY, `contribution`, `annual_rate_bps` ≤ 2000,
+  statut ACTIVE/CLOSED). `deposit`/`withdraw`/`close`, échéancier
+  (`contribution_due`/`advance_schedule`/`skip_contribution`), intérêts (`accrue`
+  prorata jours dans un accumulateur micro + `capitalise` unités entières),
+  `progress_bps`. Le principal vit dans `wallet.saved` (`balance = available + reserved
+  + vaulted + saved`, `available` l'exclut). Tests d'invariants.
+- [x] **BE-051** · `OpenSavingsPlan`, `ListSavingsPlans`, `ContributeToSavings` /
+  `WithdrawFromSavings` (idempotents, `LedgerTransaction.savings_deposit` /
+  `savings_withdrawal`), `CloseSavingsPlan` (tout est rapatrié au portefeuille).
+- [x] **BE-052** · Job `RunScheduledSavings` : prélève les versements échus ; solde
+  insuffisant → `skip_contribution` (`SavingsContributionSkipped` → notification) +
+  échéance reportée, pas de boucle serrée. `flash run-jobs` + `POST /v1/admin/jobs/
+  savings/contributions`.
+- [x] **BE-053** · Job `AccrueSavingsInterest` : `plan.accrue` (prorata jours) puis
+  `plan.capitalise` → `LedgerTransaction.interest` (`interest_expense`) + `wallet.
+  add_savings_interest`. Paginé. `POST /v1/admin/jobs/savings/interest`. Tests de calcul.
+- [x] **BE-054** · Blueprints `vault` (`GET /v1/vault`, `POST /pockets`, `PATCH`/`DELETE
+  /pockets/<id>`, `deposit`/`withdraw`) et `savings` (`GET`/`POST /v1/savings/plans`,
+  `POST /plans/<id>/{deposit,withdraw,close}`) + schémas + OpenAPI + notifications
+  `VAULT` / `SAVINGS`.
 - [ ] **BE-055** · `domain/card/card.py` : `Card` (token PAN, 4 derniers, réseau, statut
   ACTIVE/FROZEN/CLOSED, plafonds jour/mois, canaux autorisés e‑com/sans‑contact).
 - [ ] **BE-056** · Port `CardIssuer` + `SandboxCardIssuer` (émission, gel, clôture,

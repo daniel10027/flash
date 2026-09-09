@@ -11,6 +11,12 @@ from flash.application.notifications.model import NotificationKind
 from flash.domain.cash.events import CashDepositCompleted, CashWithdrawalConfirmed
 from flash.domain.identity.events import KycCaseApproved, KycCaseRejected
 from flash.domain.merchants.events import MerchantPaymentCompleted, MerchantPaymentRefunded
+from flash.domain.savings.events import (
+    SavingsContributionSkipped,
+    SavingsInterestCapitalised,
+    SavingsPlanClosed,
+    SavingsPlanFunded,
+)
 from flash.domain.shared.events import DomainEvent
 from flash.domain.vault.events import VaultPocketDeposited, VaultPocketWithdrawn
 from flash.domain.wallet.events import TransferCompleted, TransferReversed
@@ -197,6 +203,73 @@ def test_vault_moves_notify_owner(
     assert [n.kind for n in notes] == [NotificationKind.VAULT, NotificationKind.VAULT]
     assert "20 000 XOF" in notes[0].body and "Vacances" in notes[0].body
     assert notes[1].data["pocket_id"] == "p-1"
+
+
+def test_savings_events_notify_owner(
+    dispatcher: NotificationDispatcher, notifier: RecordingNotifier
+) -> None:
+    dispatcher.handle(
+        [
+            SavingsPlanFunded(
+                occurred_at=T0,
+                aggregate_id="p-1",
+                user_id="u-1",
+                wallet_id="w-1",
+                plan_id="p-1",
+                plan_name="Voyage",
+                amount_minor=5_000,
+                currency="XOF",
+                scheduled=True,
+            ),
+            SavingsPlanFunded(
+                occurred_at=T0,
+                aggregate_id="p-1",
+                user_id="u-1",
+                wallet_id="w-1",
+                plan_id="p-1",
+                plan_name="Voyage",
+                amount_minor=9_000,
+                currency="XOF",
+                scheduled=False,  # versement manuel : pas de notification
+            ),
+            SavingsContributionSkipped(
+                occurred_at=T0,
+                aggregate_id="p-1",
+                user_id="u-1",
+                wallet_id="w-1",
+                plan_id="p-1",
+                plan_name="Voyage",
+                amount_minor=5_000,
+                currency="XOF",
+            ),
+            SavingsInterestCapitalised(
+                occurred_at=T0,
+                aggregate_id="p-1",
+                user_id="u-1",
+                wallet_id="w-1",
+                plan_id="p-1",
+                plan_name="Voyage",
+                amount_minor=120,
+                currency="XOF",
+            ),
+            SavingsPlanClosed(
+                occurred_at=T0,
+                aggregate_id="p-1",
+                user_id="u-1",
+                wallet_id="w-1",
+                plan_id="p-1",
+                plan_name="Voyage",
+                amount_minor=50_000,
+                currency="XOF",
+            ),
+        ]
+    )
+    notes = notifier.for_user("u-1")
+    assert [n.kind for n in notes] == [NotificationKind.SAVINGS] * 4
+    assert "5 000 XOF" in notes[0].body and "Voyage" in notes[0].body
+    assert "reporté" in notes[1].body
+    assert "intérêts" in notes[2].body.lower()
+    assert "clôturé" in notes[3].body
 
 
 def test_unmapped_event_produces_nothing(

@@ -6,10 +6,13 @@ d'usage dans la même transaction qu'une ``LedgerTransaction`` équilibrée. Ell
 
 - ``available`` : fonds utilisables immédiatement.
 - ``reserved`` : fonds bloqués (retrait cash en attente de code, autorisation carte…).
-- ``balance`` : ``available + reserved`` (dette totale de Flash envers le client).
+- ``vaulted`` : fonds rangés dans une poche de coffre (BE-047).
+- ``saved`` : fonds engagés dans un plan d'épargne (BE-050), intérêts compris.
+- ``balance`` : ``available + reserved + vaulted + saved`` (dette totale de Flash envers
+  le client).
 
-Invariants : ``available >= 0``, ``reserved >= 0``, tout montant dans la devise du
-portefeuille et strictement positif.
+Invariants : chaque poste ``>= 0``, tout montant dans la devise du portefeuille et
+strictement positif.
 """
 
 from __future__ import annotations
@@ -30,9 +33,12 @@ from flash.domain.shared.money import Currency, Money
 from flash.domain.wallet.events import (
     FundsReleased,
     FundsReserved,
+    FundsSaved,
+    FundsUnsaved,
     FundsUnvaulted,
     FundsVaulted,
     ReservationSettled,
+    SavingsInterestCredited,
     WalletCredited,
     WalletDebited,
     WalletFrozen,
@@ -57,14 +63,17 @@ class Wallet(EventRecorder):
         reserved: Money,
         created_at: datetime,
         vaulted: Money | None = None,
+        saved: Money | None = None,
         status: WalletStatus = WalletStatus.ACTIVE,
     ) -> None:
         super().__init__()
         vaulted = vaulted if vaulted is not None else Money.zero(currency)
+        saved = saved if saved is not None else Money.zero(currency)
         for label, money in (
             ("available", available),
             ("reserved", reserved),
             ("vaulted", vaulted),
+            ("saved", saved),
         ):
             if money.currency != currency:
                 raise ValueError(f"{label} n'est pas dans la devise du portefeuille ({currency}).")
@@ -76,6 +85,7 @@ class Wallet(EventRecorder):
         self.available = available
         self.reserved = reserved
         self.vaulted = vaulted
+        self.saved = saved
         self.created_at = created_at
         self.status = status
 
@@ -105,7 +115,7 @@ class Wallet(EventRecorder):
     # ---------------------------------------------------------------- lecture
     @property
     def balance(self) -> Money:
-        return self.available + self.reserved + self.vaulted
+        return self.available + self.reserved + self.vaulted + self.saved
 
     @property
     def is_active(self) -> bool:
@@ -243,6 +253,57 @@ class Wallet(EventRecorder):
             )
         )
 
+    # ----------------------------------------------------------------- épargne
+    def move_to_savings(self, amount: Money, now: datetime) -> None:
+        """Engage des fonds dans un plan d'épargne : le disponible baisse, ``saved`` monte."""
+        self._guard(amount)
+        self.ensure_active()
+        if self.available < amount:
+            raise InsufficientFunds(
+                available=self.available.amount_minor, requested=amount.amount_minor
+            )
+        self.available = self.available - amount
+        self.saved = self.saved + amount
+        self.record_event(
+            FundsSaved(
+                occurred_at=now,
+                aggregate_id=str(self.id),
+                amount_minor=amount.amount_minor,
+                currency=self.currency.code,
+            )
+        )
+
+    def move_from_savings(self, amount: Money, now: datetime) -> None:
+        """Rapatrie de l'épargne vers le disponible (retrait partiel ou clôture)."""
+        self._guard(amount)
+        if self.saved < amount:
+            raise InvalidReservation(
+                reserved=self.saved.amount_minor, requested=amount.amount_minor
+            )
+        self.saved = self.saved - amount
+        self.available = self.available + amount
+        self.record_event(
+            FundsUnsaved(
+                occurred_at=now,
+                aggregate_id=str(self.id),
+                amount_minor=amount.amount_minor,
+                currency=self.currency.code,
+            )
+        )
+
+    def add_savings_interest(self, amount: Money, now: datetime) -> None:
+        """Capitalise des intérêts : ``saved`` monte, sans toucher au disponible."""
+        self._guard(amount)
+        self.saved = self.saved + amount
+        self.record_event(
+            SavingsInterestCredited(
+                occurred_at=now,
+                aggregate_id=str(self.id),
+                amount_minor=amount.amount_minor,
+                currency=self.currency.code,
+            )
+        )
+
     # ---------------------------------------------------------------- statut
     def freeze(self, reason: str, now: datetime) -> None:
         if self.status is WalletStatus.FROZEN:
@@ -260,7 +321,7 @@ class Wallet(EventRecorder):
         return (
             f"Wallet(id={self.id!s}, {self.currency.code}, "
             f"available={self.available.amount_minor}, reserved={self.reserved.amount_minor}, "
-            f"vaulted={self.vaulted.amount_minor})"
+            f"vaulted={self.vaulted.amount_minor}, saved={self.saved.amount_minor})"
         )
 
 

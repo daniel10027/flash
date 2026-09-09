@@ -192,6 +192,57 @@ class TestVaultMoves:
         assert "vaulted=2000" in repr(w)
 
 
+class TestSavingsMoves:
+    def test_move_to_savings_shifts_available_to_saved_keeping_balance(self) -> None:
+        w = new_wallet(10_000)
+        w.move_to_savings(xof(4_000), T0)
+        assert w.available == xof(6_000)
+        assert w.saved == xof(4_000)
+        assert w.balance == xof(10_000)
+        assert [e.name for e in w.pull_events()] == ["FundsSaved"]
+
+    def test_move_from_savings_returns_value_to_available(self) -> None:
+        w = new_wallet(10_000)
+        w.move_to_savings(xof(4_000), T0)
+        w.pull_events()
+        w.move_from_savings(xof(2_500), T0)
+        assert w.available == xof(8_500)
+        assert w.saved == xof(1_500)
+        assert [e.name for e in w.pull_events()] == ["FundsUnsaved"]
+
+    def test_add_savings_interest_grows_saved_and_balance(self) -> None:
+        w = new_wallet(10_000)
+        w.move_to_savings(xof(4_000), T0)
+        w.pull_events()
+        w.add_savings_interest(xof(120), T0)
+        assert w.saved == xof(4_120)
+        assert w.available == xof(6_000)
+        assert w.balance == xof(10_120)
+        assert [e.name for e in w.pull_events()] == ["SavingsInterestCredited"]
+
+    def test_move_to_savings_more_than_available_rejected(self) -> None:
+        w = new_wallet(1_000)
+        with pytest.raises(InsufficientFunds):
+            w.move_to_savings(xof(1_001), T0)
+
+    def test_move_from_savings_more_than_saved_rejected(self) -> None:
+        w = new_wallet(1_000)
+        w.move_to_savings(xof(500), T0)
+        with pytest.raises(InvalidReservation):
+            w.move_from_savings(xof(600), T0)
+
+    def test_frozen_wallet_blocks_move_to_savings(self) -> None:
+        w = new_wallet(5_000)
+        w.freeze("x", T0)
+        with pytest.raises(WalletFrozen):
+            w.move_to_savings(xof(100), T0)
+
+    def test_repr_mentions_saved(self) -> None:
+        w = new_wallet(5_000)
+        w.move_to_savings(xof(2_000), T0)
+        assert "saved=2000" in repr(w)
+
+
 class TestFreeze:
     def test_frozen_wallet_blocks_debit_and_reserve(self) -> None:
         w = new_wallet(10_000)

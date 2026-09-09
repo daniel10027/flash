@@ -24,6 +24,7 @@ class WalletView:
     available_minor: int
     reserved_minor: int
     vaulted_minor: int
+    saved_minor: int
     balance_minor: int
     created_at: str
 
@@ -36,6 +37,7 @@ class WalletView:
             available_minor=wallet.available.amount_minor,
             reserved_minor=wallet.reserved.amount_minor,
             vaulted_minor=wallet.vaulted.amount_minor,
+            saved_minor=wallet.saved.amount_minor,
             balance_minor=wallet.balance.amount_minor,
             created_at=wallet.created_at.isoformat(),
         )
@@ -48,6 +50,7 @@ class WalletView:
             "available_minor": self.available_minor,
             "reserved_minor": self.reserved_minor,
             "vaulted_minor": self.vaulted_minor,
+            "saved_minor": self.saved_minor,
             "balance_minor": self.balance_minor,
             "created_at": self.created_at,
         }

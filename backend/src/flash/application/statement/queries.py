@@ -62,6 +62,27 @@ def _project_for_wallets(txn: LedgerTransaction, wallet_ids: set[str]) -> _Proje
             note=meta.get("note"),
         )
 
+    # Mouvements d'épargne : dépôt/retrait sont à net nul (deux écritures sur le même
+    # portefeuille) ; la capitalisation d'intérêts est une entrée nette.
+    if txn.kind in (TransactionKind.SAVINGS_DEPOSIT, TransactionKind.SAVINGS_WITHDRAWAL):
+        return _Projection(
+            direction="out" if txn.kind is TransactionKind.SAVINGS_DEPOSIT else "in",
+            amount_minor=int(meta.get("amount_minor", 0)),
+            fee_minor=0,
+            currency=currency,
+            counterparty_masked=meta.get("plan_name"),
+            note=meta.get("note"),
+        )
+    if txn.kind is TransactionKind.INTEREST:
+        return _Projection(
+            direction="in",
+            amount_minor=int(meta.get("amount_minor", abs(net))),
+            fee_minor=0,
+            currency=currency,
+            counterparty_masked=meta.get("plan_name"),
+            note=meta.get("note"),
+        )
+
     is_out = net < 0
     gross = abs(net)
     meta_fee = int(meta.get("fee_minor", 0))

@@ -833,6 +833,9 @@
                     "vaulted_minor": {
                       "type": "integer"
                     },
+                    "saved_minor": {
+                      "type": "integer"
+                    },
                     "balance_minor": {
                       "type": "integer"
                     },
@@ -892,6 +895,9 @@
                       "type": "integer"
                     },
                     "vaulted_minor": {
+                      "type": "integer"
+                    },
+                    "saved_minor": {
                       "type": "integer"
                     },
                     "balance_minor": {
@@ -2739,6 +2745,444 @@
         ]
       }
     },
+    "/v1/savings/plans": {
+      "get": {
+        "summary": "Lister mes plans d'épargne",
+        "tags": [
+          "savings"
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "plan_id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "balance_minor": {
+                      "type": "integer"
+                    },
+                    "currency": {
+                      "type": "string"
+                    },
+                    "annual_rate_bps": {
+                      "type": "integer"
+                    },
+                    "frequency": {
+                      "type": "string",
+                      "enum": [
+                        "NONE",
+                        "WEEKLY",
+                        "MONTHLY"
+                      ]
+                    },
+                    "contribution_minor": {
+                      "type": "integer"
+                    },
+                    "target_minor": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ]
+                    },
+                    "target_date": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "progress_bps": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ]
+                    },
+                    "accrued_interest_minor": {
+                      "type": "integer"
+                    },
+                    "next_contribution_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "ACTIVE",
+                        "CLOSED"
+                      ]
+                    },
+                    "created_at": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "post": {
+        "summary": "Ouvrir un plan d'épargne (objectif, versement programmé, taux)",
+        "tags": [
+          "savings"
+        ],
+        "responses": {
+          "201": {
+            "description": "Succès",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "plan_id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "balance_minor": {
+                      "type": "integer"
+                    },
+                    "currency": {
+                      "type": "string"
+                    },
+                    "annual_rate_bps": {
+                      "type": "integer"
+                    },
+                    "frequency": {
+                      "type": "string",
+                      "enum": [
+                        "NONE",
+                        "WEEKLY",
+                        "MONTHLY"
+                      ]
+                    },
+                    "contribution_minor": {
+                      "type": "integer"
+                    },
+                    "target_minor": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ]
+                    },
+                    "target_date": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "progress_bps": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ]
+                    },
+                    "accrued_interest_minor": {
+                      "type": "integer"
+                    },
+                    "next_contribution_at": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "ACTIVE",
+                        "CLOSED"
+                      ]
+                    },
+                    "created_at": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "name": {
+                    "examples": [
+                      "Voyage 2027"
+                    ],
+                    "maxLength": 60,
+                    "minLength": 1,
+                    "title": "Name",
+                    "type": "string"
+                  },
+                  "annual_rate_bps": {
+                    "default": 0,
+                    "examples": [
+                      350
+                    ],
+                    "maximum": 2000,
+                    "minimum": 0,
+                    "title": "Annual Rate Bps",
+                    "type": "integer"
+                  },
+                  "frequency": {
+                    "default": "NONE",
+                    "pattern": "^(NONE|WEEKLY|MONTHLY)$",
+                    "title": "Frequency",
+                    "type": "string"
+                  },
+                  "contribution_minor": {
+                    "default": 0,
+                    "examples": [
+                      10000
+                    ],
+                    "minimum": 0,
+                    "title": "Contribution Minor",
+                    "type": "integer"
+                  },
+                  "target_minor": {
+                    "anyOf": [
+                      {
+                        "exclusiveMinimum": 0,
+                        "type": "integer"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "examples": [
+                      1000000
+                    ],
+                    "title": "Target Minor"
+                  },
+                  "target_date": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "examples": [
+                      "2027-06-01T00:00:00+00:00"
+                    ],
+                    "title": "Target Date"
+                  }
+                },
+                "required": [
+                  "name"
+                ],
+                "title": "OpenPlanRequest",
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/savings/plans/{plan_id}/deposit": {
+      "post": {
+        "summary": "Verser sur un plan d'épargne",
+        "tags": [
+          "savings"
+        ],
+        "responses": {
+          "201": {
+            "description": "Succès"
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "amount_minor": {
+                    "examples": [
+                      25000
+                    ],
+                    "exclusiveMinimum": 0,
+                    "title": "Amount Minor",
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "amount_minor"
+                ],
+                "title": "MoveRequest",
+                "type": "object"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 255
+            }
+          }
+        ]
+      }
+    },
+    "/v1/savings/plans/{plan_id}/withdraw": {
+      "post": {
+        "summary": "Retirer partiellement d'un plan d'épargne (retour au portefeuille)",
+        "tags": [
+          "savings"
+        ],
+        "responses": {
+          "201": {
+            "description": "Succès"
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "amount_minor": {
+                    "examples": [
+                      25000
+                    ],
+                    "exclusiveMinimum": 0,
+                    "title": "Amount Minor",
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "amount_minor"
+                ],
+                "title": "MoveRequest",
+                "type": "object"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 255
+            }
+          }
+        ]
+      }
+    },
+    "/v1/savings/plans/{plan_id}/close": {
+      "post": {
+        "summary": "Clôturer un plan d'épargne (tout est rapatrié au portefeuille)",
+        "tags": [
+          "savings"
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès"
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
     "/v1/admin/jobs/expire": {
       "post": {
         "summary": "Back-office : expirer les opérations en attente périmées",
@@ -2765,6 +3209,52 @@
     "/v1/admin/reconcile": {
       "post": {
         "summary": "Back-office : réconcilier les soldes des portefeuilles avec le ledger",
+        "tags": [
+          "admin"
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès"
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/jobs/savings/contributions": {
+      "post": {
+        "summary": "Back-office : prélever les versements d'épargne programmés échus",
+        "tags": [
+          "admin"
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès"
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/jobs/savings/interest": {
+      "post": {
+        "summary": "Back-office : accroître et capitaliser les intérêts d'épargne",
         "tags": [
           "admin"
         ],

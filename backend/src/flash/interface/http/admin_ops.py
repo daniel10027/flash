@@ -6,6 +6,7 @@ from flask import Blueprint, Response, jsonify
 
 from flash.application.jobs.expire import ExpireStaleOperations
 from flash.application.jobs.reconcile import ReconcileWalletBalances
+from flash.application.jobs.savings import AccrueSavingsInterest, RunScheduledSavings
 from flash.interface.container import deps
 from flash.interface.openapi import document
 from flash.interface.security.admin import require_admin
@@ -35,6 +36,30 @@ def run_expire() -> tuple[Response, int]:
 def run_reconcile() -> tuple[Response, int]:
     report = ReconcileWalletBalances(services=deps().services).execute()
     return jsonify(report.to_dict()), 200 if report.ok else 409
+
+
+@bp.post("/jobs/savings/contributions")
+@require_admin
+@document(
+    summary="Back-office : prélever les versements d'épargne programmés échus",
+    tags=["admin"],
+    secured=False,
+)
+def run_scheduled_savings() -> tuple[Response, int]:
+    report = RunScheduledSavings(services=deps().services).execute()
+    return jsonify(report.to_dict()), 200
+
+
+@bp.post("/jobs/savings/interest")
+@require_admin
+@document(
+    summary="Back-office : accroître et capitaliser les intérêts d'épargne",
+    tags=["admin"],
+    secured=False,
+)
+def run_savings_interest() -> tuple[Response, int]:
+    report = AccrueSavingsInterest(services=deps().services).execute()
+    return jsonify(report.to_dict()), 200
 
 
 __all__ = ["bp"]

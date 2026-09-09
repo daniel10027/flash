@@ -14,6 +14,12 @@ from flash.application.notifications.ports import Notifier
 from flash.domain.cash.events import CashDepositCompleted, CashWithdrawalConfirmed
 from flash.domain.identity.events import KycCaseApproved, KycCaseRejected
 from flash.domain.merchants.events import MerchantPaymentCompleted, MerchantPaymentRefunded
+from flash.domain.savings.events import (
+    SavingsContributionSkipped,
+    SavingsInterestCapitalised,
+    SavingsPlanClosed,
+    SavingsPlanFunded,
+)
 from flash.domain.shared.events import DomainEvent
 from flash.domain.shared.ports import Clock, IdGenerator
 from flash.domain.vault.events import VaultPocketDeposited, VaultPocketWithdrawn
@@ -174,6 +180,59 @@ def _vault_withdrawn(e: VaultPocketWithdrawn) -> list[_Spec]:
     ]
 
 
+def _savings_funded(e: SavingsPlanFunded) -> list[_Spec]:
+    if not e.scheduled:
+        return []
+    return [
+        (
+            e.user_id,
+            NotificationKind.SAVINGS,
+            "Versement d'épargne",
+            f"{_money(e.amount_minor, e.currency)} versés sur « {e.plan_name} ».",
+            {"plan_id": e.plan_id},
+        )
+    ]
+
+
+def _savings_skipped(e: SavingsContributionSkipped) -> list[_Spec]:
+    return [
+        (
+            e.user_id,
+            NotificationKind.SAVINGS,
+            "Versement d'épargne impossible",
+            (
+                f"Le versement de {_money(e.amount_minor, e.currency)} sur « {e.plan_name} » "
+                "a été reporté (solde insuffisant)."
+            ),
+            {"plan_id": e.plan_id},
+        )
+    ]
+
+
+def _savings_interest(e: SavingsInterestCapitalised) -> list[_Spec]:
+    return [
+        (
+            e.user_id,
+            NotificationKind.SAVINGS,
+            "Intérêts d'épargne",
+            f"{_money(e.amount_minor, e.currency)} d'intérêts ajoutés à « {e.plan_name} ».",
+            {"plan_id": e.plan_id},
+        )
+    ]
+
+
+def _savings_closed(e: SavingsPlanClosed) -> list[_Spec]:
+    return [
+        (
+            e.user_id,
+            NotificationKind.SAVINGS,
+            "Plan d'épargne clôturé",
+            f"« {e.plan_name} » a été clôturé, {_money(e.amount_minor, e.currency)} rapatriés.",
+            {"plan_id": e.plan_id},
+        )
+    ]
+
+
 def _kyc_approved(e: KycCaseApproved) -> list[_Spec]:
     return [
         (
@@ -209,6 +268,10 @@ _BUILDERS: dict[type[DomainEvent], Callable[[Any], list[_Spec]]] = {
     KycCaseRejected: _kyc_rejected,
     VaultPocketDeposited: _vault_deposited,
     VaultPocketWithdrawn: _vault_withdrawn,
+    SavingsPlanFunded: _savings_funded,
+    SavingsContributionSkipped: _savings_skipped,
+    SavingsInterestCapitalised: _savings_interest,
+    SavingsPlanClosed: _savings_closed,
 }
 
 

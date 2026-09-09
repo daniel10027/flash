@@ -1,7 +1,7 @@
 # Flash — Map de développement
 
 > **Dernière mise à jour : 2026-09-09**
-> **Phase 1 + Phase 2 complètes · Phase 3 en cours : BE-047 → BE-049 (coffre) livrés**
+> **Phase 1 + Phase 2 complètes · Phase 3 : BE-047 → BE-054 (coffre + épargne) livrés**
 > (auth, numéros, wallets, transfert + **annulation**, **demandes de paiement**,
 > **paiement marchand QR** + **remboursement**, **dépôt & retrait cash agent**,
 > relevé + **reçu détaillé**, **KYC**, **notifications** + **flux SSE**, **jobs
@@ -45,11 +45,11 @@
 > `/v1/notifications` (liste + curseur + `unread`, `/<id>/read`, `/read-all`) et
 > **SSE `/v1/notifications/stream`** (`RedisNotificationBus` pub/sub, rattrapage
 > `Last-Event-ID` depuis le journal, keep-alive).
-> **45 chemins** : `auth` (6), `phones` (5), `wallets` (2), `transfers` (2),
+> **52 chemins** : `auth` (6), `phones` (5), `wallets` (2), `transfers` (2),
 > `payment-requests` (4), `merchant` (4), `merchant-payments` (1), `statement` (1),
 > `receipts` (1), `notifications` (4), `withdrawals` (2), `agent` (2), `kyc` (4),
-> `vault` (6), `admin/kyc` (1), `admin` ops (2) + `/health*`, `/openapi.json`, `/docs`,
-> `/redoc`.
+> `vault` (6), `savings` (5), `admin/kyc` (1), `admin` ops (4) + `/health*`,
+> `/openapi.json`, `/docs`, `/redoc`.
 > **Tout vérifié end-to-end via docker compose** : cash, KYC, demandes de paiement,
 > paiement marchand, annulation / remboursement (soldes restaurés, rejeu → 409),
 > reçus (out/in, 404 pour un tiers, REVERSED) ; un transfert génère « Argent reçu » /
@@ -65,6 +65,21 @@
 > `flash run-jobs` (cron, exit 1 si écart) + `POST /v1/admin/{jobs/expire,reconcile}`.
 > **Seed (BE-046)** : `flash seed` — agent + marchand + 2 utilisateurs approvisionnés,
 > idempotent.
+> **Épargne (BE-050 → BE-054)** : agrégat `SavingsPlan` (objectif montant/date, fréquence
+> NONE/WEEKLY/MONTHLY + `contribution`, `annual_rate_bps` ≤ 2000, ACTIVE/CLOSED). Le
+> `Wallet` gagne `saved` : `balance = available + reserved + vaulted + saved`, l'`available`
+> l'exclut. `OpenSavingsPlan` / `ContributeToSavings` / `WithdrawFromSavings` (idempotents,
+> `LedgerTransaction.savings_deposit`/`withdrawal`) / `CloseSavingsPlan` (tout rapatrié).
+> Intérêts : `plan.accrue` (prorata jours, accumulateur sous-unité) puis `plan.capitalise`
+> (unités entières) → `LedgerTransaction.interest` (`interest_expense`) +
+> `wallet.add_savings_interest`. Jobs `RunScheduledSavings` (versements échus ; solde
+> insuffisant → `SavingsContributionSkipped` + échéance reportée) et `AccrueSavingsInterest`
+> (paginé), branchés sur `flash run-jobs` et `POST /v1/admin/jobs/savings/{contributions,
+> interest}`. Blueprint `/v1/savings` (`GET`/`POST /plans`, `POST /plans/<id>/{deposit,
+> withdraw,close}`). Statement : `SAVINGS_DEPOSIT`/`WITHDRAWAL`/`INTEREST` projetés depuis
+> les métadonnées. Notifications `SAVINGS`. Colonne `wallets.saved_minor` + table
+> `savings_plans` (migration `c7f2a0e9d4b1`).
+>
 > **Coffre (BE-047 → BE-049 + BE-054 partiel)** : agrégat `Vault` = les **poches** d'un
 > portefeuille (nom, solde, objectif + `progress_bps`, `locked_until`). Le `Wallet` gagne
 > `vaulted` : `balance = available + reserved + vaulted`, l'`available` **exclut** le coffre.
@@ -78,10 +93,10 @@
 > Blueprint `/v1/vault` : `GET`, `POST /pockets`, `PATCH`/`DELETE /pockets/<id>`,
 > `POST /pockets/<id>/{deposit,withdraw}`. Colonne `wallets.vaulted_minor` + table
 > `vault_pockets` (migration `a1c9f4e2b7d3`).
-> **45 chemins.** 717 tests unit + 16 d'intégration (Postgres réel), couverture 100 %
+> **52 chemins.** 784 tests unit + 17 d'intégration (Postgres réel), couverture 100 %
 > domain+application, ruff + mypy stricts.
-> **Phase 2 terminée. Phase 3 en cours** : coffre livré → prochaine `BE-050`
-> (`SavingsPlan` / épargne), puis `BE-055` (`Card` / carte virtuelle).
+> **Phase 2 terminée. Phase 3 en cours** : coffre + épargne livrés → prochaine `BE-055`
+> (`Card` / carte virtuelle : émission, gel, plafonds, autorisations, rapprochement).
 
 Ce fichier est la vue d'ensemble. Le détail (une ligne = une tâche cochable) est dans
 `docs/tasks/`. On avance **dans l'ordre des identifiants** à l'intérieur de chaque lot,
@@ -99,7 +114,7 @@ mais les lots Backend / Infra avancent en priorité car Web et Mobile en dépend
 | Lot | Fichier détaillé | Fait / Total |
 |-----|------------------|--------------|
 | Fondations & docs | ce fichier | 6 / 6 |
-| Backend (BE) | [docs/tasks/backend.md](docs/tasks/backend.md) | 49 / 78 |
+| Backend (BE) | [docs/tasks/backend.md](docs/tasks/backend.md) | 54 / 78 |
 | Web (WEB) | [docs/tasks/frontend-web.md](docs/tasks/frontend-web.md) | 0 / 46 |
 | Mobile (MOB) | [docs/tasks/mobile.md](docs/tasks/mobile.md) | 0 / 44 |
 | Infra & CI/CD (INFRA) | [docs/tasks/infra.md](docs/tasks/infra.md) | 2 / 24 |
@@ -167,16 +182,20 @@ charge, revue sécurité (OWASP ASVS, secrets, rate‑limit), doc API publiée, 
 
 ## Prochaine action
 
-**Phase 3 en cours.** Coffre livré : `BE-047` (agrégat `Vault` + `Wallet.vaulted`),
-`BE-048` (`MoveToVault` / `MoveFromVault` + `vault_move` historisé), `BE-049`
-(`OpenVaultPocket` / `RenameVaultPocket` / `CloseVaultPocket`), `BE-054` partiel
-(blueprint `/v1/vault` + OpenAPI + notifications `VAULT`, migration `a1c9f4e2b7d3`).
+**Phase 3 en cours.** Coffre + épargne livrés : `BE-047` (`Vault` + `Wallet.vaulted`),
+`BE-048` (`MoveToVault`/`MoveFromVault`), `BE-049` (poches : ouvrir/renommer/fermer),
+`BE-050` (`SavingsPlan` + `Wallet.saved` + intérêts prorata), `BE-051`
+(`OpenSavingsPlan`/`Contribute`/`Withdraw`/`CloseSavingsPlan`), `BE-052`
+(`RunScheduledSavings`), `BE-053` (`AccrueSavingsInterest`), `BE-054` (blueprints
+`/v1/vault` + `/v1/savings` + OpenAPI + notifications `VAULT`/`SAVINGS` ; migrations
+`a1c9f4e2b7d3`, `c7f2a0e9d4b1`).
 
-Prochaine : `BE-050` — `domain/savings/plan.py` : agrégat `SavingsPlan` (objectif
-montant/date, fréquence de versement, source wallet, statut, taux annuel). Puis `BE-051`
-(`OpenSavingsPlan` / `CloseSavingsPlan`), `BE-052` (job versements programmés), `BE-053`
-(job intérêts prorata + `LedgerTransaction.interest`), fin de `BE-054` (blueprint
-`savings`), puis `BE-055` → `BE-060` (`Card` virtuelle).
+Prochaine : `BE-055` — `domain/card/card.py` : agrégat `Card` (token PAN, 4 derniers,
+réseau, statut ACTIVE/FROZEN/CLOSED, plafonds jour/mois, canaux e‑com/sans‑contact).
+Puis `BE-056` (`CardIssuer` port + `SandboxCardIssuer` + `IssueCard`/`FreezeCard`/…),
+`BE-057` (webhook autorisations → réservation wallet / capture / refund via
+`card_scheme_suspense`), `BE-058` (`GetCardSensitive`), `BE-059` (rapprochement carte),
+`BE-060` (blueprint `cards`).
 
 ✅ Phase 2 livrée : `BE-029` (KYC), `BE-032` (demandes de paiement), `BE-033` (marchand
 QR), `BE-034` → `BE-036` (cash agent), `BE-037` (annulation / remboursement), `BE-038`

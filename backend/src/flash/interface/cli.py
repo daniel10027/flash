@@ -65,6 +65,7 @@ def run_jobs() -> None:
     opérations en attente + réconciliation des soldes."""
     from flash.application.jobs.expire import ExpireStaleOperations
     from flash.application.jobs.reconcile import ReconcileWalletBalances
+    from flash.application.jobs.savings import AccrueSavingsInterest, RunScheduledSavings
     from flash.infrastructure.config import get_settings
     from flash.interface.container import build_app_services
 
@@ -75,6 +76,18 @@ def run_jobs() -> None:
         f"expiration : {expired.withdrawals_expired} retraits, "
         f"{expired.payment_requests_expired} demandes, "
         f"{expired.merchant_charges_expired} QR marchands"
+    )
+
+    contributions = RunScheduledSavings(services=services).execute()
+    click.echo(
+        f"épargne programmée : {contributions.funded} versés, "
+        f"{contributions.skipped} reportés (sur {contributions.checked} échus)"
+    )
+
+    interest = AccrueSavingsInterest(services=services).execute()
+    click.echo(
+        f"intérêts d'épargne : {interest.capitalised_minor} capitalisés "
+        f"sur {interest.capitalised_plans} plan(s) ({interest.checked} vérifiés)"
     )
 
     report = ReconcileWalletBalances(services=services).execute()

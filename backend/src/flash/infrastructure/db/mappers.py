@@ -25,6 +25,7 @@ from flash.domain.merchants.charge import MerchantCharge, MerchantChargeStatus
 from flash.domain.merchants.merchant import Merchant, MerchantStatus
 from flash.domain.merchants.payment import MerchantPayment, MerchantPaymentStatus
 from flash.domain.payments.request import PaymentRequest, PaymentRequestStatus
+from flash.domain.savings.plan import SavingsFrequency, SavingsPlan, SavingsPlanStatus
 from flash.domain.shared.identifiers import CountryCode, EntityId, Msisdn
 from flash.domain.shared.money import Currency, Money
 from flash.domain.vault.vault import Vault, VaultPocket
@@ -41,6 +42,7 @@ from flash.infrastructure.db.models import (
     MerchantPaymentModel,
     PaymentRequestModel,
     PhoneNumberModel,
+    SavingsPlanModel,
     UserModel,
     VaultPocketModel,
     WalletModel,
@@ -109,6 +111,7 @@ def wallet_to_domain(model: WalletModel) -> Wallet:
         available=Money(model.available_minor, currency),
         reserved=Money(model.reserved_minor, currency),
         vaulted=Money(model.vaulted_minor, currency),
+        saved=Money(model.saved_minor, currency),
         created_at=model.created_at,
         status=WalletStatus(model.status),
     )
@@ -123,6 +126,7 @@ def wallet_to_model(wallet: Wallet) -> WalletModel:
         available_minor=wallet.available.amount_minor,
         reserved_minor=wallet.reserved.amount_minor,
         vaulted_minor=wallet.vaulted.amount_minor,
+        saved_minor=wallet.saved.amount_minor,
         created_at=wallet.created_at,
     )
 
@@ -173,6 +177,52 @@ def vault_pockets_to_models(vault: Vault) -> list[VaultPocketModel]:
         )
         for p in vault.pockets
     ]
+
+
+# ----------------------------------------------------------------------- épargne
+
+
+def savings_plan_to_domain(model: SavingsPlanModel) -> SavingsPlan:
+    currency = Currency.of(model.currency)
+    return SavingsPlan(
+        id=EntityId(model.id),
+        wallet_id=EntityId(model.wallet_id),
+        user_id=EntityId(model.user_id),
+        currency=currency,
+        name=model.name,
+        balance=Money(model.balance_minor, currency),
+        annual_rate_bps=model.annual_rate_bps,
+        frequency=SavingsFrequency(model.frequency),
+        contribution=Money(model.contribution_minor, currency),
+        created_at=model.created_at,
+        target_minor=model.target_minor,
+        target_date=model.target_date,
+        next_contribution_at=model.next_contribution_at,
+        last_accrual_at=model.last_accrual_at,
+        accrued_micro=model.accrued_micro,
+        status=SavingsPlanStatus(model.status),
+    )
+
+
+def savings_plan_to_model(plan: SavingsPlan) -> SavingsPlanModel:
+    return SavingsPlanModel(
+        id=str(plan.id),
+        wallet_id=str(plan.wallet_id),
+        user_id=str(plan.user_id),
+        currency=plan.currency.code,
+        name=plan.name,
+        balance_minor=plan.balance.amount_minor,
+        annual_rate_bps=plan.annual_rate_bps,
+        frequency=plan.frequency.value,
+        contribution_minor=plan.contribution.amount_minor,
+        target_minor=plan.target_minor,
+        target_date=plan.target_date,
+        next_contribution_at=plan.next_contribution_at,
+        last_accrual_at=plan.last_accrual_at,
+        accrued_micro=plan.accrued_micro,
+        status=plan.status.value,
+        created_at=plan.created_at,
+    )
 
 
 # ----------------------------------------------------------------------- ledger
@@ -499,6 +549,8 @@ __all__ = [
     "merchant_to_model",
     "payment_request_to_domain",
     "payment_request_to_model",
+    "savings_plan_to_domain",
+    "savings_plan_to_model",
     "user_to_domain",
     "user_to_model",
     "vault_pockets_to_models",
