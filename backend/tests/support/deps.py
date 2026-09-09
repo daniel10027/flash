@@ -79,6 +79,8 @@ def build_test_deps(
         admin_roles[admin_api_key.strip()] = "admin"
     if compliance_api_key.strip():
         admin_roles[compliance_api_key.strip()] = "compliance"
+    pricing_repo = build_pricing_repository()
+    limit_repo = build_limit_repository()
     return Deps(
         services=services,
         countries=reference,
@@ -89,8 +91,10 @@ def build_test_deps(
         pins=FakePinHasher(),
         otp=otp,
         tokens=bundle.tokens,
-        pricing=PricingService(build_pricing_repository()),
-        limits=LimitPolicy(build_limit_repository(), NullLimitCounter()),
+        pricing=PricingService(pricing_repo),
+        pricing_editor=pricing_repo,
+        limits=LimitPolicy(limit_repo, NullLimitCounter()),
+        limit_editor=limit_repo,
         kyc=KycPolicy(),
         codes=PepperedWithdrawalCodes("test-pepper-0123456789"),
         documents=InMemoryDocumentStore(),

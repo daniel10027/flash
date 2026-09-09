@@ -13,6 +13,7 @@ from dataclasses import dataclass, field
 from decimal import ROUND_CEILING, ROUND_FLOOR, ROUND_HALF_UP
 from enum import StrEnum
 from types import MappingProxyType
+from typing import Protocol, runtime_checkable
 
 from flash.domain.shared.identifiers import CountryCode
 from flash.domain.shared.money import Currency, Money
@@ -126,6 +127,19 @@ class PricingRuleRepository:
         raise NotImplementedError
 
 
+@runtime_checkable
+class PricingRuleEditor(Protocol):
+    """Port CRUD back-office de la grille tarifaire (impl. dans ``infrastructure``)."""
+
+    def get(self, country: CountryCode, operation: OperationType) -> PricingRule | None: ...
+
+    def all(self) -> list[PricingRule]: ...
+
+    def upsert(self, rule: PricingRule) -> None: ...
+
+    def delete(self, country: CountryCode, operation: OperationType) -> None: ...
+
+
 class PricingService:
     """Service de domaine : résout la règle applicable et calcule les frais.
 
@@ -157,11 +171,25 @@ class InMemoryPricingRuleRepository(PricingRuleRepository):
     def rule_for(self, country: CountryCode, operation: OperationType) -> PricingRule | None:
         return self._by_key.get((country.value, operation.value))
 
+    # --- surface d'édition (utilisée en mode ``REFERENCE_SOURCE=static`` et en test)
+    def get(self, country: CountryCode, operation: OperationType) -> PricingRule | None:
+        return self.rule_for(country, operation)
+
+    def all(self) -> list[PricingRule]:
+        return [self._by_key[k] for k in sorted(self._by_key)]
+
+    def upsert(self, rule: PricingRule) -> None:
+        self.add(rule)
+
+    def delete(self, country: CountryCode, operation: OperationType) -> None:
+        self._by_key.pop((country.value, operation.value), None)
+
 
 __all__ = [
     "Fee",
     "InMemoryPricingRuleRepository",
     "PricingRule",
+    "PricingRuleEditor",
     "PricingRuleRepository",
     "PricingService",
     "RoundingRule",

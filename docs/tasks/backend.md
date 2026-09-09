@@ -234,14 +234,26 @@ Chaque tâche livrée : code complet + tests + doc, **zéro `TODO`**.
   `flash reference seed` (idempotent) + migration `f4b7c2109ea3`. Blueprint public
   `GET /v1/reference/countries` + `/countries/<code>`. `Settings.reference_source`
   (`static` | `db`).
-- [~] **BE-062** · CRUD back‑office `countries` / `operators` (rôle `admin` **ou**
+- [x] **BE-062** · CRUD back‑office `countries` / `operators` (rôle `admin` **ou**
   `compliance` via `require_role` + clés `ADMIN_API_KEYS`), chaque mutation tracée dans un
   **registre d'audit chaîné par hachage** (`domain/audit/` — `AuditEntry` avec
   `prev_hash`/`entry_hash`, `verify_chain` ; `SqlAlchemyAuditLog` append-only ; table
   `audit_entries`, migration `a8e3d5f10c47`). Endpoints `PUT`/`DELETE
   /v1/admin/reference/countries[/<code>/operators/<op>]`, `POST /v1/admin/reference/reload`
-  (invalide le cache), `GET /v1/admin/audit?verify=1`. **Reste** : `pricing_rules` /
-  `limits` éditables (nouvelles tables + repos), rôles nominatifs (BE-075).
+  (invalide le cache), `GET /v1/admin/audit?verify=1`.
+  **Grille tarifaire / plafonds éditables** : tables `pricing_rules` (PK pays+op) et
+  `limit_rules` (PK pays+palier+op), migration `c3f5a9e0d182`. Repos `SqlAlchemyPricingRuleRepository`
+  / `SqlAlchemyLimitRuleRepository` (lecture directe par PK à chaque opération) +
+  `SqlAlchemyPricingEditor` / `SqlAlchemyLimitEditor` (CRUD) ; ports domaine
+  `PricingRuleEditor` / `LimitRuleEditor` (`InMemory*` les implémentent aussi). Use cases
+  `application/reference/tariffs_admin.py` : `Upsert`/`Delete`/`List` pour chaque, chaque
+  mutation auditée (`pricing_rule.create|update|delete`, `limit_rule.*`). Blueprint
+  `interface/http/admin_tariffs.py` : `GET /v1/admin/reference/pricing`,
+  `PUT`/`DELETE /v1/admin/reference/pricing/<pays>/<op>`, idem `…/limits/<pays>/<palier>/<op>`
+  (rôles `admin`/`compliance`). Câblage container : `REFERENCE_SOURCE=db` → repos SQL ;
+  sinon jeu par défaut en mémoire + éditeur lecture seule. `flash reference seed` charge
+  aussi grille + plafonds (`seed_pricing` / `seed_limits`, idempotents). **Reste** : rôles
+  nominatifs (BE-075).
 - [x] **BE-063** · Grille tarifaire réellement par pays : CI transfert 0,8 % (80 bps),
   **SN 1,0 %** (preuve de généricité), CM/GA 0,9 % **en XAF** ; paiement marchand gratuit
   partout. Plafonds `limits` déclinés en XOF (UEMOA) et XAF (CEMAC). Tests par pays.

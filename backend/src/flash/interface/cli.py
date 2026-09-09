@@ -178,12 +178,20 @@ def reference() -> None:
 
 @reference.command("seed")
 def reference_seed() -> None:
-    """Charge le jeu de données pays / opérateurs intégré en base (idempotent)."""
+    """Charge en base le jeu intégré : pays / opérateurs, grille tarifaire, plafonds."""
     from flash.infrastructure.db.engine import get_session_factory
+    from flash.infrastructure.limits import seed_limits
+    from flash.infrastructure.pricing import seed_pricing
     from flash.infrastructure.reference import seed_reference
 
-    count = seed_reference(get_session_factory())
-    click.echo(f"Référentiel : {count} pays chargés / mis à jour.")
+    session_factory = get_session_factory()
+    countries = seed_reference(session_factory)
+    pricing = seed_pricing(session_factory)
+    limits = seed_limits(session_factory)
+    click.echo(
+        f"Référentiel : {countries} pays, {pricing} règles tarifaires, "
+        f"{limits} règles de plafond chargées / mises à jour."
+    )
 
 
 @main.group()

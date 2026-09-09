@@ -67,6 +67,23 @@ class LimitRuleRepository(Protocol):
 
 
 @runtime_checkable
+class LimitRuleEditor(Protocol):
+    """Port CRUD back-office des plafonds (impl. dans ``infrastructure``)."""
+
+    def get(
+        self, country: CountryCode, kyc_tier: KycTier, operation: OperationType
+    ) -> LimitRule | None: ...
+
+    def all(self) -> list[LimitRule]: ...
+
+    def upsert(self, rule: LimitRule) -> None: ...
+
+    def delete(
+        self, country: CountryCode, kyc_tier: KycTier, operation: OperationType
+    ) -> None: ...
+
+
+@runtime_checkable
 class LimitCounter(Protocol):
     """Cumul déjà consommé par un utilisateur sur une opération, par fenêtre glissante."""
 
@@ -178,6 +195,23 @@ class InMemoryLimitRuleRepository:
     ) -> LimitRule | None:
         return self._by_key.get((country.value, int(kyc_tier), operation.value))
 
+    # --- surface d'édition (mode ``REFERENCE_SOURCE=static`` et tests)
+    def get(
+        self, country: CountryCode, kyc_tier: KycTier, operation: OperationType
+    ) -> LimitRule | None:
+        return self.rule_for(country, kyc_tier, operation)
+
+    def all(self) -> list[LimitRule]:
+        return [self._by_key[k] for k in sorted(self._by_key)]
+
+    def upsert(self, rule: LimitRule) -> None:
+        self.add(rule)
+
+    def delete(
+        self, country: CountryCode, kyc_tier: KycTier, operation: OperationType
+    ) -> None:
+        self._by_key.pop((country.value, int(kyc_tier), operation.value), None)
+
 
 class InMemoryLimitCounter:
     """Compteur de test : on injecte directement les montants déjà consommés."""
@@ -203,6 +237,7 @@ __all__ = [
     "LimitCounter",
     "LimitPolicy",
     "LimitRule",
+    "LimitRuleEditor",
     "LimitRuleRepository",
     "LimitWindow",
 ]

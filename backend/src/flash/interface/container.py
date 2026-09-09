@@ -32,8 +32,17 @@ from flash.domain.audit.ports import AuditLog
 from flash.domain.country.directory import CountryDirectory
 from flash.domain.country.reference import ReferenceDirectory, ReferenceEditor
 from flash.domain.identity.pin import PinHasher
-from flash.domain.limits.limits import KycPolicy, LimitPolicy
-from flash.domain.pricing.pricing import PricingService
+from flash.domain.limits.limits import (
+    KycPolicy,
+    LimitPolicy,
+    LimitRuleEditor,
+    LimitRuleRepository,
+)
+from flash.domain.pricing.pricing import (
+    PricingRuleEditor,
+    PricingRuleRepository,
+    PricingService,
+)
 from flash.infrastructure.bank_gateway import SandboxBankGateway
 from flash.infrastructure.cache.idempotency import RedisIdempotencyStore
 from flash.infrastructure.cache.redis import get_redis
@@ -48,7 +57,13 @@ from flash.infrastructure.db.uow import SqlAlchemyUnitOfWork
 from flash.infrastructure.documents import LocalFilesystemDocumentStore
 from flash.infrastructure.events import LoggingEventPublisher, NotifyingEventPublisher
 from flash.infrastructure.ids import Uuid7Generator
-from flash.infrastructure.limits import NullLimitCounter, build_limit_repository
+from flash.infrastructure.limits import (
+    NullLimitCounter,
+    ReadOnlyLimitEditor,
+    SqlAlchemyLimitEditor,
+    SqlAlchemyLimitRuleRepository,
+    build_limit_repository,
+)
 from flash.infrastructure.merchant_api_keys import Sha256MerchantApiKeyVault
 from flash.infrastructure.merchant_poster import PillowMerchantPosterRenderer
 from flash.infrastructure.merchant_webhooks import HttpMerchantWebhookSender
@@ -63,7 +78,12 @@ from flash.infrastructure.notifications import (
 )
 from flash.infrastructure.operator_gateway import SandboxOperatorGateway
 from flash.infrastructure.otp import ConsoleOtpChannel, RedisOtpService
-from flash.infrastructure.pricing import build_pricing_repository
+from flash.infrastructure.pricing import (
+    ReadOnlyPricingEditor,
+    SqlAlchemyPricingEditor,
+    SqlAlchemyPricingRuleRepository,
+    build_pricing_repository,
+)
 from flash.infrastructure.reference import (
     CachingReferenceDirectory,
     ReadOnlyReferenceEditor,
@@ -88,7 +108,9 @@ class Deps:
     otp: OtpService
     tokens: TokenService
     pricing: PricingService
+    pricing_editor: PricingRuleEditor
     limits: LimitPolicy
+    limit_editor: LimitRuleEditor
     kyc: KycPolicy
     codes: WithdrawalCodes
     documents: DocumentStore
@@ -166,6 +188,20 @@ def build_deps(settings: Settings, *, tokens: TokenService) -> Deps:
     else:
         reference = StaticReferenceDirectory()
         reference_editor = ReadOnlyReferenceEditor()
+
+    if settings.reference_source == "db":
+        pricing_repo: PricingRuleRepository = SqlAlchemyPricingRuleRepository(session_factory)
+        pricing_editor: PricingRuleEditor = SqlAlchemyPricingEditor(session_factory)
+        limit_repo: LimitRuleRepository = SqlAlchemyLimitRuleRepository(session_factory)
+        limit_editor: LimitRuleEditor = SqlAlchemyLimitEditor(session_factory)
+    else:
+        in_mem_pricing = build_pricing_repository()
+        in_mem_limits = build_limit_repository()
+        pricing_repo = in_mem_pricing
+        pricing_editor = ReadOnlyPricingEditor(in_mem_pricing)
+        limit_repo = in_mem_limits
+        limit_editor = ReadOnlyLimitEditor(in_mem_limits)
+
     return Deps(
         services=services,
         countries=reference,
@@ -176,8 +212,10 @@ def build_deps(settings: Settings, *, tokens: TokenService) -> Deps:
         pins=Argon2PinHasher(),
         otp=otp,
         tokens=tokens,
-        pricing=PricingService(build_pricing_repository()),
-        limits=LimitPolicy(build_limit_repository(), NullLimitCounter()),
+        pricing=PricingService(pricing_repo),
+        pricing_editor=pricing_editor,
+        limits=LimitPolicy(limit_repo, NullLimitCounter()),
+        limit_editor=limit_editor,
         kyc=KycPolicy(),
         codes=PepperedWithdrawalCodes(settings.secret_key),
         documents=LocalFilesystemDocumentStore(settings.kyc_document_dir),

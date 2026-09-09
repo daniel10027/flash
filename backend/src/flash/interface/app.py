@@ -24,6 +24,7 @@ from flash.interface.http import admin_agents as admin_agent_routes
 from flash.interface.http import admin_merchants as admin_merchant_routes
 from flash.interface.http import admin_ops as admin_ops_routes
 from flash.interface.http import admin_reference as admin_reference_routes
+from flash.interface.http import admin_tariffs as admin_tariffs_routes
 from flash.interface.http import audit as audit_routes
 from flash.interface.http import auth as auth_routes
 from flash.interface.http import backoffice as backoffice_routes
@@ -103,6 +104,7 @@ def create_app(
     app.register_blueprint(operator_routes.bp)
     app.register_blueprint(admin_ops_routes.bp)
     app.register_blueprint(admin_reference_routes.bp)
+    app.register_blueprint(admin_tariffs_routes.bp)
     app.register_blueprint(audit_routes.bp)
     app.register_blueprint(admin_merchant_routes.bp)
     app.register_blueprint(admin_agent_routes.bp)

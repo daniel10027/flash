@@ -249,6 +249,46 @@ class OperatorModel(Base):
     __table_args__ = (Index("ix_operators_country_code", "country_code"),)
 
 
+class PricingRuleModel(Base):
+    """Grille tarifaire éditable (BE-062) — une règle par couple (pays, opération)."""
+
+    __tablename__ = "pricing_rules"
+
+    country_code: Mapped[str] = mapped_column(_COUNTRY, primary_key=True)
+    operation: Mapped[str] = mapped_column(String(32), primary_key=True)
+    currency: Mapped[str] = mapped_column(_CCY, nullable=False)
+    percent_bps: Mapped[int] = mapped_column(SmallInteger, nullable=False, default=0)
+    fixed_fee_minor: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    min_fee_minor: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    max_fee_minor: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    rounding: Mapped[str] = mapped_column(String(16), nullable=False, default="HALF_UP")
+    updated_at: Mapped[datetime] = mapped_column(TZDateTime, nullable=False)
+
+    __table_args__ = (
+        CheckConstraint("percent_bps between 0 and 10000", name="percent_bps_range"),
+    )
+
+
+class LimitRuleModel(Base):
+    """Plafonds éditables (BE-062) — une règle par (pays, palier KYC, opération)."""
+
+    __tablename__ = "limit_rules"
+
+    country_code: Mapped[str] = mapped_column(_COUNTRY, primary_key=True)
+    kyc_tier: Mapped[int] = mapped_column(SmallInteger, primary_key=True)
+    operation: Mapped[str] = mapped_column(String(32), primary_key=True)
+    currency: Mapped[str] = mapped_column(_CCY, nullable=False)
+    per_tx_minor: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    daily_minor: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    monthly_minor: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    balance_max_minor: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(TZDateTime, nullable=False)
+
+    __table_args__ = (
+        CheckConstraint("kyc_tier between 0 and 2", name="kyc_tier_range"),
+    )
+
+
 class AuditEntryModel(Base):
     __tablename__ = "audit_entries"
 
@@ -785,6 +825,7 @@ __all__ = [
     "LedgerAccountModel",
     "LedgerPostingModel",
     "LedgerTransactionModel",
+    "LimitRuleModel",
     "MerchantApiKeyModel",
     "MerchantChargeModel",
     "MerchantModel",
@@ -797,6 +838,7 @@ __all__ = [
     "OutboxModel",
     "PaymentRequestModel",
     "PhoneNumberModel",
+    "PricingRuleModel",
     "SavingsPlanModel",
     "SupportNoteModel",
     "SupportTicketModel",
