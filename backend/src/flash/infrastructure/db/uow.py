@@ -22,6 +22,8 @@ from flash.domain.shared.ports import Clock
 from flash.infrastructure.db.models import OutboxModel
 from flash.infrastructure.db.repositories import (
     SqlAlchemyAgentRepository,
+    SqlAlchemyCardAuthorizationRepository,
+    SqlAlchemyCardRepository,
     SqlAlchemyCashOrderRepository,
     SqlAlchemyKycCaseRepository,
     SqlAlchemyLedgerRepository,
@@ -64,6 +66,8 @@ class SqlAlchemyUnitOfWork:
         self.merchant_payments = SqlAlchemyMerchantPaymentRepository(self._session, self)
         self.vaults = SqlAlchemyVaultRepository(self._session, self)
         self.savings = SqlAlchemySavingsPlanRepository(self._session, self)
+        self.cards = SqlAlchemyCardRepository(self._session, self)
+        self.card_authorizations = SqlAlchemyCardAuthorizationRepository(self._session, self)
         return self
 
     def __exit__(self, exc_type: object, exc: object, tb: object) -> None:

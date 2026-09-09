@@ -18,6 +18,7 @@ class NotificationKind(StrEnum):
     KYC = "KYC"  # avancement de la vérification d'identité
     VAULT = "VAULT"  # mouvement de coffre (mise de côté / reprise)
     SAVINGS = "SAVINGS"  # épargne : versement programmé, intérêts, clôture
+    CARD = "CARD"  # carte : autorisation, refus, gel, remboursement
     SECURITY = "SECURITY"  # événement de sécurité (nouvel appareil…)
 
 

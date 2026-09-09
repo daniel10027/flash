@@ -63,6 +63,7 @@ def serve(host: str, port: int) -> None:
 def run_jobs() -> None:
     """Exécute une passe des tâches planifiées (à appeler par cron) : expiration des
     opérations en attente + réconciliation des soldes."""
+    from flash.application.jobs.card_reconcile import ReconcileCardSettlements
     from flash.application.jobs.expire import ExpireStaleOperations
     from flash.application.jobs.reconcile import ReconcileWalletBalances
     from flash.application.jobs.savings import AccrueSavingsInterest, RunScheduledSavings
@@ -90,6 +91,13 @@ def run_jobs() -> None:
         f"sur {interest.capitalised_plans} plan(s) ({interest.checked} vérifiés)"
     )
 
+    card_report = ReconcileCardSettlements(services=services).execute()
+    if card_report.ok:
+        click.echo(f"rapprochement carte : {card_report.checked} autorisations, aucun écart")
+    else:
+        for cd in card_report.discrepancies:
+            click.echo(f"ÉCART carte {cd.authorization_id} : {cd.issue}", err=True)
+
     report = ReconcileWalletBalances(services=services).execute()
     if report.ok:
         click.echo(f"réconciliation : {report.checked} portefeuilles, aucun écart")
@@ -100,6 +108,9 @@ def run_jobs() -> None:
                 f"≠ ledger {d.ledger_minor} (Δ {d.delta_minor})",
                 err=True,
             )
+        raise SystemExit(1)
+
+    if not card_report.ok:
         raise SystemExit(1)
 
 

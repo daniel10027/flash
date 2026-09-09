@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from flask import Blueprint, Response, jsonify
 
+from flash.application.jobs.card_reconcile import ReconcileCardSettlements
 from flash.application.jobs.expire import ExpireStaleOperations
 from flash.application.jobs.reconcile import ReconcileWalletBalances
 from flash.application.jobs.savings import AccrueSavingsInterest, RunScheduledSavings
@@ -60,6 +61,18 @@ def run_scheduled_savings() -> tuple[Response, int]:
 def run_savings_interest() -> tuple[Response, int]:
     report = AccrueSavingsInterest(services=deps().services).execute()
     return jsonify(report.to_dict()), 200
+
+
+@bp.post("/jobs/cards/reconcile")
+@require_admin
+@document(
+    summary="Back-office : rapprocher les règlements carte avec le ledger",
+    tags=["admin"],
+    secured=False,
+)
+def run_card_reconcile() -> tuple[Response, int]:
+    report = ReconcileCardSettlements(services=deps().services).execute()
+    return jsonify(report.to_dict()), 200 if report.ok else 409
 
 
 __all__ = ["bp"]

@@ -11,6 +11,12 @@ from typing import Any
 
 from flash.application.notifications.model import Notification, NotificationKind
 from flash.application.notifications.ports import Notifier
+from flash.domain.card.events import (
+    CardFrozen,
+    CardPaymentAuthorized,
+    CardPaymentDeclined,
+    CardPaymentRefunded,
+)
 from flash.domain.cash.events import CashDepositCompleted, CashWithdrawalConfirmed
 from flash.domain.identity.events import KycCaseApproved, KycCaseRejected
 from flash.domain.merchants.events import MerchantPaymentCompleted, MerchantPaymentRefunded
@@ -233,6 +239,55 @@ def _savings_closed(e: SavingsPlanClosed) -> list[_Spec]:
     ]
 
 
+def _card_authorized(e: CardPaymentAuthorized) -> list[_Spec]:
+    where = f" chez {e.merchant_name}" if e.merchant_name else ""
+    return [
+        (
+            e.user_id,
+            NotificationKind.CARD,
+            "Paiement carte",
+            f"Autorisation de {_money(e.amount_minor, e.currency)}{where}.",
+            {"authorization_id": e.authorization_id},
+        )
+    ]
+
+
+def _card_declined(e: CardPaymentDeclined) -> list[_Spec]:
+    return [
+        (
+            e.user_id,
+            NotificationKind.CARD,
+            "Paiement carte refusé",
+            f"Un paiement de {_money(e.amount_minor, e.currency)} a été refusé ({e.reason}).",
+            {"authorization_id": e.authorization_id, "reason": e.reason},
+        )
+    ]
+
+
+def _card_frozen(e: CardFrozen) -> list[_Spec]:
+    return [
+        (
+            e.user_id,
+            NotificationKind.CARD,
+            "Carte gelée",
+            f"Votre carte a été gelée : {e.reason}",
+            {"card_id": e.card_id},
+        )
+    ]
+
+
+def _card_refunded(e: CardPaymentRefunded) -> list[_Spec]:
+    return [
+        (
+            e.user_id,
+            NotificationKind.CARD,
+            "Remboursement carte",
+            f"{_money(e.amount_minor, e.currency)} vous ont été remboursés sur votre carte.",
+            {"authorization_id": e.authorization_id},
+        )
+    ]
+
+
 def _kyc_approved(e: KycCaseApproved) -> list[_Spec]:
     return [
         (
@@ -272,6 +327,10 @@ _BUILDERS: dict[type[DomainEvent], Callable[[Any], list[_Spec]]] = {
     SavingsContributionSkipped: _savings_skipped,
     SavingsInterestCapitalised: _savings_interest,
     SavingsPlanClosed: _savings_closed,
+    CardPaymentAuthorized: _card_authorized,
+    CardPaymentDeclined: _card_declined,
+    CardFrozen: _card_frozen,
+    CardPaymentRefunded: _card_refunded,
 }
 
 

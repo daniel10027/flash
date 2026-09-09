@@ -3183,6 +3183,881 @@
         ]
       }
     },
+    "/v1/cards/authorizations": {
+      "post": {
+        "summary": "Réseau : demande d'autorisation carte",
+        "tags": [
+          "cards"
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès"
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "authorization_id": {
+                    "maxLength": 80,
+                    "minLength": 8,
+                    "title": "Authorization Id",
+                    "type": "string"
+                  },
+                  "pan_token": {
+                    "maxLength": 64,
+                    "minLength": 8,
+                    "title": "Pan Token",
+                    "type": "string"
+                  },
+                  "amount_minor": {
+                    "exclusiveMinimum": 0,
+                    "title": "Amount Minor",
+                    "type": "integer"
+                  },
+                  "channel": {
+                    "pattern": "^(ECOM|CONTACTLESS|ATM)$",
+                    "title": "Channel",
+                    "type": "string"
+                  },
+                  "merchant_name": {
+                    "anyOf": [
+                      {
+                        "maxLength": 140,
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "title": "Merchant Name"
+                  }
+                },
+                "required": [
+                  "authorization_id",
+                  "pan_token",
+                  "amount_minor",
+                  "channel"
+                ],
+                "title": "AuthorizeRequest",
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/cards/authorizations/{authorization_id}/capture": {
+      "post": {
+        "summary": "Réseau : capture d'une autorisation",
+        "tags": [
+          "cards"
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès"
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/cards/authorizations/{authorization_id}/reverse": {
+      "post": {
+        "summary": "Réseau : annulation d'une autorisation non capturée",
+        "tags": [
+          "cards"
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès"
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/cards/authorizations/{authorization_id}/refund": {
+      "post": {
+        "summary": "Réseau : remboursement d'une capture",
+        "tags": [
+          "cards"
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès"
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/cards": {
+      "get": {
+        "summary": "Lister mes cartes",
+        "tags": [
+          "cards"
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "card_id": {
+                      "type": "string"
+                    },
+                    "network": {
+                      "type": "string",
+                      "enum": [
+                        "VISA",
+                        "MASTERCARD"
+                      ]
+                    },
+                    "masked_pan": {
+                      "type": "string"
+                    },
+                    "last4": {
+                      "type": "string"
+                    },
+                    "expiry_month": {
+                      "type": "integer"
+                    },
+                    "expiry_year": {
+                      "type": "integer"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "ACTIVE",
+                        "FROZEN",
+                        "CLOSED"
+                      ]
+                    },
+                    "currency": {
+                      "type": "string"
+                    },
+                    "daily_limit_minor": {
+                      "type": "integer"
+                    },
+                    "monthly_limit_minor": {
+                      "type": "integer"
+                    },
+                    "channels": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "created_at": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "post": {
+        "summary": "Émettre une carte virtuelle",
+        "tags": [
+          "cards"
+        ],
+        "responses": {
+          "201": {
+            "description": "Succès",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "card_id": {
+                      "type": "string"
+                    },
+                    "network": {
+                      "type": "string",
+                      "enum": [
+                        "VISA",
+                        "MASTERCARD"
+                      ]
+                    },
+                    "masked_pan": {
+                      "type": "string"
+                    },
+                    "last4": {
+                      "type": "string"
+                    },
+                    "expiry_month": {
+                      "type": "integer"
+                    },
+                    "expiry_year": {
+                      "type": "integer"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "ACTIVE",
+                        "FROZEN",
+                        "CLOSED"
+                      ]
+                    },
+                    "currency": {
+                      "type": "string"
+                    },
+                    "daily_limit_minor": {
+                      "type": "integer"
+                    },
+                    "monthly_limit_minor": {
+                      "type": "integer"
+                    },
+                    "channels": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "created_at": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "network": {
+                    "default": "VISA",
+                    "pattern": "^(VISA|MASTERCARD)$",
+                    "title": "Network",
+                    "type": "string"
+                  },
+                  "daily_limit_minor": {
+                    "anyOf": [
+                      {
+                        "exclusiveMinimum": 0,
+                        "type": "integer"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "examples": [
+                      500000
+                    ],
+                    "title": "Daily Limit Minor"
+                  },
+                  "monthly_limit_minor": {
+                    "anyOf": [
+                      {
+                        "exclusiveMinimum": 0,
+                        "type": "integer"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "examples": [
+                      5000000
+                    ],
+                    "title": "Monthly Limit Minor"
+                  },
+                  "channels": {
+                    "anyOf": [
+                      {
+                        "items": {
+                          "type": "string"
+                        },
+                        "type": "array"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "default": null,
+                    "examples": [
+                      [
+                        "ECOM",
+                        "CONTACTLESS"
+                      ]
+                    ],
+                    "title": "Channels"
+                  }
+                },
+                "title": "IssueCardRequest",
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/cards/{card_id}": {
+      "get": {
+        "summary": "Consulter une carte",
+        "tags": [
+          "cards"
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "card_id": {
+                      "type": "string"
+                    },
+                    "network": {
+                      "type": "string",
+                      "enum": [
+                        "VISA",
+                        "MASTERCARD"
+                      ]
+                    },
+                    "masked_pan": {
+                      "type": "string"
+                    },
+                    "last4": {
+                      "type": "string"
+                    },
+                    "expiry_month": {
+                      "type": "integer"
+                    },
+                    "expiry_year": {
+                      "type": "integer"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "ACTIVE",
+                        "FROZEN",
+                        "CLOSED"
+                      ]
+                    },
+                    "currency": {
+                      "type": "string"
+                    },
+                    "daily_limit_minor": {
+                      "type": "integer"
+                    },
+                    "monthly_limit_minor": {
+                      "type": "integer"
+                    },
+                    "channels": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "created_at": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/v1/cards/{card_id}/freeze": {
+      "post": {
+        "summary": "Geler une carte",
+        "tags": [
+          "cards"
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "card_id": {
+                      "type": "string"
+                    },
+                    "network": {
+                      "type": "string",
+                      "enum": [
+                        "VISA",
+                        "MASTERCARD"
+                      ]
+                    },
+                    "masked_pan": {
+                      "type": "string"
+                    },
+                    "last4": {
+                      "type": "string"
+                    },
+                    "expiry_month": {
+                      "type": "integer"
+                    },
+                    "expiry_year": {
+                      "type": "integer"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "ACTIVE",
+                        "FROZEN",
+                        "CLOSED"
+                      ]
+                    },
+                    "currency": {
+                      "type": "string"
+                    },
+                    "daily_limit_minor": {
+                      "type": "integer"
+                    },
+                    "monthly_limit_minor": {
+                      "type": "integer"
+                    },
+                    "channels": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "created_at": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/v1/cards/{card_id}/unfreeze": {
+      "post": {
+        "summary": "Dégeler une carte",
+        "tags": [
+          "cards"
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "card_id": {
+                      "type": "string"
+                    },
+                    "network": {
+                      "type": "string",
+                      "enum": [
+                        "VISA",
+                        "MASTERCARD"
+                      ]
+                    },
+                    "masked_pan": {
+                      "type": "string"
+                    },
+                    "last4": {
+                      "type": "string"
+                    },
+                    "expiry_month": {
+                      "type": "integer"
+                    },
+                    "expiry_year": {
+                      "type": "integer"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "ACTIVE",
+                        "FROZEN",
+                        "CLOSED"
+                      ]
+                    },
+                    "currency": {
+                      "type": "string"
+                    },
+                    "daily_limit_minor": {
+                      "type": "integer"
+                    },
+                    "monthly_limit_minor": {
+                      "type": "integer"
+                    },
+                    "channels": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "created_at": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/v1/cards/{card_id}/close": {
+      "post": {
+        "summary": "Clôturer une carte (définitif)",
+        "tags": [
+          "cards"
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "card_id": {
+                      "type": "string"
+                    },
+                    "network": {
+                      "type": "string",
+                      "enum": [
+                        "VISA",
+                        "MASTERCARD"
+                      ]
+                    },
+                    "masked_pan": {
+                      "type": "string"
+                    },
+                    "last4": {
+                      "type": "string"
+                    },
+                    "expiry_month": {
+                      "type": "integer"
+                    },
+                    "expiry_year": {
+                      "type": "integer"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "ACTIVE",
+                        "FROZEN",
+                        "CLOSED"
+                      ]
+                    },
+                    "currency": {
+                      "type": "string"
+                    },
+                    "daily_limit_minor": {
+                      "type": "integer"
+                    },
+                    "monthly_limit_minor": {
+                      "type": "integer"
+                    },
+                    "channels": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "created_at": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/v1/cards/{card_id}/limits": {
+      "patch": {
+        "summary": "Modifier les plafonds jour / mois",
+        "tags": [
+          "cards"
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "card_id": {
+                      "type": "string"
+                    },
+                    "network": {
+                      "type": "string",
+                      "enum": [
+                        "VISA",
+                        "MASTERCARD"
+                      ]
+                    },
+                    "masked_pan": {
+                      "type": "string"
+                    },
+                    "last4": {
+                      "type": "string"
+                    },
+                    "expiry_month": {
+                      "type": "integer"
+                    },
+                    "expiry_year": {
+                      "type": "integer"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "ACTIVE",
+                        "FROZEN",
+                        "CLOSED"
+                      ]
+                    },
+                    "currency": {
+                      "type": "string"
+                    },
+                    "daily_limit_minor": {
+                      "type": "integer"
+                    },
+                    "monthly_limit_minor": {
+                      "type": "integer"
+                    },
+                    "channels": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "created_at": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {
+                  "daily_limit_minor": {
+                    "examples": [
+                      300000
+                    ],
+                    "exclusiveMinimum": 0,
+                    "title": "Daily Limit Minor",
+                    "type": "integer"
+                  },
+                  "monthly_limit_minor": {
+                    "examples": [
+                      3000000
+                    ],
+                    "exclusiveMinimum": 0,
+                    "title": "Monthly Limit Minor",
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "daily_limit_minor",
+                  "monthly_limit_minor"
+                ],
+                "title": "SetLimitsRequest",
+                "type": "object"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/cards/{card_id}/reveal": {
+      "post": {
+        "summary": "Révéler PAN / CVV (flux court, audité, jamais journalisé)",
+        "tags": [
+          "cards"
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès"
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
     "/v1/admin/jobs/expire": {
       "post": {
         "summary": "Back-office : expirer les opérations en attente périmées",
@@ -3255,6 +4130,29 @@
     "/v1/admin/jobs/savings/interest": {
       "post": {
         "summary": "Back-office : accroître et capitaliser les intérêts d'épargne",
+        "tags": [
+          "admin"
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès"
+          },
+          "4XX": {
+            "description": "Erreur métier ou de validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/jobs/cards/reconcile": {
+      "post": {
+        "summary": "Back-office : rapprocher les règlements carte avec le ledger",
         "tags": [
           "admin"
         ],

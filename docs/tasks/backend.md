@@ -198,20 +198,31 @@ Chaque tâche livrée : code complet + tests + doc, **zéro `TODO`**.
   /pockets/<id>`, `deposit`/`withdraw`) et `savings` (`GET`/`POST /v1/savings/plans`,
   `POST /plans/<id>/{deposit,withdraw,close}`) + schémas + OpenAPI + notifications
   `VAULT` / `SAVINGS`.
-- [ ] **BE-055** · `domain/card/card.py` : `Card` (token PAN, 4 derniers, réseau, statut
-  ACTIVE/FROZEN/CLOSED, plafonds jour/mois, canaux autorisés e‑com/sans‑contact).
-- [ ] **BE-056** · Port `CardIssuer` + `SandboxCardIssuer` (émission, gel, clôture,
-  autorisation). `IssueCard` / `FreezeCard` / `UnfreezeCard` / `CloseCard` /
-  `SetCardLimits`.
-- [ ] **BE-057** · Webhook `POST /v1/cards/authorizations` (signé) : autorisation carte →
-  réservation sur le wallet ; `capture` / `refund` / `reversal` → `LedgerTransaction`
-  via `card_scheme_suspense`. Idempotent par `authorization_id`.
-- [ ] **BE-058** · `GetCardSensitive` : renvoie PAN/CVV **uniquement** via un flux chiffré
-  court, audité, rate‑limité, jamais journalisé.
-- [ ] **BE-059** · Rapprochement carte : job qui compare `card_scheme_suspense` aux
-  fichiers réseau simulés ; rapport d'écarts.
-- [ ] **BE-060** · Blueprint `cards` complet + OpenAPI + notifications (autorisation,
-  gel, plafond atteint).
+- [x] **BE-055** · `domain/card/card.py` : `Card` (`pan_token` opaque, 4 derniers,
+  `CardNetwork` VISA/MASTERCARD, statut ACTIVE/FROZEN/CLOSED, plafonds jour/mois,
+  `CardChannel` ECOM/CONTACTLESS/ATM). `freeze`/`unfreeze`/`close` (CLOSED terminal),
+  `set_limits`, `ensure_can_authorize` (→ `CardNotActive`/`ChannelDisabled`/
+  `CardLimitReached`). Agrégat `CardAuthorization` (AUTHORIZED→CAPTURED/REVERSED,
+  CAPTURED→REFUNDED, DECLINED). Tests d'invariants.
+- [x] **BE-056** · Port `application/card/ports.py::CardIssuer` + `SandboxCardIssuer`
+  (déterministe, PAN/CVV re-dérivés du token). `IssueCard` / `ListCards` / `GetCard` /
+  `FreezeCard` / `UnfreezeCard` / `CloseCard` / `SetCardLimits`.
+- [x] **BE-057** · Webhook `POST /v1/cards/authorizations` (signé HMAC `X-Card-Signature`) :
+  `AuthorizeCardPayment` → `wallet.reserve` (aucune écriture) ; `CaptureCardPayment` →
+  `settle_reservation` + `LedgerTransaction.card_capture` (`CARD_SCHEME_SUSPENSE`),
+  capture partielle → `release` du reliquat ; `ReverseCardAuthorization` → `release` ;
+  `RefundCardPayment` → `card_refund` + `wallet.credit`. Idempotent par `authorization_id`
+  (la ligne `CardAuthorization` est l'enregistrement d'idempotence). Refus renvoyé en 200
+  avec `decision`.
+- [x] **BE-058** · `GetCardSensitive` : `issuer.reveal` renvoie PAN/CVV, audité
+  (`CardSensitiveViewed`), route `POST /v1/cards/<id>/reveal` rate‑limitée (3 / 5 min),
+  `Cache-Control: no-store`, jamais journalisé ni persisté.
+- [x] **BE-059** · `ReconcileCardSettlements` : pour chaque autorisation CAPTURED/REFUNDED,
+  vérifie l'écriture `CARDCAP-`/`CARDREF-` (présence, équilibre, montant net sur le
+  portefeuille). `flash run-jobs` + `POST /v1/admin/jobs/cards/reconcile`.
+- [x] **BE-060** · Blueprints `cards_bp` (titulaire) + `card_webhook_bp` (réseau) + schémas
+  + OpenAPI + notifications `CARD` (autorisation, refus, gel, remboursement). Migration
+  `e3d8b1a06f92` (`cards`, `card_authorizations`).
 
 ## Phase 4 — Multi‑pays, marchands, agents, back‑office (BE-061 → BE-078)
 

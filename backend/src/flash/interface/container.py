@@ -12,6 +12,7 @@ from datetime import timedelta
 from flask import Flask, current_app
 
 from flash.application.auth.tokens import TokenService
+from flash.application.card.ports import CardIssuer
 from flash.application.cash.ports import WithdrawalCodes
 from flash.application.identity.documents import DocumentStore
 from flash.application.notifications.dispatcher import NotificationDispatcher
@@ -24,6 +25,7 @@ from flash.domain.limits.limits import KycPolicy, LimitPolicy
 from flash.domain.pricing.pricing import PricingService
 from flash.infrastructure.cache.idempotency import RedisIdempotencyStore
 from flash.infrastructure.cache.redis import get_redis
+from flash.infrastructure.card_issuer import SandboxCardIssuer
 from flash.infrastructure.clock import SystemClock
 from flash.infrastructure.codes import PepperedWithdrawalCodes
 from flash.infrastructure.config import Settings
@@ -66,6 +68,10 @@ class Deps:
     reversal_window: timedelta
     notifications: NotificationRepository
     notification_bus: NotificationBus
+    card_issuer: CardIssuer
+    card_webhook_secret: str
+    card_daily_limit_minor: int
+    card_monthly_limit_minor: int
 
 
 def build_app_services(settings: Settings) -> AppServices:
@@ -120,6 +126,10 @@ def build_deps(settings: Settings, *, tokens: TokenService) -> Deps:
         reversal_window=timedelta(seconds=settings.reversal_window_seconds),
         notifications=SqlAlchemyNotificationRepository(get_session_factory()),
         notification_bus=RedisNotificationBus(get_redis()),
+        card_issuer=SandboxCardIssuer(pepper=settings.secret_key),
+        card_webhook_secret=settings.card_webhook_secret,
+        card_daily_limit_minor=settings.card_daily_limit_minor,
+        card_monthly_limit_minor=settings.card_monthly_limit_minor,
     )
 
 

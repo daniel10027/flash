@@ -11,6 +11,8 @@ from collections.abc import Iterable
 from datetime import datetime
 
 from flash.domain.agent.agent import Agent
+from flash.domain.card.authorization import CardAuthorization, CardAuthorizationStatus
+from flash.domain.card.card import Card
 from flash.domain.cash.order import CashOrder, CashOrderStatus, CashOrderType
 from flash.domain.identity.kyc_case import KycCase, KycCaseStatus
 from flash.domain.identity.user import User
@@ -24,7 +26,7 @@ from flash.domain.savings.plan import SavingsPlan, SavingsPlanStatus
 from flash.domain.shared.errors import PhoneNumberAlreadyLinked
 from flash.domain.shared.events import DomainEvent, EventRecorder
 from flash.domain.shared.identifiers import EntityId, Msisdn
-from flash.domain.shared.money import Currency
+from flash.domain.shared.money import Currency, Money
 from flash.domain.vault.vault import Vault
 from flash.domain.wallet.wallet import Wallet
 
@@ -532,6 +534,116 @@ class InMemorySavingsPlanRepository(_Tracking):
         self._track(plan)
 
 
+class InMemoryCardRepository(_Tracking):
+    def __init__(self) -> None:
+        super().__init__()
+        self._by_id: dict[str, Card] = {}
+
+    def get(self, card_id: EntityId) -> Card | None:
+        card = self._by_id.get(str(card_id))
+        if card is not None:
+            self._track(card)
+        return card
+
+    def get_for_update(self, card_id: EntityId) -> Card:
+        card = self._by_id.get(str(card_id))
+        if card is None:
+            raise KeyError(card_id)
+        self._track(card)
+        return card
+
+    def get_by_pan_token(self, pan_token: str) -> Card | None:
+        for card in self._by_id.values():
+            if card.pan_token == pan_token:
+                self._track(card)
+                return card
+        return None
+
+    def list_for_user(self, user_id: EntityId) -> list[Card]:
+        rows = [c for c in self._by_id.values() if c.user_id == user_id]
+        rows.sort(key=lambda c: c.created_at, reverse=True)
+        for c in rows:
+            self._track(c)
+        return rows
+
+    def add(self, card: Card) -> None:
+        self._by_id[str(card.id)] = card
+        self._track(card)
+
+    def save(self, card: Card) -> None:
+        self._by_id[str(card.id)] = card
+        self._track(card)
+
+
+class InMemoryCardAuthorizationRepository(_Tracking):
+    _SPEND = (CardAuthorizationStatus.AUTHORIZED, CardAuthorizationStatus.CAPTURED)
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._by_id: dict[str, CardAuthorization] = {}
+
+    def get(self, auth_id: EntityId) -> CardAuthorization | None:
+        auth = self._by_id.get(str(auth_id))
+        if auth is not None:
+            self._track(auth)
+        return auth
+
+    def get_by_authorization_id(self, authorization_id: str) -> CardAuthorization | None:
+        for auth in self._by_id.values():
+            if auth.authorization_id == authorization_id:
+                self._track(auth)
+                return auth
+        return None
+
+    def get_for_update_by_authorization_id(self, authorization_id: str) -> CardAuthorization:
+        auth = self.get_by_authorization_id(authorization_id)
+        if auth is None:
+            raise KeyError(authorization_id)
+        return auth
+
+    def total_spent_since(self, card_id: EntityId, since: datetime) -> Money:
+        total = 0
+        currency = Currency.of("XOF")
+        for auth in self._by_id.values():
+            if auth.card_id == card_id and auth.created_at >= since and auth.status in self._SPEND:
+                total += auth.amount.amount_minor
+                currency = auth.amount.currency
+        return Money(total, currency)
+
+    def list_for_card(self, card_id: EntityId) -> list[CardAuthorization]:
+        rows = [a for a in self._by_id.values() if a.card_id == card_id]
+        rows.sort(key=lambda a: a.created_at, reverse=True)
+        for a in rows:
+            self._track(a)
+        return rows
+
+    def list_resolved(
+        self, *, limit: int = 500, after: EntityId | None = None
+    ) -> list[CardAuthorization]:
+        rows = sorted(
+            (
+                a
+                for a in self._by_id.values()
+                if a.status
+                in (CardAuthorizationStatus.CAPTURED, CardAuthorizationStatus.REFUNDED)
+            ),
+            key=lambda a: str(a.id),
+        )
+        if after is not None:
+            rows = [a for a in rows if str(a.id) > str(after)]
+        for a in rows[:limit]:
+            self._track(a)
+        return rows[:limit]
+
+    def add(self, authorization: CardAuthorization) -> None:
+        self._by_id[str(authorization.id)] = authorization
+        self._track(authorization)
+
+    def save(self, authorization: CardAuthorization) -> None:
+        self._by_id[str(authorization.id)] = authorization
+        self._track(authorization)
+
+
 class InMemoryUnitOfWork:
     """Frontière transactionnelle en mémoire."""
 
@@ -550,6 +662,8 @@ class InMemoryUnitOfWork:
         merchant_payments: InMemoryMerchantPaymentRepository | None = None,
         vaults: InMemoryVaultRepository | None = None,
         savings: InMemorySavingsPlanRepository | None = None,
+        cards: InMemoryCardRepository | None = None,
+        card_authorizations: InMemoryCardAuthorizationRepository | None = None,
     ) -> None:
         self.users = users or InMemoryUserRepository()
         self.wallets = wallets or InMemoryWalletRepository()
@@ -563,6 +677,8 @@ class InMemoryUnitOfWork:
         self.merchant_payments = merchant_payments or InMemoryMerchantPaymentRepository()
         self.vaults = vaults or InMemoryVaultRepository()
         self.savings = savings or InMemorySavingsPlanRepository()
+        self.cards = cards or InMemoryCardRepository()
+        self.card_authorizations = card_authorizations or InMemoryCardAuthorizationRepository()
         self.committed = False
         self.rolled_back = False
         self._extra_events: list[DomainEvent] = []
@@ -599,6 +715,8 @@ class InMemoryUnitOfWork:
             *self.merchant_payments.seen,
             *self.vaults.seen,
             *self.savings.seen,
+            *self.cards.seen,
+            *self.card_authorizations.seen,
         ):
             events.extend(aggregate.pull_events())
         events.extend(self._extra_events)
@@ -608,6 +726,8 @@ class InMemoryUnitOfWork:
 
 __all__ = [
     "InMemoryAgentRepository",
+    "InMemoryCardAuthorizationRepository",
+    "InMemoryCardRepository",
     "InMemoryCashOrderRepository",
     "InMemoryKycCaseRepository",
     "InMemoryLedgerRepository",

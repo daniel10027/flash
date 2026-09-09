@@ -10,6 +10,8 @@ from __future__ import annotations
 from uuid import NAMESPACE_URL, uuid5
 
 from flash.domain.agent.agent import Agent, AgentStatus
+from flash.domain.card.authorization import CardAuthorization, CardAuthorizationStatus
+from flash.domain.card.card import Card, CardChannel, CardNetwork, CardStatus
 from flash.domain.cash.order import CashOrder, CashOrderStatus, CashOrderType
 from flash.domain.identity.kyc import KycTier
 from flash.domain.identity.kyc_case import (
@@ -32,6 +34,8 @@ from flash.domain.vault.vault import Vault, VaultPocket
 from flash.domain.wallet.wallet import Wallet, WalletStatus
 from flash.infrastructure.db.models import (
     AgentModel,
+    CardAuthorizationModel,
+    CardModel,
     CashOrderModel,
     KycCaseModel,
     KycDocumentModel,
@@ -497,6 +501,94 @@ def merchant_payment_to_model(payment: MerchantPayment) -> MerchantPaymentModel:
     )
 
 
+# ------------------------------------------------------------------------- carte
+
+
+def card_to_domain(model: CardModel) -> Card:
+    currency = Currency.of(model.currency)
+    channels = frozenset(CardChannel(c) for c in model.channels.split(",") if c)
+    return Card(
+        id=EntityId(model.id),
+        wallet_id=EntityId(model.wallet_id),
+        user_id=EntityId(model.user_id),
+        currency=currency,
+        network=CardNetwork(model.network),
+        pan_token=model.pan_token,
+        last4=model.last4,
+        expiry_month=model.expiry_month,
+        expiry_year=model.expiry_year,
+        daily_limit=Money(model.daily_limit_minor, currency),
+        monthly_limit=Money(model.monthly_limit_minor, currency),
+        created_at=model.created_at,
+        channels=channels,
+        status=CardStatus(model.status),
+    )
+
+
+def card_to_model(card: Card) -> CardModel:
+    return CardModel(
+        id=str(card.id),
+        wallet_id=str(card.wallet_id),
+        user_id=str(card.user_id),
+        currency=card.currency.code,
+        network=card.network.value,
+        pan_token=card.pan_token,
+        last4=card.last4,
+        expiry_month=card.expiry_month,
+        expiry_year=card.expiry_year,
+        status=card.status.value,
+        daily_limit_minor=card.daily_limit.amount_minor,
+        monthly_limit_minor=card.monthly_limit.amount_minor,
+        channels=",".join(sorted(c.value for c in card.channels)),
+        created_at=card.created_at,
+    )
+
+
+def card_authorization_to_domain(model: CardAuthorizationModel) -> CardAuthorization:
+    currency = Currency.of(model.currency)
+    return CardAuthorization(
+        id=EntityId(model.id),
+        card_id=EntityId(model.card_id),
+        wallet_id=EntityId(model.wallet_id),
+        user_id=EntityId(model.user_id),
+        authorization_id=model.authorization_id,
+        amount=Money(model.amount_minor, currency),
+        currency_code=model.currency,
+        channel=CardChannel(model.channel),
+        status=CardAuthorizationStatus(model.status),
+        created_at=model.created_at,
+        merchant_name=model.merchant_name,
+        decline_reason=model.decline_reason,
+        resolved_at=model.resolved_at,
+        captured_minor=model.captured_minor,
+        ledger_transaction_id=(
+            EntityId(model.ledger_transaction_id) if model.ledger_transaction_id else None
+        ),
+    )
+
+
+def card_authorization_to_model(auth: CardAuthorization) -> CardAuthorizationModel:
+    return CardAuthorizationModel(
+        id=str(auth.id),
+        card_id=str(auth.card_id),
+        wallet_id=str(auth.wallet_id),
+        user_id=str(auth.user_id),
+        authorization_id=auth.authorization_id,
+        amount_minor=auth.amount.amount_minor,
+        currency=auth.currency_code,
+        channel=auth.channel.value,
+        merchant_name=auth.merchant_name,
+        status=auth.status.value,
+        decline_reason=auth.decline_reason,
+        created_at=auth.created_at,
+        resolved_at=auth.resolved_at,
+        captured_minor=auth.captured_minor,
+        ledger_transaction_id=(
+            str(auth.ledger_transaction_id) if auth.ledger_transaction_id else None
+        ),
+    )
+
+
 def payment_request_to_domain(model: PaymentRequestModel) -> PaymentRequest:
     currency = Currency.of(model.currency)
     return PaymentRequest(
@@ -535,6 +627,10 @@ def payment_request_to_model(request: PaymentRequest) -> PaymentRequestModel:
 __all__ = [
     "agent_to_domain",
     "agent_to_model",
+    "card_authorization_to_domain",
+    "card_authorization_to_model",
+    "card_to_domain",
+    "card_to_model",
     "cash_order_to_domain",
     "cash_order_to_model",
     "kyc_case_to_domain",

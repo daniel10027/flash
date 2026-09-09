@@ -462,6 +462,60 @@ class LedgerTransaction:
             metadata=metadata or {},
         )
 
+    @classmethod
+    def card_capture(
+        cls,
+        *,
+        id: EntityId,
+        occurred_at: datetime,
+        reference: str,
+        client_account_id: EntityId,
+        client_wallet_id: EntityId,
+        card_scheme_account_id: EntityId,
+        amount: Money,
+        metadata: Mapping[str, Any] | None = None,
+    ) -> LedgerTransaction:
+        """Capture carte : le client paie ``amount``, en transit vers le réseau."""
+        return LedgerTransaction(
+            id=id,
+            kind=TransactionKind.CARD_CAPTURE,
+            postings=(
+                _debit(client_account_id, amount, wallet_id=client_wallet_id),
+                _credit(card_scheme_account_id, amount),
+            ),
+            occurred_at=occurred_at,
+            reference=reference,
+            reason="Capture d'un paiement carte",
+            metadata=metadata or {},
+        )
+
+    @classmethod
+    def card_refund(
+        cls,
+        *,
+        id: EntityId,
+        occurred_at: datetime,
+        reference: str,
+        client_account_id: EntityId,
+        client_wallet_id: EntityId,
+        card_scheme_account_id: EntityId,
+        amount: Money,
+        metadata: Mapping[str, Any] | None = None,
+    ) -> LedgerTransaction:
+        """Remboursement carte : le réseau restitue ``amount`` au client."""
+        return LedgerTransaction(
+            id=id,
+            kind=TransactionKind.CARD_REFUND,
+            postings=(
+                _debit(card_scheme_account_id, amount),
+                _credit(client_account_id, amount, wallet_id=client_wallet_id),
+            ),
+            occurred_at=occurred_at,
+            reference=reference,
+            reason="Remboursement d'un paiement carte",
+            metadata=metadata or {},
+        )
+
     @staticmethod
     def reversal(
         *,

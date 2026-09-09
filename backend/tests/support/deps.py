@@ -9,6 +9,7 @@ from flash.application.services import AppServices
 from flash.domain.country.directory import StaticCountryDirectory
 from flash.domain.limits.limits import KycPolicy, LimitPolicy
 from flash.domain.pricing.pricing import PricingService
+from flash.infrastructure.card_issuer import SandboxCardIssuer
 from flash.infrastructure.codes import PepperedWithdrawalCodes
 from flash.infrastructure.documents import InMemoryDocumentStore
 from flash.infrastructure.events import NotifyingEventPublisher
@@ -40,6 +41,7 @@ def build_test_deps(
     bundle: SecurityBundle | None = None,
     clock: FixedClock | None = None,
     admin_api_key: str = "test-admin-key",
+    card_webhook_secret: str = "test-card-webhook-secret",
 ) -> Deps:
     bundle = bundle or build_test_security()
     the_clock = clock or FixedClock()
@@ -73,6 +75,10 @@ def build_test_deps(
         reversal_window=timedelta(hours=1),
         notifications=notifications,
         notification_bus=notification_bus,
+        card_issuer=SandboxCardIssuer(pepper="test-card-pepper-0123456789"),
+        card_webhook_secret=card_webhook_secret,
+        card_daily_limit_minor=500_000,
+        card_monthly_limit_minor=5_000_000,
     )
 
 

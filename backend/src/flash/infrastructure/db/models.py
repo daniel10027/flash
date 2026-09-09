@@ -157,6 +157,64 @@ class SavingsPlanModel(Base):
     )
 
 
+class CardModel(Base):
+    __tablename__ = "cards"
+
+    id: Mapped[str] = mapped_column(_UUID, primary_key=True)
+    wallet_id: Mapped[str] = mapped_column(
+        ForeignKey("wallets.id", ondelete="RESTRICT"), nullable=False
+    )
+    user_id: Mapped[str] = mapped_column(
+        ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
+    )
+    currency: Mapped[str] = mapped_column(_CCY, nullable=False)
+    network: Mapped[str] = mapped_column(String(12), nullable=False)
+    pan_token: Mapped[str] = mapped_column(String(64), nullable=False)
+    last4: Mapped[str] = mapped_column(String(4), nullable=False)
+    expiry_month: Mapped[int] = mapped_column(SmallInteger, nullable=False)
+    expiry_year: Mapped[int] = mapped_column(SmallInteger, nullable=False)
+    status: Mapped[str] = mapped_column(String(8), nullable=False, default="ACTIVE")
+    daily_limit_minor: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    monthly_limit_minor: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    channels: Mapped[str] = mapped_column(String(64), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(TZDateTime, nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("pan_token"),
+        CheckConstraint("daily_limit_minor > 0", name="card_daily_limit_positive"),
+        CheckConstraint("monthly_limit_minor > 0", name="card_monthly_limit_positive"),
+        Index("ix_cards_user_id", "user_id"),
+    )
+
+
+class CardAuthorizationModel(Base):
+    __tablename__ = "card_authorizations"
+
+    id: Mapped[str] = mapped_column(_UUID, primary_key=True)
+    card_id: Mapped[str] = mapped_column(
+        ForeignKey("cards.id", ondelete="RESTRICT"), nullable=False
+    )
+    wallet_id: Mapped[str] = mapped_column(_UUID, nullable=False)
+    user_id: Mapped[str] = mapped_column(_UUID, nullable=False)
+    authorization_id: Mapped[str] = mapped_column(String(80), nullable=False)
+    amount_minor: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    currency: Mapped[str] = mapped_column(_CCY, nullable=False)
+    channel: Mapped[str] = mapped_column(String(12), nullable=False)
+    merchant_name: Mapped[str | None] = mapped_column(String(140), nullable=True)
+    status: Mapped[str] = mapped_column(String(12), nullable=False)
+    decline_reason: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(TZDateTime, nullable=False)
+    resolved_at: Mapped[datetime | None] = mapped_column(TZDateTime, nullable=True)
+    captured_minor: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    ledger_transaction_id: Mapped[str | None] = mapped_column(_UUID, nullable=True)
+
+    __table_args__ = (
+        UniqueConstraint("authorization_id"),
+        CheckConstraint("amount_minor > 0", name="card_auth_amount_positive"),
+        Index("ix_card_authorizations_card_recent", "card_id", "created_at"),
+    )
+
+
 class LedgerAccountModel(Base):
     __tablename__ = "ledger_accounts"
 
@@ -470,6 +528,8 @@ class OutboxModel(Base):
 
 __all__ = [
     "AgentModel",
+    "CardAuthorizationModel",
+    "CardModel",
     "CashOrderModel",
     "IdempotencyKeyModel",
     "KycCaseModel",

@@ -8,6 +8,12 @@ import pytest
 
 from flash.application.notifications.dispatcher import NotificationDispatcher
 from flash.application.notifications.model import NotificationKind
+from flash.domain.card.events import (
+    CardFrozen,
+    CardPaymentAuthorized,
+    CardPaymentDeclined,
+    CardPaymentRefunded,
+)
 from flash.domain.cash.events import CashDepositCompleted, CashWithdrawalConfirmed
 from flash.domain.identity.events import KycCaseApproved, KycCaseRejected
 from flash.domain.merchants.events import MerchantPaymentCompleted, MerchantPaymentRefunded
@@ -270,6 +276,56 @@ def test_savings_events_notify_owner(
     assert "reporté" in notes[1].body
     assert "intérêts" in notes[2].body.lower()
     assert "clôturé" in notes[3].body
+
+
+def test_card_events_notify_holder(
+    dispatcher: NotificationDispatcher, notifier: RecordingNotifier
+) -> None:
+    dispatcher.handle(
+        [
+            CardPaymentAuthorized(
+                occurred_at=T0,
+                aggregate_id="a-1",
+                user_id="u-1",
+                wallet_id="w-1",
+                card_id="c-1",
+                authorization_id="auth-1",
+                amount_minor=30_000,
+                currency="XOF",
+                channel="ECOM",
+                merchant_name="Café",
+            ),
+            CardPaymentDeclined(
+                occurred_at=T0,
+                aggregate_id="a-2",
+                user_id="u-1",
+                card_id="c-1",
+                authorization_id="auth-2",
+                amount_minor=5_000,
+                currency="XOF",
+                reason="CARD_LIMIT_REACHED",
+            ),
+            CardFrozen(
+                occurred_at=T0, aggregate_id="c-1", user_id="u-1", card_id="c-1", reason="perte"
+            ),
+            CardPaymentRefunded(
+                occurred_at=T0,
+                aggregate_id="a-1",
+                user_id="u-1",
+                wallet_id="w-1",
+                card_id="c-1",
+                authorization_id="auth-1",
+                amount_minor=30_000,
+                currency="XOF",
+            ),
+        ]
+    )
+    notes = notifier.for_user("u-1")
+    assert [n.kind for n in notes] == [NotificationKind.CARD] * 4
+    assert "Café" in notes[0].body
+    assert "CARD_LIMIT_REACHED" in notes[1].body
+    assert "gelée" in notes[2].body
+    assert "remboursés" in notes[3].body
 
 
 def test_unmapped_event_produces_nothing(

@@ -14,6 +14,8 @@ from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session
 
 from flash.domain.agent.agent import Agent
+from flash.domain.card.authorization import CardAuthorization
+from flash.domain.card.card import Card
 from flash.domain.cash.order import CashOrder
 from flash.domain.identity.kyc_case import KycCase
 from flash.domain.identity.user import User
@@ -27,12 +29,14 @@ from flash.domain.savings.plan import SavingsPlan
 from flash.domain.shared.errors import PhoneNumberAlreadyLinked
 from flash.domain.shared.events import EventRecorder
 from flash.domain.shared.identifiers import EntityId, Msisdn
-from flash.domain.shared.money import Currency
+from flash.domain.shared.money import Currency, Money
 from flash.domain.vault.vault import Vault
 from flash.domain.wallet.wallet import Wallet
 from flash.infrastructure.db import mappers
 from flash.infrastructure.db.models import (
     AgentModel,
+    CardAuthorizationModel,
+    CardModel,
     CashOrderModel,
     KycCaseModel,
     LedgerAccountModel,
@@ -644,12 +648,135 @@ class SqlAlchemySavingsPlanRepository:
         self._tracker.track(plan)
 
 
+class SqlAlchemyCardRepository:
+    def __init__(self, session: Session, tracker: _AggregateTracker) -> None:
+        self._session = session
+        self._tracker = tracker
+
+    def _load(self, model: CardModel | None) -> Card | None:
+        if model is None:
+            return None
+        card = mappers.card_to_domain(model)
+        self._tracker.track(card)
+        return card
+
+    def get(self, card_id: EntityId) -> Card | None:
+        return self._load(self._session.get(CardModel, str(card_id)))
+
+    def get_for_update(self, card_id: EntityId) -> Card:
+        stmt = select(CardModel).where(CardModel.id == str(card_id)).with_for_update()
+        model = self._session.scalars(stmt).first()
+        if model is None:
+            raise KeyError(card_id)
+        loaded = self._load(model)
+        assert loaded is not None
+        return loaded
+
+    def get_by_pan_token(self, pan_token: str) -> Card | None:
+        stmt = select(CardModel).where(CardModel.pan_token == pan_token)
+        return self._load(self._session.scalars(stmt).first())
+
+    def list_for_user(self, user_id: EntityId) -> list[Card]:
+        stmt = (
+            select(CardModel)
+            .where(CardModel.user_id == str(user_id))
+            .order_by(CardModel.created_at.desc())
+        )
+        return [c for c in (self._load(m) for m in self._session.scalars(stmt)) if c is not None]
+
+    def add(self, card: Card) -> None:
+        self._session.add(mappers.card_to_model(card))
+        self._tracker.track(card)
+
+    def save(self, card: Card) -> None:
+        self._session.merge(mappers.card_to_model(card))
+        self._tracker.track(card)
+
+
+class SqlAlchemyCardAuthorizationRepository:
+    _SPEND_STATES = ("AUTHORIZED", "CAPTURED")
+
+    def __init__(self, session: Session, tracker: _AggregateTracker) -> None:
+        self._session = session
+        self._tracker = tracker
+
+    def _load(self, model: CardAuthorizationModel | None) -> CardAuthorization | None:
+        if model is None:
+            return None
+        auth = mappers.card_authorization_to_domain(model)
+        self._tracker.track(auth)
+        return auth
+
+    def get(self, auth_id: EntityId) -> CardAuthorization | None:
+        return self._load(self._session.get(CardAuthorizationModel, str(auth_id)))
+
+    def get_by_authorization_id(self, authorization_id: str) -> CardAuthorization | None:
+        stmt = select(CardAuthorizationModel).where(
+            CardAuthorizationModel.authorization_id == authorization_id
+        )
+        return self._load(self._session.scalars(stmt).first())
+
+    def get_for_update_by_authorization_id(self, authorization_id: str) -> CardAuthorization:
+        stmt = (
+            select(CardAuthorizationModel)
+            .where(CardAuthorizationModel.authorization_id == authorization_id)
+            .with_for_update()
+        )
+        model = self._session.scalars(stmt).first()
+        if model is None:
+            raise KeyError(authorization_id)
+        loaded = self._load(model)
+        assert loaded is not None
+        return loaded
+
+    def total_spent_since(self, card_id: EntityId, since: datetime) -> Money:
+        stmt = select(func.coalesce(func.sum(CardAuthorizationModel.amount_minor), 0)).where(
+            CardAuthorizationModel.card_id == str(card_id),
+            CardAuthorizationModel.created_at >= since,
+            CardAuthorizationModel.status.in_(self._SPEND_STATES),
+        )
+        currency_stmt = select(CardModel.currency).where(CardModel.id == str(card_id))
+        code = self._session.scalar(currency_stmt) or "XOF"
+        return Money(int(self._session.scalar(stmt) or 0), Currency.of(code))
+
+    def list_for_card(self, card_id: EntityId) -> list[CardAuthorization]:
+        stmt = (
+            select(CardAuthorizationModel)
+            .where(CardAuthorizationModel.card_id == str(card_id))
+            .order_by(CardAuthorizationModel.created_at.desc())
+        )
+        return [a for a in (self._load(m) for m in self._session.scalars(stmt)) if a is not None]
+
+    def list_resolved(
+        self, *, limit: int = 500, after: EntityId | None = None
+    ) -> list[CardAuthorization]:
+        stmt = (
+            select(CardAuthorizationModel)
+            .where(CardAuthorizationModel.status.in_(("CAPTURED", "REFUNDED")))
+            .order_by(CardAuthorizationModel.id.asc())
+            .limit(limit)
+        )
+        if after is not None:
+            stmt = stmt.where(CardAuthorizationModel.id > str(after))
+        return [a for a in (self._load(m) for m in self._session.scalars(stmt)) if a is not None]
+
+    def add(self, authorization: CardAuthorization) -> None:
+        self._session.add(mappers.card_authorization_to_model(authorization))
+        self._tracker.track(authorization)
+
+    def save(self, authorization: CardAuthorization) -> None:
+        self._session.merge(mappers.card_authorization_to_model(authorization))
+        self._tracker.track(authorization)
+
+
 def _new_account_id() -> EntityId:
     return EntityId(str(uuid7()))
 
 
 __all__ = [
     "SqlAlchemyAgentRepository",
+    "SqlAlchemyCardAuthorizationRepository",
+    "SqlAlchemyCardRepository",
     "SqlAlchemyCashOrderRepository",
     "SqlAlchemyKycCaseRepository",
     "SqlAlchemyLedgerRepository",

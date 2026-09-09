@@ -56,6 +56,11 @@ class Settings(BaseSettings):
     # --- annulation / remboursement
     reversal_window_seconds: int = Field(default=3_600, alias="REVERSAL_WINDOW_SECONDS")
 
+    # --- carte
+    card_webhook_secret: str = Field(default="", alias="CARD_WEBHOOK_SECRET")
+    card_daily_limit_minor: int = Field(default=500_000, alias="CARD_DAILY_LIMIT_MINOR")
+    card_monthly_limit_minor: int = Field(default=5_000_000, alias="CARD_MONTHLY_LIMIT_MINOR")
+
     # --- pays par défaut
     default_country: str = Field(default="CI", alias="DEFAULT_COUNTRY")
     default_currency: str = Field(default="XOF", alias="DEFAULT_CURRENCY")

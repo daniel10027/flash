@@ -10,6 +10,7 @@ from __future__ import annotations
 from typing import Protocol, runtime_checkable
 
 from flash.domain.agent.ports import AgentRepository
+from flash.domain.card.ports import CardAuthorizationRepository, CardRepository
 from flash.domain.cash.ports import CashOrderRepository
 from flash.domain.identity.ports import KycCaseRepository, UserRepository
 from flash.domain.ledger.ports import LedgerRepository
@@ -64,6 +65,12 @@ class WorkUnitOfWork(Protocol):
 
     @property
     def savings(self) -> SavingsPlanRepository: ...
+
+    @property
+    def cards(self) -> CardRepository: ...
+
+    @property
+    def card_authorizations(self) -> CardAuthorizationRepository: ...
 
     def __enter__(self) -> WorkUnitOfWork: ...
 
