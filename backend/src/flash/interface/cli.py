@@ -126,6 +126,21 @@ def seed() -> None:
 
 
 @main.group()
+def reference() -> None:
+    """Référentiel pays / opérateurs."""
+
+
+@reference.command("seed")
+def reference_seed() -> None:
+    """Charge le jeu de données pays / opérateurs intégré en base (idempotent)."""
+    from flash.infrastructure.db.engine import get_session_factory
+    from flash.infrastructure.reference import seed_reference
+
+    count = seed_reference(get_session_factory())
+    click.echo(f"Référentiel : {count} pays chargés / mis à jour.")
+
+
+@main.group()
 def openapi() -> None:
     """Spécification OpenAPI."""
 

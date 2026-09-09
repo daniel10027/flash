@@ -24,5 +24,8 @@ PY
 echo "[flash] migrations Alembic…"
 flash db upgrade
 
+echo "[flash] référentiel pays / opérateurs…"
+flash reference seed
+
 echo "[flash] démarrage de l'API sur :8000"
 exec flash serve --host 0.0.0.0 --port 8000

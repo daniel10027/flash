@@ -226,12 +226,19 @@ Chaque tâche livrée : code complet + tests + doc, **zéro `TODO`**.
 
 ## Phase 4 — Multi‑pays, marchands, agents, back‑office (BE-061 → BE-078)
 
-- [ ] **BE-061** · `domain/country/` : `Country`, `Operator`, chargement depuis DB + cache
-  Redis, invalidation. `GET /v1/reference/countries`.
+- [x] **BE-061** · `domain/country/reference.py` : VOs `Country` / `Operator` + port
+  `ReferenceDirectory` (superset de `CountryDirectory`). `StaticReferenceDirectory` (jeu
+  UEMOA + CEMAC intégré), `SqlAlchemyReferenceDirectory` (tables `countries`/`operators`,
+  sessions propres), `CachingReferenceDirectory` (instantané mémoire revalidé contre
+  `flash:reference:version` Redis ; `bump()` invalide tous les workers, `reload()` local).
+  `flash reference seed` (idempotent) + migration `f4b7c2109ea3`. Blueprint public
+  `GET /v1/reference/countries` + `/countries/<code>`. `Settings.reference_source`
+  (`static` | `db`).
 - [ ] **BE-062** · CRUD back‑office : `countries`, `pricing_rules`, `limits`, `operators`
   (rôle `compliance`/`admin`), avec audit trail immuable des changements.
-- [ ] **BE-063** · `PricingService` multi‑pays effectif + tests par pays (CI 0,8 % ;
-  paramétrer SN différemment pour prouver la généricité).
+- [x] **BE-063** · Grille tarifaire réellement par pays : CI transfert 0,8 % (80 bps),
+  **SN 1,0 %** (preuve de généricité), CM/GA 0,9 % **en XAF** ; paiement marchand gratuit
+  partout. Plafonds `limits` déclinés en XOF (UEMOA) et XAF (CEMAC). Tests par pays.
 - [ ] **BE-064** · Port `OperatorGateway` + `SandboxOperatorGateway` : `payout` (Flash →
   Orange/MTN/Moov) et `collect` (opérateur → Flash), statuts asynchrones + webhooks.
 - [ ] **BE-065** · `SendToOperatorAccount` (retrait interopérable) : réserve, appel

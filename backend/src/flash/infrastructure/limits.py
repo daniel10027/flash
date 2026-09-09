@@ -20,9 +20,22 @@ from flash.domain.shared.money import Currency, Money
 from flash.domain.shared.operations import OperationType
 
 _XOF = Currency.of("XOF")
-_XOF_COUNTRIES = ("CI", "SN", "ML", "BF", "BJ", "TG", "NE", "GW")
+_XAF = Currency.of("XAF")
+# Zone franc : mêmes montants nominaux, devise propre à chaque pays.
+_COUNTRIES: dict[str, Currency] = {
+    "CI": _XOF,
+    "SN": _XOF,
+    "ML": _XOF,
+    "BF": _XOF,
+    "BJ": _XOF,
+    "TG": _XOF,
+    "NE": _XOF,
+    "GW": _XOF,
+    "CM": _XAF,
+    "GA": _XAF,
+}
 
-# per_tx, balance_max par palier KYC (en XOF).
+# per_tx, balance_max par palier KYC (unité mineure de la devise du pays).
 _TIER_CAPS: dict[KycTier, tuple[int, int]] = {
     KycTier.TIER_0: (200_000, 300_000),
     KycTier.TIER_1: (1_000_000, 2_000_000),
@@ -40,7 +53,7 @@ _OPERATIONS = (
 
 def _default_rules() -> list[LimitRule]:
     rules: list[LimitRule] = []
-    for code in _XOF_COUNTRIES:
+    for code, currency in _COUNTRIES.items():
         country = CountryCode(code)
         for tier, (per_tx, balance_max) in _TIER_CAPS.items():
             for operation in _OPERATIONS:
@@ -49,8 +62,8 @@ def _default_rules() -> list[LimitRule]:
                         country=country,
                         kyc_tier=tier,
                         operation=operation,
-                        per_tx=Money(per_tx, _XOF),
-                        balance_max=Money(balance_max, _XOF),
+                        per_tx=Money(per_tx, currency),
+                        balance_max=Money(balance_max, currency),
                     )
                 )
     return rules

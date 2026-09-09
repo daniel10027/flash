@@ -6,7 +6,6 @@ from datetime import timedelta
 
 from flash.application.notifications.dispatcher import NotificationDispatcher
 from flash.application.services import AppServices
-from flash.domain.country.directory import StaticCountryDirectory
 from flash.domain.limits.limits import KycPolicy, LimitPolicy
 from flash.domain.pricing.pricing import PricingService
 from flash.infrastructure.card_issuer import SandboxCardIssuer
@@ -16,6 +15,7 @@ from flash.infrastructure.events import NotifyingEventPublisher
 from flash.infrastructure.limits import NullLimitCounter, build_limit_repository
 from flash.infrastructure.notifications import BusChannel, FanOutNotifier, InAppChannel
 from flash.infrastructure.pricing import build_pricing_repository
+from flash.infrastructure.reference import StaticReferenceDirectory
 from flash.interface.container import Deps
 from flash.interface.security.wiring import SecurityBundle
 from tests.support.fakes import (
@@ -60,9 +60,11 @@ def build_test_deps(
         events=NotifyingEventPublisher(RecordingEventPublisher(), dispatcher),
         idempotency=InMemoryIdempotencyStore(),
     )
+    reference = StaticReferenceDirectory()
     return Deps(
         services=services,
-        countries=StaticCountryDirectory(),
+        countries=reference,
+        reference=reference,
         pins=FakePinHasher(),
         otp=otp,
         tokens=bundle.tokens,

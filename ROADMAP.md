@@ -1,7 +1,7 @@
 # Flash — Map de développement
 
 > **Dernière mise à jour : 2026-09-09**
-> **Phase 1 + Phase 2 complètes · Phase 3 terminée : BE-047 → BE-060 (coffre, épargne, carte)**
+> **Phases 1-3 complètes · Phase 4 en cours : BE-061 (référentiel pays) + BE-063 (grille multi-pays)**
 > (auth, numéros, wallets, transfert + **annulation**, **demandes de paiement**,
 > **paiement marchand QR** + **remboursement**, **dépôt & retrait cash agent**,
 > relevé + **reçu détaillé**, **KYC**, **notifications** + **flux SSE**, **jobs
@@ -45,11 +45,11 @@
 > `/v1/notifications` (liste + curseur + `unread`, `/<id>/read`, `/read-all`) et
 > **SSE `/v1/notifications/stream`** (`RedisNotificationBus` pub/sub, rattrapage
 > `Last-Event-ID` depuis le journal, keep-alive).
-> **65 chemins** : `auth` (6), `phones` (5), `wallets` (2), `transfers` (2),
+> **67 chemins** : `auth` (6), `phones` (5), `wallets` (2), `transfers` (2),
 > `payment-requests` (4), `merchant` (4), `merchant-payments` (1), `statement` (1),
 > `receipts` (1), `notifications` (4), `withdrawals` (2), `agent` (2), `kyc` (4),
-> `vault` (6), `savings` (5), `cards` (8), `cards/authorizations` (4), `admin/kyc` (1),
-> `admin` ops (5) + `/health*`, `/openapi.json`, `/docs`, `/redoc`.
+> `vault` (6), `savings` (5), `cards` (8), `cards/authorizations` (4), `reference` (2),
+> `admin/kyc` (1), `admin` ops (5) + `/health*`, `/openapi.json`, `/docs`, `/redoc`.
 > **Tout vérifié end-to-end via docker compose** : cash, KYC, demandes de paiement,
 > paiement marchand, annulation / remboursement (soldes restaurés, rejeu → 409),
 > reçus (out/in, 404 pour un tiers, REVERSED) ; un transfert génère « Argent reçu » /
@@ -106,10 +106,19 @@
 > Blueprint `/v1/vault` : `GET`, `POST /pockets`, `PATCH`/`DELETE /pockets/<id>`,
 > `POST /pockets/<id>/{deposit,withdraw}`. Colonne `wallets.vaulted_minor` + table
 > `vault_pockets` (migration `a1c9f4e2b7d3`).
-> **65 chemins.** 854 tests unit + 18 d'intégration (Postgres réel), couverture 100 %
+> **Référentiel pays / opérateurs (BE-061)** : VOs `Country` / `Operator` + port
+> `ReferenceDirectory` (superset de `CountryDirectory`). `StaticReferenceDirectory`
+> (UEMOA + CEMAC : CI, SN, ML, BF, BJ, TG, NE, GW, CM, GA + opérateurs Orange/MTN/Moov/
+> Wave…), `SqlAlchemyReferenceDirectory` (tables `countries`/`operators`),
+> `CachingReferenceDirectory` (instantané mémoire revalidé contre `flash:reference:version`
+> Redis ; `bump()` invalide tous les workers). `flash reference seed` + migration
+> `f4b7c2109ea3`. Blueprint **public** `GET /v1/reference/countries` (+ `/countries/<code>`).
+> **Grille multi-pays (BE-063)** : transfert CI 0,8 %, **SN 1,0 %** (preuve de généricité),
+> CM/GA 0,9 % **en XAF** ; paiement marchand gratuit partout ; plafonds déclinés XOF/XAF.
+> **67 chemins.** 885 tests unit + 20 d'intégration (Postgres réel), couverture 100 %
 > domain+application, ruff + mypy stricts.
-> **Phase 3 terminée** (`BE-047` → `BE-060` : coffre, épargne, carte). Prochaine : **Phase 4**
-> — `BE-061` (référentiel pays / opérateurs / grille tarifaire multi-pays).
+> **Phases 1-3 terminées. Phase 4 en cours** : `BE-061` + `BE-063` livrés. Prochaine :
+> `BE-062` (CRUD back-office référentiel + audit trail), `BE-064` → `BE-078`.
 
 Ce fichier est la vue d'ensemble. Le détail (une ligne = une tâche cochable) est dans
 `docs/tasks/`. On avance **dans l'ordre des identifiants** à l'intérieur de chaque lot,
@@ -127,7 +136,7 @@ mais les lots Backend / Infra avancent en priorité car Web et Mobile en dépend
 | Lot | Fichier détaillé | Fait / Total |
 |-----|------------------|--------------|
 | Fondations & docs | ce fichier | 6 / 6 |
-| Backend (BE) | [docs/tasks/backend.md](docs/tasks/backend.md) | 60 / 78 |
+| Backend (BE) | [docs/tasks/backend.md](docs/tasks/backend.md) | 62 / 78 |
 | Web (WEB) | [docs/tasks/frontend-web.md](docs/tasks/frontend-web.md) | 0 / 46 |
 | Mobile (MOB) | [docs/tasks/mobile.md](docs/tasks/mobile.md) | 0 / 44 |
 | Infra & CI/CD (INFRA) | [docs/tasks/infra.md](docs/tasks/infra.md) | 2 / 24 |
@@ -195,16 +204,17 @@ charge, revue sécurité (OWASP ASVS, secrets, rate‑limit), doc API publiée, 
 
 ## Prochaine action
 
-**Phase 3 terminée** (`BE-047` → `BE-060`) : coffre (`Vault` + `Wallet.vaulted`), épargne
-(`SavingsPlan` + `Wallet.saved` + versements programmés + intérêts prorata), carte
-virtuelle (`Card` + `CardAuthorization` + `SandboxCardIssuer` + webhook réseau signé
-autorisation/capture/annulation/remboursement + rapprochement). Migrations
-`a1c9f4e2b7d3`, `c7f2a0e9d4b1`, `e3d8b1a06f92`.
+**Phases 1-3 terminées.** **Phase 4 démarrée** : `BE-061` (référentiel pays / opérateurs :
+`Country`/`Operator` + `ReferenceDirectory` static / SQL / cache Redis, `flash reference
+seed`, `GET /v1/reference/countries`, migration `f4b7c2109ea3`) et `BE-063` (grille
+tarifaire réellement par pays : CI 0,8 %, SN 1,0 %, CM/GA 0,9 % en XAF ; plafonds XOF/XAF).
 
-Prochaine : **Phase 4** — `BE-061` : référentiel pays / opérateurs / grille tarifaire
-piloté par la configuration (aujourd'hui statique UEMOA dans `infrastructure/pricing.py`
-et `limits.py`). Puis `BE-062` → `BE-078` (interopérabilité opérateurs via adapters,
-règlements marchands, réseau d'agents, console d'admin, export réglementaire).
+Prochaine : `BE-062` (CRUD back-office `countries`/`operators`/`pricing_rules`/`limits`
+avec rôles `compliance`/`admin` + audit trail immuable). Puis `BE-064` → `BE-067`
+(interop opérateurs : port `OperatorGateway` + `SandboxOperatorGateway`,
+`SendToOperatorAccount` / `TopUpFromOperator`, webhooks signés), `BE-068` → `BE-078`
+(marchands & règlements, agents, back-office, conformité AML, exports réglementaires,
+registre d'audit hash-chaîné).
 
 ✅ Phase 2 livrée : `BE-029` (KYC), `BE-032` (demandes de paiement), `BE-033` (marchand
 QR), `BE-034` → `BE-036` (cash agent), `BE-037` (annulation / remboursement), `BE-038`

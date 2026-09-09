@@ -215,6 +215,40 @@ class CardAuthorizationModel(Base):
     )
 
 
+class CountryModel(Base):
+    __tablename__ = "countries"
+
+    code: Mapped[str] = mapped_column(_COUNTRY, primary_key=True)
+    name: Mapped[str] = mapped_column(String(80), nullable=False)
+    currency: Mapped[str] = mapped_column(_CCY, nullable=False)
+    dialing_code: Mapped[str] = mapped_column(String(6), nullable=False)
+    timezone: Mapped[str] = mapped_column(String(48), nullable=False, default="UTC")
+    active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+
+    operators: Mapped[list[OperatorModel]] = relationship(
+        back_populates="country",
+        cascade="all, delete-orphan",
+        order_by="OperatorModel.code",
+        lazy="selectin",
+    )
+
+
+class OperatorModel(Base):
+    __tablename__ = "operators"
+
+    code: Mapped[str] = mapped_column(String(32), primary_key=True)
+    country_code: Mapped[str] = mapped_column(
+        ForeignKey("countries.code", ondelete="CASCADE"), nullable=False
+    )
+    name: Mapped[str] = mapped_column(String(80), nullable=False)
+    msisdn_prefixes: Mapped[str] = mapped_column(String(200), nullable=False, default="")
+    active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+
+    country: Mapped[CountryModel] = relationship(back_populates="operators")
+
+    __table_args__ = (Index("ix_operators_country_code", "country_code"),)
+
+
 class LedgerAccountModel(Base):
     __tablename__ = "ledger_accounts"
 
@@ -531,6 +565,7 @@ __all__ = [
     "CardAuthorizationModel",
     "CardModel",
     "CashOrderModel",
+    "CountryModel",
     "IdempotencyKeyModel",
     "KycCaseModel",
     "KycDocumentModel",
@@ -541,6 +576,7 @@ __all__ = [
     "MerchantModel",
     "MerchantPaymentModel",
     "NotificationModel",
+    "OperatorModel",
     "OutboxModel",
     "PaymentRequestModel",
     "PhoneNumberModel",

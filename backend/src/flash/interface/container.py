@@ -19,7 +19,8 @@ from flash.application.notifications.dispatcher import NotificationDispatcher
 from flash.application.notifications.ports import NotificationBus, NotificationRepository
 from flash.application.ports import OtpService
 from flash.application.services import AppServices
-from flash.domain.country.directory import CountryDirectory, StaticCountryDirectory
+from flash.domain.country.directory import CountryDirectory
+from flash.domain.country.reference import ReferenceDirectory
 from flash.domain.identity.pin import PinHasher
 from flash.domain.limits.limits import KycPolicy, LimitPolicy
 from flash.domain.pricing.pricing import PricingService
@@ -47,6 +48,11 @@ from flash.infrastructure.notifications import (
 )
 from flash.infrastructure.otp import ConsoleOtpChannel, RedisOtpService
 from flash.infrastructure.pricing import build_pricing_repository
+from flash.infrastructure.reference import (
+    CachingReferenceDirectory,
+    SqlAlchemyReferenceDirectory,
+    StaticReferenceDirectory,
+)
 from flash.infrastructure.security.pin_hasher import Argon2PinHasher
 
 _EXT_KEY = "flash_deps"
@@ -56,6 +62,7 @@ _EXT_KEY = "flash_deps"
 class Deps:
     services: AppServices
     countries: CountryDirectory
+    reference: ReferenceDirectory
     pins: PinHasher
     otp: OtpService
     tokens: TokenService
@@ -111,9 +118,16 @@ def build_deps(settings: Settings, *, tokens: TokenService) -> Deps:
         ttl_seconds=settings.otp_ttl_seconds,
         max_attempts=settings.otp_max_attempts,
     )
+    if settings.reference_source == "db":
+        reference: ReferenceDirectory = CachingReferenceDirectory(
+            SqlAlchemyReferenceDirectory(get_session_factory()), redis
+        )
+    else:
+        reference = StaticReferenceDirectory()
     return Deps(
         services=services,
-        countries=StaticCountryDirectory(),
+        countries=reference,
+        reference=reference,
         pins=Argon2PinHasher(),
         otp=otp,
         tokens=tokens,

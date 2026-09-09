@@ -65,6 +65,9 @@ class Settings(BaseSettings):
     default_country: str = Field(default="CI", alias="DEFAULT_COUNTRY")
     default_currency: str = Field(default="XOF", alias="DEFAULT_CURRENCY")
 
+    # --- référentiel pays / opérateurs : "static" (jeu intégré) ou "db" (table + cache Redis)
+    reference_source: str = Field(default="static", alias="REFERENCE_SOURCE")
+
     # --- passerelles externes
     operator_gateway: str = Field(default="sandbox", alias="OPERATOR_GATEWAY")
     card_issuer: str = Field(default="sandbox", alias="CARD_ISSUER")

@@ -13,6 +13,7 @@ from flash.domain.agent.agent import Agent, AgentStatus
 from flash.domain.card.authorization import CardAuthorization, CardAuthorizationStatus
 from flash.domain.card.card import Card, CardChannel, CardNetwork, CardStatus
 from flash.domain.cash.order import CashOrder, CashOrderStatus, CashOrderType
+from flash.domain.country.reference import Country, Operator
 from flash.domain.identity.kyc import KycTier
 from flash.domain.identity.kyc_case import (
     KycCase,
@@ -37,6 +38,7 @@ from flash.infrastructure.db.models import (
     CardAuthorizationModel,
     CardModel,
     CashOrderModel,
+    CountryModel,
     KycCaseModel,
     KycDocumentModel,
     LedgerPostingModel,
@@ -44,6 +46,7 @@ from flash.infrastructure.db.models import (
     MerchantChargeModel,
     MerchantModel,
     MerchantPaymentModel,
+    OperatorModel,
     PaymentRequestModel,
     PhoneNumberModel,
     SavingsPlanModel,
@@ -501,6 +504,56 @@ def merchant_payment_to_model(payment: MerchantPayment) -> MerchantPaymentModel:
     )
 
 
+# --------------------------------------------------------------------- référentiel
+
+
+def _operator_to_domain(model: OperatorModel) -> Operator:
+    prefixes = tuple(p for p in model.msisdn_prefixes.split(",") if p)
+    return Operator(
+        code=model.code,
+        name=model.name,
+        country=CountryCode(model.country_code),
+        msisdn_prefixes=prefixes,
+        active=model.active,
+    )
+
+
+def country_to_domain(model: CountryModel) -> Country:
+    return Country(
+        code=CountryCode(model.code),
+        name=model.name,
+        currency=Currency.of(model.currency),
+        dialing_code=model.dialing_code,
+        timezone=model.timezone,
+        active=model.active,
+        operators=tuple(_operator_to_domain(o) for o in model.operators),
+    )
+
+
+def country_to_models(country: Country) -> tuple[CountryModel, list[OperatorModel]]:
+    operators = [
+        OperatorModel(
+            code=o.code,
+            country_code=country.code.value,
+            name=o.name,
+            msisdn_prefixes=",".join(o.msisdn_prefixes),
+            active=o.active,
+        )
+        for o in country.operators
+    ]
+    return (
+        CountryModel(
+            code=country.code.value,
+            name=country.name,
+            currency=country.currency.code,
+            dialing_code=country.dialing_code,
+            timezone=country.timezone,
+            active=country.active,
+        ),
+        operators,
+    )
+
+
 # ------------------------------------------------------------------------- carte
 
 
@@ -633,6 +686,8 @@ __all__ = [
     "card_to_model",
     "cash_order_to_domain",
     "cash_order_to_model",
+    "country_to_domain",
+    "country_to_models",
     "kyc_case_to_domain",
     "kyc_case_to_model",
     "ledger_transaction_to_domain",
