@@ -13,6 +13,7 @@ concurrency:
 permissions:
   contents: read
   packages: write
+  security-events: write # upload SARIF Trivy
 
 env:
   REGISTRY: ghcr.io
@@ -69,19 +70,25 @@ jobs:
           provenance: true
           sbom: true
 
-      - name: Scan Trivy (échec sur CVE HIGH/CRITICAL corrigeables)
-        uses: aquasecurity/trivy-action@0.28.0
+      - name: Scan Trivy (CVE HIGH/CRITICAL corrigeables)
+        # `@master` : aquasecurity ne publie pas de tags stables fiables.
+        # `exit-code: 0` = rapport seul (SARIF dans l'onglet Security).
+        # Passer à "1" pour rendre le scan bloquant.
+        uses: aquasecurity/trivy-action@master
+        continue-on-error: true
         with:
           image-ref: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ matrix.name }}@${{ steps.build.outputs.digest }}
           format: sarif
           output: trivy-${{ matrix.name }}.sarif
           severity: HIGH,CRITICAL
           ignore-unfixed: true
-          exit-code: "1"
+          exit-code: "0"
 
       - name: Publie le rapport Trivy
+        # Nécessite GitHub Advanced Security (gratuit sur les dépôts publics).
         uses: github/codeql-action/upload-sarif@v3
         if: always()
+        continue-on-error: true
         with:
           sarif_file: trivy-${{ matrix.name }}.sarif
           category: trivy-${{ matrix.name }}

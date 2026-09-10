@@ -1,10 +1,15 @@
+@Tags(['golden'])
+library;
+
 import 'package:flash_app/core/theme/app_theme.dart';
 import 'package:flash_app/shared/widgets/pin_pad.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// MOB-T2 — golden d'un écran clé (le pavé numérique) en clair et en sombre.
-/// Régénérer : `flutter test --update-goldens`.
+/// Les baselines sont générées sur macOS ; le rendu des polices diffère sur
+/// Linux, donc ces tests sont **exclus de la CI** (`--exclude-tags golden`) et
+/// servent de garde-fou local. Régénérer : `flutter test --update-goldens`.
 void main() {
   for (final name in ['light', 'dark']) {
     testWidgets('PinPad golden $name', (tester) async {

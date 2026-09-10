@@ -1,5 +1,9 @@
 name: deploy
 
+# Ne se déclenche PAS tant qu'un VPS n'est pas provisionné.
+# Pour activer : créer la variable de dépôt `DEPLOY_ENABLED = true`
+# (Settings -> Secrets and variables -> Actions -> Variables) et renseigner les
+# secrets `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_SSH_KEY` + la variable `DOMAIN`.
 on:
   push:
     branches: [main] # -> staging
@@ -19,6 +23,7 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    if: ${{ vars.DEPLOY_ENABLED == 'true' }}
     environment: ${{ (startsWith(github.ref, 'refs/tags/v') || inputs.environment == 'production') && 'production' || 'staging' }}
     steps:
       - uses: actions/checkout@v4
