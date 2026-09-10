@@ -10,6 +10,10 @@
   --color-brand-700: #621525;
   --color-brand-800: #4b101c;
   --color-brand-900: #360b14;
+  --color-amber-300: #f6c667;
+  --color-amber-500: #e0982a;
+  --color-amber-700: #a86e12;
+  --color-amber-comment: Secondaire chaud de marque (usage marketing / accents visuels). Le vert d'eau `accent` reste la couleur fonctionnelle positive.;
   --color-accent-300: #7cd4c0;
   --color-accent-500: #12a594;
   --color-accent-700: #0c7a6d;
@@ -63,11 +67,12 @@
   --radius-xl: 24px;
   --radius-full: 999px;
   --shadow-sm: 0 1px 2px rgba(22, 22, 25, 0.08);
-  --shadow-md: 0 4px 12px rgba(22, 22, 25, 0.1);
+  --shadow-md: 0 4px 12px rgba(22, 22, 25, 0.10);
   --shadow-lg: 0 12px 32px rgba(22, 22, 25, 0.16);
   --duration-fast: 120ms;
   --duration-base: 200ms;
   --duration-slow: 320ms;
+  --duration-page: 340ms;
   --z-nav: 100;
   --z-sheet: 200;
   --z-toast: 300;

@@ -1,0 +1,62 @@
+<!doctype html>
+<!--
+  DSN-009 — modèle de reçu Flash. Imprimable en PDF (A6 paysage) ou rendu en
+  image. Les champs {{…}} sont substitués par le web et le mobile.
+  Aucune ressource externe : police système, QR inline.
+-->
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<title>Reçu Flash</title>
+<style>
+  @page { size: 148mm 105mm; margin: 0; }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    font-family: Inter, "Segoe UI", system-ui, -apple-system, sans-serif;
+    color: #26262c;
+    width: 148mm; height: 105mm; padding: 10mm 12mm;
+    display: flex; flex-direction: column;
+  }
+  header { display: flex; align-items: center; gap: 8px; }
+  header svg { width: 22px; height: 22px; }
+  header .name { font-weight: 800; font-size: 18px; color: #8c1d33; letter-spacing: -.5px; }
+  .status {
+    margin-left: auto; font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .5px; padding: 3px 8px; border-radius: 999px;
+    background: #e6f4ea; color: #0c7a3f;
+  }
+  .status.reversed { background: #fbe9ec; color: #a4152b; }
+  .amount { margin: 14px 0 4px; font-size: 30px; font-weight: 800; }
+  .subtitle { color: #727282; font-size: 12px; }
+  dl { margin-top: auto; display: grid; grid-template-columns: auto 1fr; gap: 4px 16px; font-size: 12px; }
+  dt { color: #727282; }
+  dd { text-align: right; font-variant-numeric: tabular-nums; }
+  footer { margin-top: 10px; display: flex; align-items: flex-end; gap: 10px; }
+  footer .qr { width: 64px; height: 64px; }
+  footer .verify { font-size: 10px; color: #9a9aa6; line-height: 1.4; }
+</style>
+</head>
+<body>
+  <header>
+    <svg viewBox="0 0 64 64"><path fill="#8c1d33" d="M38.5 6 L17 33.4a2 2 0 0 0 1.6 3.2H28.4L24.6 55a1 1 0 0 0 1.8.8L48 28.6a2 2 0 0 0-1.6-3.2H37.1L40.3 7a1 1 0 0 0-1.8-.8Z"/></svg>
+    <span class="name">Flash</span>
+    <span class="status {{status_class}}">{{status_label}}</span>
+  </header>
+
+  <div class="amount">{{amount}}</div>
+  <div class="subtitle">{{operation_label}} · {{date}}</div>
+
+  <dl>
+    <dt>Référence</dt><dd>{{reference}}</dd>
+    <dt>De</dt><dd>{{sender}}</dd>
+    <dt>Vers</dt><dd>{{recipient}}</dd>
+    <dt>Frais</dt><dd>{{fee}}</dd>
+    <dt>Total</dt><dd>{{total}}</dd>
+  </dl>
+
+  <footer>
+    <img class="qr" alt="QR de vérification" src="{{qr_data_uri}}" />
+    <span class="verify">Vérifiez ce reçu sur flash.app/v/{{reference}}<br />Émis par Flash — reçu non contractuel.</span>
+  </footer>
+</body>
+</html>

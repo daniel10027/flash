@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1920" role="img" aria-label="Flash">
+  <title>Flash — splash screen</title>
+  <rect width="1080" height="1920" fill="#8c1d33"/>
+  <g transform="translate(456 830)">
+    <path fill="#ffffff" d="M100 -60 L-20 120 a14 14 0 0 0 11 22 H45 L18 260 a7 7 0 0 0 13 5 L150 55 a14 14 0 0 0-11-22 H72 L119 -55 a7 7 0 0 0-13-5 Z"/>
+  </g>
+</svg>

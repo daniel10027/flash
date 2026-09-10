@@ -1,6 +1,6 @@
 # Flash — Map de développement
 
-> **Dernière mise à jour : 2026-09-09**
+> **Dernière mise à jour : 2026-09-10**
 > **Phases 1-3 complètes · Phase 4 backend TERMINÉE : BE-061→078 + transverses BE-T1→T6 livrés (… conformité AML, exports réglementaires, audit consultable, sous-comptes marchands & frais/canal, CI GitHub Actions, métriques Prometheus, contrats OpenAPI, test de charge)**
 > (auth, numéros, wallets, transfert + **annulation**, **demandes de paiement**,
 > **paiement marchand QR** + **remboursement**, **dépôt & retrait cash agent**,
@@ -262,11 +262,11 @@ mais les lots Backend / Infra avancent en priorité car Web et Mobile en dépend
 | Lot | Fichier détaillé | Fait / Total |
 |-----|------------------|--------------|
 | Fondations & docs | ce fichier | 6 / 6 |
-| Backend (BE) | [docs/tasks/backend.md](docs/tasks/backend.md) | 70 / 78 + transverses BE-T1→T6 |
+| Backend (BE) | [docs/tasks/backend.md](docs/tasks/backend.md) | 84 / 84 ✅ + transverses BE-T1→T6 |
 | Web (WEB) | [docs/tasks/frontend-web.md](docs/tasks/frontend-web.md) | 49 / 49 ✅ (socle, client, agent, back-office, transverse) |
 | Mobile (MOB) | [docs/tasks/mobile.md](docs/tasks/mobile.md) | 47 / 47 ✅ |
 | Infra & CI/CD (INFRA) | [docs/tasks/infra.md](docs/tasks/infra.md) | 24 / 24 ✅ |
-| Design & marque (DSN) | [docs/tasks/design.md](docs/tasks/design.md) | 0 / 10 |
+| Design & marque (DSN) | [docs/tasks/design.md](docs/tasks/design.md) | 10 / 10 ✅ |
 
 ---
 
@@ -458,7 +458,20 @@ signature `key.properties` / env), `Info.plist` (caméra/FaceID/push), `fastlane
 (`PinPad` clair/sombre) + `integration_test` ; `flutter analyze` propre ; APK debug
 `flavor dev` bâti localement.
 
-Prochaine : `DSN-*` (identité visuelle — 10 tâches).
+**Phase 8 design TERMINÉE (`DSN-001` → `DSN-010`, 10/10).** `design/` : `tokens.json`
+enrichi (couleurs + `amber` secondaire + `easing`), `BRAND.md` (usage logo, zone de
+protection, do/don't, ton), `COMPONENTS.md` (specs carte de solde, ligne d'historique,
+écran d'envoi, reçu, carte virtuelle), `logo/` (lockup + symbole + déclinaisons
+mono/blanc + favicon SVG), `app-icon/` (master 1024, maskable, monochrome, splash),
+`icons/` (12 icônes fonctionnelles 24 px `currentColor`), `receipt/` (`receipt.html`
+A6 imprimable + `receipt-template.svg`, champs `{{…}}`, QR de vérification). Police
+**Inter** SIL OFL auto-hébergée (mobile en asset, `google_fonts` retiré).
+
+**🎉 Toutes les phases livrées** — Backend 84/84, Web 49/49, Mobile 47/47, Infra 24/24,
+Design 10/10 (+ fondations 6/6, transverses BE-T1→T6). Reste au choix : durcissement
+opérationnel réel (agrément BCEAO, connecteurs bancaires/opérateurs/carte de
+production à la place des sandbox), campagne de tests de charge sur infra cible,
+audit sécurité externe.
 
 ✅ Phase 2 livrée : `BE-029` (KYC), `BE-032` (demandes de paiement), `BE-033` (marchand
 QR), `BE-034` → `BE-036` (cash agent), `BE-037` (annulation / remboursement), `BE-038`

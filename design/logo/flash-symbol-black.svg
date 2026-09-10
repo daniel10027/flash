@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Flash">
+  <title>Flash — symbole</title>
+  <!-- Éclair « argent qui court » : fente centrale = trait de vitesse. -->
+  <path fill="#161619" d="
+    M38.5 4
+    L15 34.2
+    a2 2 0 0 0 1.6 3.2
+    H27.4
+    L23.1 58.4
+    a1 1 0 0 0 1.8 .8
+    L50 27.6
+    a2 2 0 0 0-1.6-3.2
+    H36.9
+    L41.2 5.1
+    a1 1 0 0 0-1.8-.8
+    Z" />
+  <!-- Traits de vitesse -->
+  <g fill="#161619" opacity="0.35">
+    <rect x="4" y="20" width="12" height="3.2" rx="1.6"/>
+    <rect x="2" y="30" width="9" height="3.2" rx="1.6"/>
+    <rect x="6" y="40" width="7" height="3.2" rx="1.6"/>
+  </g>
+</svg>

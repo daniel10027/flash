@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="Flash">
+  <title>Flash — icône d'application (master 1024)</title>
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#8c1d33"/>
+      <stop offset="1" stop-color="#621525"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="230" fill="url(#g)"/>
+  <path fill="#ffffff" d="
+    M612 150 L360 520 a28 28 0 0 0 23 44 H494 L438 858
+    a14 14 0 0 0 25 11 L676 470 a28 28 0 0 0-23-44 H540 L637 161
+    a14 14 0 0 0-25-11 Z"/>
+</svg>
