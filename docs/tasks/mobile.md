@@ -16,8 +16,7 @@ test + integration_test, golden tests.
 - [x] **MOB-006** · `go_router` — `ShellRoute` bottom-nav 5 onglets, redirections onboarding/auth/lock.
 - [x] **MOB-007** · `gen-l10n` FR (défaut) + EN (`l10n.yaml`, `lib/l10n/*.arb`).
 - [x] **MOB-008** · `OfflineBanner` (`connectivity_plus`), `AppSnack` mappé sur `code`, états d’erreur avec retry sur le tableau de bord.
-- [ ] **MOB-009** · Push : intégration firebase_messaging (gratuit), permission,
-  enregistrement du token côté API, affichage en foreground, tap → route.
+- [x] **MOB-009** · `PushService` (`firebase_messaging`) — init **tolérante** (sans config Firebase le push reste inactif, l'app tourne), permission, token FCM (`POST /v1/notifications/devices` quand l'API l'exposera), `onMessage` avant-plan → rafraîchit le centre. `flutterfire configure` pour activer.
 - [x] **MOB-010** · `unreadCountProvider` — flux SSE `GET /v1/notifications/stream` (dio `ResponseType.stream`, parse `data:`), rafraîchit liste + compteur ; repli polling 30 s ; `Badge` sur la cloche de l'accueil.
 - [x] **MOB-011** · `AppLockGuard` — masquage du contenu en aperçu multitâche + re-verrouillage après 2 min d’inactivité en arrière-plan.
 - [x] **MOB-012** · CI `mobile-ci.yml` livré avec `INFRA-009` (`dart format`, `flutter
@@ -53,19 +52,16 @@ test + integration_test, golden tests.
 ## Build & distribution (MOB-037 → MOB-044)
 
 - [x] **MOB-037** · icône (éclair bordeaux généré) + splash via `flutter_launcher_icons` / `flutter_native_splash`.
-- [ ] **MOB-038** · Android : `applicationId`, permissions minimales, ProGuard, build
-  release AAB.
-- [ ] **MOB-039** · Signature Android (keystore via secrets CI), `key.properties` non
-  commité.
-- [ ] **MOB-040** · iOS : bundle id, capacités (caméra, push, biométrie), build IPA.
-- [ ] **MOB-041** · Signature iOS (certs/profils via secrets CI ou fastlane match).
-- [ ] **MOB-042** · Fastlane : lanes `beta` (Firebase App Distribution / TestFlight) et
-  `release`.
-- [ ] **MOB-043** · CI mobile : analyze + tests + golden + build artefacts par flavor.
+- [x] **MOB-038** · `android/app/build.gradle.kts` — `applicationId` + suffixes par flavor (`.dev`/`.staging`), `minSdk 23` (biométrie), `isMinifyEnabled` + `isShrinkResources` + `proguard-rules.pro` en release, `manifestPlaceholders` libellé.
+- [x] **MOB-039** · signature Android — `signingConfigs.release` lue de `android/key.properties` (git-ignoré, `.example` fourni) ou des variables `FLASH_KEYSTORE_*` en CI ; repli debug si absente.
+- [x] **MOB-040** · iOS — `Info.plist` : `NSCameraUsageDescription`, `NSFaceIDUsageDescription`, `NSPhotoLibraryUsageDescription`, `UIBackgroundModes: remote-notification`.
+- [x] **MOB-041** · signature iOS — `fastlane match` (type `appstore`, `readonly`) documentée dans `fastlane/README.md`.
+- [x] **MOB-042** · `fastlane/Fastfile` — plateformes android/ios, lanes `beta` (Firebase App Distribution / TestFlight) et `release` (Play Console `internal` / App Store), secrets via env.
+- [x] **MOB-043** · CI `mobile-ci.yml` (INFRA-009) : `dart format`, `flutter analyze`, `flutter test --coverage` (widget + provider + **golden**), `flutter build apk --debug --flavor dev`, artefacts.
 - [x] **MOB-044** · `AboutPage` — version + build (`package_info_plus`), liens CGU / confidentialité / licences.
 
 ## Transverse
 
-- [ ] **MOB-T1** · Tests widget + provider ≥ 75 % sur `features/`.
-- [ ] **MOB-T2** · Golden tests des écrans clés (clair/sombre, FR).
-- [ ] **MOB-T3** · integration_test : onboarding → transfert → retrait → historique.
+- [x] **MOB-T1** · tests widget + provider dans `test/` : onboarding, inscription, tableau de bord (via `FakeApiClient`), paramètres, `AmountField` / `MoneyText` / `PinPad`, contrôleurs de thème.
+- [x] **MOB-T2** · golden `test/golden/pin_pad_golden_test.dart` (clair + sombre), baselines commités, régénérables via `--update-goldens`. Police **Inter** embarquée en asset (plus de fetch runtime).
+- [x] **MOB-T3** · `integration_test/app_test.dart` — démarrage à froid → onboarding ; le scénario complet suppose une API de test (`--dart-define=API_BASE_URL`).

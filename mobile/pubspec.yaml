@@ -27,7 +27,6 @@ dependencies:
   local_auth: ^2.3.0
 
   # UI / animations
-  google_fonts: ^6.2.1
   flutter_animate: ^4.5.2
   liquid_swipe: ^3.1.0
   shimmer: ^3.0.0
@@ -41,6 +40,8 @@ dependencies:
   share_plus: ^10.1.2
   package_info_plus: ^8.1.1
   connectivity_plus: ^6.1.0
+  firebase_core: ^3.8.0
+  firebase_messaging: ^15.1.5
   cupertino_icons: ^1.0.8
 
 dev_dependencies:
@@ -57,6 +58,10 @@ flutter:
   generate: true
   assets:
     - assets/
+  fonts:
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter.ttf
 
 flutter_native_splash:
   color: "#8c1d33"

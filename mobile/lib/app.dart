@@ -3,10 +3,12 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/env/flavor.dart';
+import 'core/push/push_service.dart';
 import 'core/router/app_router.dart';
 import 'core/storage/prefs.dart';
 import 'core/theme/app_theme.dart';
 import 'features/auth/auth_controller.dart';
+import 'features/notifications/notifications_page.dart';
 import 'l10n/generated/app_localizations.dart';
 import 'shared/security/app_lock_guard.dart';
 
@@ -71,6 +73,16 @@ class _FlashAppState extends ConsumerState<FlashApp> {
     Future.microtask(
       () => ref.read(authControllerProvider.notifier).bootstrap(),
     );
+
+    // Push : initialisé une fois la session ouverte (tolérant si Firebase absent).
+    ref.listenManual(authControllerProvider, (prev, next) {
+      if (next.status == AuthStatus.signedIn &&
+          prev?.status != AuthStatus.signedIn) {
+        final push = ref.read(pushServiceProvider)..init();
+        push.onForegroundMessage
+            .listen((_) => ref.invalidate(notificationsProvider));
+      }
+    });
   }
 
   @override

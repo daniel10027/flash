@@ -1,7 +1,6 @@
 import 'package:flutter/cupertino.dart' show CupertinoPageTransitionsBuilder;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import 'tokens.dart';
 
@@ -25,13 +24,14 @@ abstract final class AppTheme {
       error: FlashColors.dangerFg,
     );
 
-    final baseText = GoogleFonts.interTextTheme(
-      ThemeData(brightness: brightness).textTheme,
-    );
+    final baseText = ThemeData(brightness: brightness).textTheme.apply(
+          fontFamily: 'Inter',
+        );
 
     return ThemeData(
       useMaterial3: true,
       brightness: brightness,
+      fontFamily: 'Inter',
       colorScheme: scheme,
       scaffoldBackgroundColor: scheme.surface,
       splashFactory: InkSparkle.splashFactory,

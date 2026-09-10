@@ -1,0 +1,6 @@
+# MOB-039 — copier en android/key.properties (git-ignoré) pour signer les builds
+# release en local. En CI, utiliser les variables FLASH_KEYSTORE_* à la place.
+storeFile=/absolute/path/to/flash-upload.keystore
+storePassword=CHANGE_ME
+keyAlias=upload
+keyPassword=CHANGE_ME

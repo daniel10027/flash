@@ -68,5 +68,16 @@
 		</array>
 		<key>UIStatusBarHidden</key>
 		<false/>
+		<!-- MOB-040 — capacités : caméra (scan QR + KYC), Face ID (verrou), push -->
+		<key>NSCameraUsageDescription</key>
+		<string>Flash utilise la caméra pour scanner les QR codes marchands et photographier vos pièces d'identité.</string>
+		<key>NSFaceIDUsageDescription</key>
+		<string>Flash utilise Face ID pour déverrouiller l'application en toute sécurité.</string>
+		<key>NSPhotoLibraryUsageDescription</key>
+		<string>Flash accède à vos photos pour joindre une pièce justificative.</string>
+		<key>UIBackgroundModes</key>
+		<array>
+			<string>remote-notification</string>
+		</array>
 	</dict>
 </plist>

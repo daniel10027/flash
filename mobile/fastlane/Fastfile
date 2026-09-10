@@ -1,0 +1,78 @@
+# MOB-042 — fastlane. Deux lanes par plateforme :
+#   * beta    : build + distribution interne (Firebase App Distribution / TestFlight)
+#   * release : build signé + dépôt sur le store (Play Console / App Store)
+#
+# Les secrets (keystore, certs, service accounts) viennent des variables
+# d'environnement du CI — rien de sensible ici.
+
+default_platform(:android)
+
+platform :android do
+  desc "Build AAB release signé"
+  lane :build do
+    sh("flutter", "build", "appbundle", "--release",
+       "--flavor", "prod", "-t", "lib/main_prod.dart",
+       "--dart-define=FLAVOR=prod",
+       "--dart-define=API_BASE_URL=#{ENV['FLASH_API_BASE_URL']}")
+  end
+
+  desc "Distribution interne (Firebase App Distribution)"
+  lane :beta do
+    build
+    firebase_app_distribution(
+      app: ENV["FIREBASE_ANDROID_APP_ID"],
+      android_artifact_type: "AAB",
+      groups: "testeurs-internes",
+      service_credentials_file: ENV["FIREBASE_SERVICE_CREDENTIALS"],
+    )
+  end
+
+  desc "Publication Play Console (piste internal)"
+  lane :release do
+    build
+    upload_to_play_store(
+      track: "internal",
+      aab: "../build/app/outputs/bundle/prodRelease/app-prod-release.aab",
+      json_key: ENV["PLAY_SERVICE_ACCOUNT_JSON"],
+      skip_upload_apk: true,
+      skip_upload_metadata: true,
+      skip_upload_images: true,
+    )
+  end
+end
+
+platform :ios do
+  desc "Build IPA release"
+  lane :build do
+    sh("flutter", "build", "ipa", "--release",
+       "--flavor", "prod", "-t", "lib/main_prod.dart",
+       "--dart-define=FLAVOR=prod",
+       "--dart-define=API_BASE_URL=#{ENV['FLASH_API_BASE_URL']}",
+       "--export-options-plist", "ios/ExportOptions.plist")
+  end
+
+  desc "TestFlight"
+  lane :beta do
+    setup_ci if ENV["CI"]
+    match(type: "appstore", readonly: true)
+    build
+    upload_to_testflight(
+      api_key_path: ENV["APP_STORE_CONNECT_API_KEY"],
+      skip_waiting_for_build_processing: true,
+      ipa: "build/ios/ipa/flash_app.ipa",
+    )
+  end
+
+  desc "App Store"
+  lane :release do
+    setup_ci if ENV["CI"]
+    match(type: "appstore", readonly: true)
+    build
+    upload_to_app_store(
+      api_key_path: ENV["APP_STORE_CONNECT_API_KEY"],
+      ipa: "build/ios/ipa/flash_app.ipa",
+      submit_for_review: false,
+      precheck_include_in_app_purchases: false,
+    )
+  end
+end

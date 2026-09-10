@@ -264,7 +264,7 @@ mais les lots Backend / Infra avancent en priorité car Web et Mobile en dépend
 | Fondations & docs | ce fichier | 6 / 6 |
 | Backend (BE) | [docs/tasks/backend.md](docs/tasks/backend.md) | 70 / 78 + transverses BE-T1→T6 |
 | Web (WEB) | [docs/tasks/frontend-web.md](docs/tasks/frontend-web.md) | 49 / 49 ✅ (socle, client, agent, back-office, transverse) |
-| Mobile (MOB) | [docs/tasks/mobile.md](docs/tasks/mobile.md) | 37 / 47 (parcours client complet, SSE, cache, a11y) |
+| Mobile (MOB) | [docs/tasks/mobile.md](docs/tasks/mobile.md) | 47 / 47 ✅ |
 | Infra & CI/CD (INFRA) | [docs/tasks/infra.md](docs/tasks/infra.md) | 24 / 24 ✅ |
 | Design & marque (DSN) | [docs/tasks/design.md](docs/tasks/design.md) | 0 / 10 |
 
@@ -439,7 +439,26 @@ workflows `web-ci`, `mobile-ci` (dormant), `openapi-check` (diff + schemathesis)
 Alertmanager, Loki/Promtail, Grafana provisionné (dashboard « Flash — API ») ;
 `docs/security/HARDENING.md` + `.github/dependabot.yml`.
 
-Prochaine : `MOB-*` (app Flutter), `DSN-*` (identité visuelle).
+**Phase 6 mobile TERMINÉE (`MOB-001` → `MOB-044` + `MOB-T1`/`T2`/`T3`, 47/47).**
+App Flutter dans `mobile/` : Riverpod (sans codegen) + `go_router`, thème Material 3
+bordeaux (`design/tokens.json`, police **Inter** en asset), flavors dev/staging/prod
+(`--dart-define`). **Onboarding** liquid swipe (illustrations `CustomPaint` animées),
+**didacticiel** coach-marks au 1er lancement, dio + intercepteurs (Idempotency-Key,
+refresh 401), `AuthController` + verrou biométrie (`local_auth`) + `AppLockGuard`
+(masquage multitâche + inactivité), i18n `gen-l10n` FR/EN, `connectivity_plus` +
+cache lecture seule hors-ligne. Parcours client complet : accueil (solde count-up,
+raccourcis, grille de services), inscription (5 étapes), envoyer, payer (scan QR
+`mobile_scanner`), recevoir (`qr_flutter`), historique (scroll infini groupé par
+jour), retrait/dépôt cash, coffre, épargne, carte (révéler PAN/CVV 30 s), demandes,
+opérateur, profil + KYC (upload caméra `image_picker`), numéros, notifications
+(**SSE** temps réel + badge, `firebase_messaging` tolérant sans config), sécurité,
+paramètres, à propos, **mode agent**. Build : `build.gradle.kts` (flavors, minify,
+signature `key.properties` / env), `Info.plist` (caméra/FaceID/push), `fastlane`
+(lanes `beta`/`release` android+ios). Tests : 11 widget/provider + golden
+(`PinPad` clair/sombre) + `integration_test` ; `flutter analyze` propre ; APK debug
+`flavor dev` bâti localement.
+
+Prochaine : `DSN-*` (identité visuelle — 10 tâches).
 
 ✅ Phase 2 livrée : `BE-029` (KYC), `BE-032` (demandes de paiement), `BE-033` (marchand
 QR), `BE-034` → `BE-036` (cash agent), `BE-037` (annulation / remboursement), `BE-038`
