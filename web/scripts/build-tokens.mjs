@@ -8,7 +8,12 @@ const here = dirname(fileURLToPath(import.meta.url));
 const tokens = JSON.parse(readFileSync(resolve(here, '../../design/tokens.json'), 'utf8'));
 
 const lines = [];
-const push = (k, v) => lines.push(`  --${k}: ${v};`);
+// Ignore les clés de documentation (`comment`, `$*`) et les valeurs non textuelles.
+const usable = (k, v) => typeof v === 'string' && k !== 'comment' && !k.startsWith('$');
+const push = (k, v) => {
+  if (!usable(k.split('-').pop(), v)) return;
+  lines.push(`  --${k}: ${v};`);
+};
 
 for (const [scale, val] of Object.entries(tokens.color)) {
   if (typeof val === 'string') push(`color-${scale}`, val);

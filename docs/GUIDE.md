@@ -15,6 +15,18 @@ comptes de démonstration pour les essayer.
 
 ## 1. Démarrer l'environnement de démonstration
 
+**Tout (backend + web + mobile) en une commande :**
+
+```sh
+./scripts/dev.sh
+```
+
+Le script lève la pile Docker, attend l'API, détecte l'IP LAN de la machine et
+lance `flutter run` sur cette IP (téléphone / émulateur du même réseau).
+`SKIP_MOBILE=1 ./scripts/dev.sh` pour la pile seule.
+
+**Ou la pile Docker seule :**
+
 ```sh
 cp .env.example .env
 docker compose -f infra/docker-compose.yml up --build

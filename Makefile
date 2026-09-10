@@ -6,19 +6,23 @@ BACKEND ?= backend
 WEB     ?= web
 
 .DEFAULT_GOAL := help
-.PHONY: help up up-web down down-v logs ps migrate makemigration seed reference \
+.PHONY: help dev up up-d down down-v logs ps migrate makemigration seed reference \
         openapi shell dbshell test test-backend test-web lint fmt build clean
 
 help: ## Affiche cette aide
 	@grep -hE '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) \
 		| awk 'BEGIN{FS=":.*?## "}{printf "  \033[36m%-16s\033[0m %s\n", $$1, $$2}'
 
+## ─────────────────────────────────────────────────────── tout-en-un
+dev: ## Pile Docker complète + `flutter run` mobile pointé sur l'IP LAN
+	./scripts/dev.sh
+
 ## ─────────────────────────────────────────────────────── pile locale (Docker)
-up: ## Démarre db + redis + mailhog + api
+up: ## Démarre toute la pile (db + redis + mailhog + api + web) au premier plan
 	$(COMPOSE) up --build
 
-up-web: ## Idem + le SPA (profil web)
-	$(COMPOSE) --profile web up --build
+up-d: ## Idem, en arrière-plan
+	$(COMPOSE) up -d --build
 
 down: ## Arrête la pile (garde les volumes)
 	$(COMPOSE) down

@@ -79,5 +79,12 @@
 		<array>
 			<string>remote-notification</string>
 		</array>
+		<!-- Autorise l'appel de l'API de dev sur le réseau local en HTTP
+		     (n'ouvre pas le HTTP arbitraire ; ATS reste actif ailleurs). -->
+		<key>NSAppTransportSecurity</key>
+		<dict>
+			<key>NSAllowsLocalNetworking</key>
+			<true/>
+		</dict>
 	</dict>
 </plist>

@@ -5,19 +5,34 @@ notifications push, mode hors-ligne lecture.
 
 ## Démarrer
 
+Le plus simple, depuis la racine du monorepo : **`./scripts/dev.sh`** lève la
+pile Docker et lance `flutter run` avec l'IP LAN de la machine (voir
+[`../README.md`](../README.md)).
+
+Manuellement :
+
 ```sh
 flutter pub get
 flutter gen-l10n
 
-# émulateur Android — l'API locale est vue via 10.0.2.2
+# Émulateur Android : l'API locale est vue via 10.0.2.2
 flutter run --flavor dev -t lib/main_dev.dart \
   --dart-define=FLAVOR=dev \
   --dart-define=API_BASE_URL=http://10.0.2.2:8000
+
+# Téléphone physique (même Wi-Fi) : utiliser l'IP LAN de la machine
+flutter run --flavor dev -t lib/main_dev.dart \
+  --dart-define=FLAVOR=dev \
+  --dart-define=API_BASE_URL=http://192.168.X.Y:8000
 ```
 
 Flavors : `dev` / `staging` / `prod` (entrypoints `lib/main_<flavor>.dart`,
 suffixe d'`applicationId`, libellé distinct). L'URL de l'API vient de
-`--dart-define=API_BASE_URL`.
+`--dart-define=API_BASE_URL` (défaut `http://10.0.2.2:8000`).
+
+> Le HTTP en clair vers l'API de dev est autorisé en **debug uniquement**
+> (`android/app/src/debug/AndroidManifest.xml` + `NSAllowsLocalNetworking` iOS).
+> Les builds release restent en HTTPS strict.
 
 ## Architecture
 

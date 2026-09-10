@@ -15,7 +15,7 @@ Cible : dev local en Docker (API + Web + Postgres + Redis + Mailhog), production
   → `build` (bundle) → `runtime` (Caddy `:80` + SPA fallback + en-têtes de sécurité).
   Config runtime `window.__FLASH_CONFIG__` écrite dans `/srv/config.js` par
   `docker-entrypoint.sh` au démarrage ; `HEALTHCHECK` wget. (livré avec `WEB-012`)
-- [x] **INFRA-004** · `Makefile` à la racine : `up`/`up-web`/`down`/`down-v`/`logs`/`ps`,
+- [x] **INFRA-004** · `Makefile` à la racine : `dev` (pile + flutter run IP LAN), `up`/`up-d`/`down`/`down-v`/`logs`/`ps`,
   `migrate`/`makemigration`/`seed`/`reference`/`dbshell`/`shell`, `openapi` (dump +
   `gen:api`), `lint`/`fmt`, `test`/`test-backend`/`test-web`, `build`, `clean`. `make`
   seul affiche l'aide auto-générée.
