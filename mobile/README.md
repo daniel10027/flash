@@ -20,11 +20,30 @@ flutter run --flavor dev -t lib/main_dev.dart \
   --dart-define=FLAVOR=dev \
   --dart-define=API_BASE_URL=http://10.0.2.2:8000
 
-# Téléphone physique (même Wi-Fi) : utiliser l'IP LAN de la machine
+# Téléphone Android physique (même Wi-Fi) : IP LAN de la machine
 flutter run --flavor dev -t lib/main_dev.dart \
   --dart-define=FLAVOR=dev \
   --dart-define=API_BASE_URL=http://192.168.X.Y:8000
+
+# iPhone physique : PAS de --flavor (iOS n'a pas de schémas de flavor)
+flutter run -t lib/main_dev.dart \
+  --dart-define=FLAVOR=dev \
+  --dart-define=API_BASE_URL=http://192.168.X.Y:8000
 ```
+
+### iPhone : prérequis (une fois)
+
+1. **CocoaPods** : `brew install cocoapods` (les plugins iOS en dépendent).
+2. **Mode développeur** sur l'iPhone : Réglages -> Confidentialité et sécurité
+   -> Mode développeur -> activer -> redémarrer -> reconfirmer.
+3. **Signature** : `open ios/Runner.xcworkspace`, cible *Runner* -> *Signing &
+   Capabilities* -> cocher *Automatically manage signing* -> choisir une *Team*
+   (ton Apple ID personnel suffit ; compte gratuit = app valide 7 jours).
+   Changer le *Bundle Identifier* s'il est déjà pris.
+4. Si `flutter run` renvoie `iPhone is not available because it is unpaired`
+   (code -29) : Xcode -> Window -> Devices and Simulators, sélectionner l'iPhone,
+   cliquer *Pair* et accepter l'invite sur le téléphone ; garder l'iPhone
+   **déverrouillé** pendant `flutter run`.
 
 Flavors : `dev` / `staging` / `prod` (entrypoints `lib/main_<flavor>.dart`,
 suffixe d'`applicationId`, libellé distinct). L'URL de l'API vient de

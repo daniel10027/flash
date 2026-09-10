@@ -78,16 +78,27 @@ fi
 
 if ! command -v flutter >/dev/null 2>&1; then
   echo "[dev] Flutter introuvable — pile prête. Lancer l'app plus tard avec :"
-  echo "      cd mobile && flutter run --flavor dev -t lib/main_dev.dart \\"
+  echo "      cd mobile && flutter run -t lib/main_dev.dart \\"
   echo "        --dart-define=FLAVOR=dev --dart-define=API_BASE_URL=$API_URL"
   exit 0
 fi
 
-echo "[dev] flutter run  (API_BASE_URL=$API_URL)…"
 cd mobile
 flutter pub get >/dev/null
-exec flutter run \
-  --flavor dev -t lib/main_dev.dart \
+
+# Android définit des productFlavors -> `--flavor` obligatoire.
+# iOS n'a pas de schémas de flavor -> `--flavor` échoue : on l'omet quand la
+# seule cible mobile branchée est un appareil iOS.
+FLAVOR_FLAG="--flavor dev"
+if flutter devices 2>/dev/null | grep -qi "• ios" \
+  && ! flutter devices 2>/dev/null | grep -qi "• android"; then
+  FLAVOR_FLAG=""
+  echo "[dev] cible iOS détectée -> lancement sans --flavor"
+fi
+
+echo "[dev] flutter run  (API_BASE_URL=$API_URL)…"
+# shellcheck disable=SC2086
+exec flutter run $FLAVOR_FLAG -t lib/main_dev.dart \
   --dart-define=FLAVOR=dev \
   --dart-define=API_BASE_URL="$API_URL" \
   "$@"
