@@ -1,7 +1,11 @@
 # Flash — Map de développement
 
 > **Dernière mise à jour : 2026-09-10**
-> **Phases 1-3 complètes · Phase 4 backend TERMINÉE : BE-061→078 + transverses BE-T1→T6 livrés (… conformité AML, exports réglementaires, audit consultable, sous-comptes marchands & frais/canal, CI GitHub Actions, métriques Prometheus, contrats OpenAPI, test de charge)**
+> **🎉 TOUTES LES PHASES LIVRÉES** — Backend 84/84, Web 49/49, Mobile 47/47,
+> Infra 24/24, Design 10/10 (+ fondations 6/6, transverses `BE-T1…T6`,
+> `WEB-T1…T3`, `MOB-T1…T3`).
+> Prise en main : [`README.md`](README.md) · Guide d'utilisation (tous les rôles) :
+> [`docs/GUIDE.md`](docs/GUIDE.md).
 > (auth, numéros, wallets, transfert + **annulation**, **demandes de paiement**,
 > **paiement marchand QR** + **remboursement**, **dépôt & retrait cash agent**,
 > relevé + **reçu détaillé**, **KYC**, **notifications** + **flux SSE**, **jobs

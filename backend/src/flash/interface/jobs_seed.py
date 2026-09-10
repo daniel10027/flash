@@ -1,12 +1,22 @@
-"""Jeu de données de démonstration (BE-046) — ``flash seed``.
+"""Jeu de données de démonstration (BE-046, enrichi) — ``flash seed``.
 
-Idempotent : relancé, il ne recrée pas les comptes déjà présents.
-Pays (CI/SN), grille tarifaire (0,8 %) et plafonds KYC viennent déjà des référentiels
-statiques ; ce script se contente de créer des acteurs et de les approvisionner via un
-dépôt agent (donc ledger équilibré).
+Idempotent : relancé, il ne recrée rien qui existe déjà.
+
+Crée un acteur de chaque **profil** et les approvisionne (via un dépôt agent —
+ledger équilibré) :
+
+* 4 clients : deux au palier KYC 0, un au **palier 1** (dossier soumis + approuvé),
+  un avec un **dossier KYC en attente** (pour la file du back-office) ;
+* 1 **agent** avec float et commission ;
+* 1 **marchand** : enrôlé, **KYB approuvé**, une **clé d'API** ``/merchant/v1``,
+  une **caisse** (sous-compte).
+
+Les identifiants exacts sont rappelés dans ``docs/GUIDE.md``.
 """
 
 from __future__ import annotations
+
+from dataclasses import dataclass
 
 from flash.application.cash.operations import (
     CreateCashDeposit,
@@ -14,7 +24,28 @@ from flash.application.cash.operations import (
     EnrollAgent,
     EnrollAgentCommand,
 )
+from flash.application.identity.kyc import (
+    KycDocumentInput,
+    ReviewKyc,
+    ReviewKycCommand,
+    SubmitKyc,
+    SubmitKycCommand,
+)
+from flash.application.merchants.api_keys import (
+    IssueMerchantApiKey,
+    IssueMerchantApiKeyCommand,
+)
+from flash.application.merchants.kyb import (
+    ReviewMerchantKyb,
+    ReviewMerchantKybCommand,
+    SubmitMerchantKyb,
+    SubmitMerchantKybCommand,
+)
 from flash.application.merchants.operations import EnrollMerchant, EnrollMerchantCommand
+from flash.application.merchants.sub_accounts import (
+    CreateSubAccount,
+    CreateSubAccountCommand,
+)
 from flash.domain.identity.pin import Pin
 from flash.domain.identity.user import User
 from flash.domain.limits.limits import KycPolicy, LimitPolicy
@@ -24,24 +55,42 @@ from flash.domain.wallet.wallet import Wallet
 from flash.infrastructure.config import Settings
 from flash.infrastructure.limits import NullLimitCounter, build_limit_repository
 from flash.infrastructure.security.pin_hasher import Argon2PinHasher
-from flash.interface.container import build_app_services
+from flash.interface.container import build_deps
+from flash.interface.security.wiring import build_security
 
 _PIN = "1397"
 _CI = CountryCode("CI")
 _XOF = Currency.of("XOF")
+_REVIEWER = "00000000-0000-0000-0000-0000000000aa"
 
-# (msisdn, dépôt initial en unité mineure) — sous le plafond par opération du palier 0
-# (200 000 XOF).
-_USERS = [
-    ("+2250700000101", 150_000),
-    ("+2250700000102", 90_000),
+# Un PNG 1x1 valide, réutilisé comme pièce justificative factice.
+_PNG_1x1 = (
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+)
+
+
+@dataclass(frozen=True, slots=True)
+class _Person:
+    msisdn: str
+    label: str
+    deposit_minor: int
+    kyc: str  # "none" | "tier1" | "pending"
+
+
+_CLIENTS = [
+    _Person("+2250700000101", "Awa (cliente, KYC 0)", 150_000, "none"),
+    _Person("+2250700000102", "Kofi (client, KYC 0)", 90_000, "none"),
+    _Person("+2250700000103", "Fatou (cliente, KYC 1)", 500_000, "tier1"),
+    _Person("+2250700000104", "Yao (client, KYC en attente)", 120_000, "pending"),
 ]
-_AGENT_MSISDN = "+2250700000199"
-_MERCHANT_MSISDN = "+2250700000188"
+_AGENT = _Person("+2250700000199", "Agence Centrale (agent)", 0, "none")
+_MERCHANT = _Person("+2250700000188", "Café de la Gare (marchand)", 0, "none")
 
 
 def seed_demo(settings: Settings) -> list[str]:
-    services = build_app_services(settings)
+    bundle = build_security(settings)
+    deps = build_deps(settings, tokens=bundle.tokens)
+    services = deps.services
     hasher = Argon2PinHasher()
     out: list[str] = []
 
@@ -72,58 +121,134 @@ def seed_demo(settings: Settings) -> list[str]:
             out.append(f"compte créé : {Msisdn(msisdn).masked()} (PIN {_PIN})")
             return str(user.id)
 
-    agent_user_id = ensure_user(_AGENT_MSISDN)
-    merchant_user_id = ensure_user(_MERCHANT_MSISDN)
-    user_ids = [ensure_user(msisdn) for msisdn, _ in _USERS]
+    agent_uid = ensure_user(_AGENT.msisdn)
+    merchant_uid = ensure_user(_MERCHANT.msisdn)
+    client_uids = {p.msisdn: ensure_user(p.msisdn) for p in _CLIENTS}
 
+    # ---------------------------------------------------------------- agent
     with services.uow() as uow:
-        already_agent = uow.agents.get_by_user_id(EntityId(agent_user_id)) is not None
-    if not already_agent:
+        is_agent = uow.agents.get_by_user_id(EntityId(agent_uid)) is not None
+    if not is_agent:
         view = EnrollAgent(services=services).execute(
             EnrollAgentCommand(
-                user_id=agent_user_id,
+                user_id=agent_uid,
                 float_cap_minor=50_000_000,
                 initial_float_minor=10_000_000,
                 commission_bps=100,
             )
         )
-        out.append(f"agent enrôlé : {view.agent_id} (float {view.float_available_minor})")
+        out.append(
+            f"agent enrôlé : {view.agent_id} "
+            f"(float {view.float_available_minor} XOF, commission 1 %)"
+        )
 
+    # ---------------------------------------------------------------- marchand
     with services.uow() as uow:
-        already_merchant = uow.merchants.get_by_user_id(EntityId(merchant_user_id)) is not None
-    if not already_merchant:
+        merchant = uow.merchants.get_by_user_id(EntityId(merchant_uid))
+    if merchant is None:
         m = EnrollMerchant(services=services).execute(
             EnrollMerchantCommand(
-                user_id=merchant_user_id, display_name="Café de la Gare", fee_bps=100
+                user_id=merchant_uid, display_name="Café de la Gare", fee_bps=100
             )
         )
         out.append(f"marchand enrôlé : {m.merchant_id} — QR {m.static_qr_payload}")
 
+        SubmitMerchantKyb(services=services).execute(
+            SubmitMerchantKybCommand(merchant_user_id=merchant_uid)
+        )
+        ReviewMerchantKyb(services=services).execute(
+            ReviewMerchantKybCommand(
+                merchant_id=m.merchant_id, reviewer=_REVIEWER, approve=True, reason=""
+            )
+        )
+        out.append("marchand : KYB approuvé")
+
+        issued = IssueMerchantApiKey(
+            services=services, vault=deps.merchant_api_key_vault
+        ).execute(
+            IssueMerchantApiKeyCommand(merchant_user_id=merchant_uid, label="Caisse web")
+        )
+        out.append(f"marchand : clé d'API émise -> {issued.secret}")
+
+        CreateSubAccount(services=services).execute(
+            CreateSubAccountCommand(
+                merchant_user_id=merchant_uid,
+                kind="TILL",
+                label="Comptoir",
+            )
+        )
+        out.append("marchand : caisse « Comptoir » créée")
+
+    # ------------------------------------------------- clients : KYC (avant dépôts,
+    # pour que les plafonds du palier 1 s'appliquent au moment d'approvisionner).
+    docs = [
+        KycDocumentInput(kind="ID_FRONT", content_base64=_PNG_1x1, content_type="image/png"),
+        KycDocumentInput(kind="SELFIE", content_base64=_PNG_1x1, content_type="image/png"),
+    ]
+    for p in _CLIENTS:
+        if p.kyc == "none":
+            continue
+        uid = client_uids[p.msisdn]
+        with services.uow() as uow:
+            has_case = bool(uow.kyc_cases.list_for_user(EntityId(uid)))
+        if has_case:
+            continue
+        case = SubmitKyc(services=services, documents=deps.documents).execute(
+            SubmitKycCommand(
+                user_id=uid,
+                target_tier=1,
+                documents=docs,
+                idempotency_key=f"seed-kyc-{Msisdn(p.msisdn).value}",
+            )
+        )
+        if p.kyc == "tier1":
+            ReviewKyc(services=services).execute(
+                ReviewKycCommand(
+                    case_id=case.case_id, reviewer_id=_REVIEWER, approve=True, reason=""
+                )
+            )
+            out.append(f"KYC approuvé (palier 1) : {Msisdn(p.msisdn).masked()}")
+        else:
+            out.append(f"dossier KYC en attente : {Msisdn(p.msisdn).masked()} ({case.case_id})")
+
+    # ---------------------------------------------------------------- clients : dépôts
     deposit = CreateCashDeposit(
         services=services,
         limits=LimitPolicy(build_limit_repository(), NullLimitCounter()),
         kyc=KycPolicy(),
     )
-    for (msisdn, amount), uid in zip(_USERS, user_ids, strict=True):
+    for p in _CLIENTS:
+        uid = client_uids[p.msisdn]
         with services.uow() as uow:
             wallet = uow.wallets.list_for_user(EntityId(uid))[0]
-            funded = wallet.available.amount_minor >= amount
-        if funded:
-            continue
-        deposit.execute(
-            CreateCashDepositCommand(
-                agent_user_id=agent_user_id,
-                client_phone_number=msisdn,
-                amount_minor=amount,
-                idempotency_key=f"seed-deposit-{Msisdn(msisdn).value}",
-                country="CI",
+            funded = wallet.available.amount_minor >= p.deposit_minor
+        if not funded:
+            deposit.execute(
+                CreateCashDepositCommand(
+                    agent_user_id=agent_uid,
+                    client_phone_number=p.msisdn,
+                    amount_minor=p.deposit_minor,
+                    idempotency_key=f"seed-deposit-{Msisdn(p.msisdn).value}",
+                    country="CI",
+                )
             )
-        )
-        out.append(f"approvisionné : {Msisdn(msisdn).masked()} +{amount} XOF")
+            out.append(f"approvisionné : {Msisdn(p.msisdn).masked()} +{p.deposit_minor} XOF")
 
     if not out:
         out.append("rien à faire : le jeu de démo est déjà en place")
+
+    out.append("")
+    out.append("── Récapitulatif des accès (dev) ──")
+    out.append(f"  PIN commun : {_PIN}")
+    for p in _CLIENTS:
+        out.append(f"  {p.msisdn}  {p.label}")
+    out.append(f"  {_AGENT.msisdn}  {_AGENT.label}")
+    out.append(f"  {_MERCHANT.msisdn}  {_MERCHANT.label}")
+    out.append(
+        f"  Back-office : X-Admin-Key = {settings.admin_api_key or '(non défini — voir .env)'}"
+    )
     return out
 
 
 __all__ = ["seed_demo"]
+

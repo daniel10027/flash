@@ -1,17 +1,20 @@
-# Flash — pile de développement local.
+# Flash — pile de développement local, TOUT en une commande.
 #
+#   cp .env.example .env          # une seule fois
 #   docker compose -f infra/docker-compose.yml up --build
 #
-# Services démarrés par défaut : db, redis, mailhog, api.
-# Le SPA `web` (Vite + HMR) reste derrière le profil `web` pour garder un `up` minimal :
-#   docker compose -f infra/docker-compose.yml --profile web up
+# Démarre : PostgreSQL, Redis, Mailhog, l'API (migrations + référentiel + **seed
+# complet de tous les profils** au démarrage) et le SPA web (Vite + HMR).
 #
-# Ports exposés côté hôte (choisis pour ne pas entrer en conflit avec d'autres piles) :
-#   API      -> http://localhost:8000
+# Ports côté hôte (choisis pour ne pas entrer en conflit avec d'autres piles) :
 #   Web      -> http://localhost:5173
+#   API      -> http://localhost:8000        (doc interactive : /docs)
 #   Postgres -> localhost:5433
 #   Redis    -> localhost:6380
-#   Mailhog  -> http://localhost:8025  (SMTP interne : mailhog:1025)
+#   Mailhog  -> http://localhost:8025        (SMTP interne : mailhog:1025)
+#
+# Comptes de démonstration créés par le seed : voir docs/GUIDE.md
+# (les OTP partent dans les logs de l'API : `docker compose … logs -f api`).
 
 name: flash
 
@@ -52,7 +55,7 @@ services:
   mailhog:
     image: mailhog/mailhog:v1.0.1
     ports:
-      - "8025:8025"   # interface web
+      - "8025:8025" # interface web
     # SMTP écoute sur 1025 à l'intérieur du réseau compose (SMTP_HOST=mailhog, SMTP_PORT=1025)
 
   api:
@@ -65,11 +68,14 @@ services:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-flash}:${POSTGRES_PASSWORD:-flash}@db:5432/${POSTGRES_DB:-flash}
       REDIS_URL: redis://redis:6379/0
       FLASH_ENV: development
+      # Le seed de démo est joué au démarrage en dev (idempotent).
+      FLASH_DEV_SEED: "1"
     command: ["/app/scripts/dev-entrypoint.sh"]
     volumes:
       - ../backend/src:/app/src
       - ../backend/alembic:/app/alembic
       - ../backend/alembic.ini:/app/alembic.ini
+      - kyc_docs:/var/lib/flash/kyc
     ports:
       - "8000:8000"
     depends_on:
@@ -79,7 +85,6 @@ services:
         condition: service_healthy
 
   web:
-    profiles: ["web"]
     build:
       context: ../web
       dockerfile: Dockerfile
@@ -98,3 +103,4 @@ services:
 volumes:
   db_data:
   redis_data:
+  kyc_docs:
