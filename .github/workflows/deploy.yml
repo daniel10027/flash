@@ -26,7 +26,7 @@ jobs:
     if: ${{ vars.DEPLOY_ENABLED == 'true' }}
     environment: ${{ (startsWith(github.ref, 'refs/tags/v') || inputs.environment == 'production') && 'production' || 'staging' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Cible & tag d'image
         id: target
