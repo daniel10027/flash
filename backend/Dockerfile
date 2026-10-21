@@ -3,7 +3,7 @@
 # `prod` produit une image slim qui tourne sous gunicorn en utilisateur non-root.
 
 # ---------------------------------------------------------------- build
-FROM python:3.12-slim AS build
+FROM python:3.14-slim AS build
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -38,7 +38,7 @@ EXPOSE 8000
 CMD ["/app/scripts/dev-entrypoint.sh"]
 
 # ---------------------------------------------------------------- prod
-FROM python:3.12-slim AS prod
+FROM python:3.14-slim AS prod
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PATH="/opt/venv/bin:$PATH" \
